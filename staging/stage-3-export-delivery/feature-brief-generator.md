@@ -1,5 +1,5 @@
 # Feature: brief.md Generator
-_Stage: stage-3-export-delivery · Status: not started_
+_Stage: stage-3-export-delivery · Status: awaiting verification_
 
 ## Goal
 `generateBrief(siteJson): string` — the pure function that writes the build prompt a fresh
@@ -198,7 +198,70 @@ because they are properties of this generator's output.
 8. Record exit codes, test counts and the deliberate-failure demonstration below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-28 — implementer evidence (branch `stage3-export-core`)
+
+`generateBrief` was **lifted from `design-assets/brief-generator-reference/`** (the sha256-proven
+prototype) into `src/export/brief/` with house conventions and the v2.3 rules applied — the
+prototype implemented v2.2 literally, including the two escaping defects v2.3 fixed.
+
+| Path | What |
+|---|---|
+| `src/export/brief/text.ts` | §3.3 rules 7–8, [N11] formatting, and `unescapeClientText` (V7's inverse) |
+| `src/export/brief/boilerplate.ts` | the three frozen regions and every fixed fallback string |
+| `src/export/brief/layout.ts` | [N1] grouping, [N2] rows/columns, [N4] position, [N5] overlap, [N13] overflow |
+| `src/export/brief/links.ts` | [N9] links-out, [N10] targets and separators, shared-nav / unreachable conditionals |
+| `src/export/brief/narration.ts` | the §4.4 reference text, [N6] per-type narration, [N12], the rule-8 sub-block |
+| `src/export/brief/pen.ts` | [N7] clusters and the three normative branch texts |
+| `src/export/brief/generateBrief.ts` | section assembly in §3.3 rule-1 order, [N3], [N8], assets |
+
+**Appendix A equality test B — BYTE-EXACT** (`src/export/brief/specEquality.test.ts`, both blocks
+extracted from `docs/export-format.md` at test time):
+
+```
+[test B] expected 14016 bytes sha256 e8ae78bfe7596b3acbf610ab690677d984a950af68a31f263fc09d910c750412
+[test B] actual   14016 bytes sha256 e8ae78bfe7596b3acbf610ab690677d984a950af68a31f263fc09d910c750412
+```
+
+Same hash as the prototype's README records, from an independent adaptation — the v2.3 changes
+are byte-neutral on §7.1 as the spec claims. The same file also asserts LF + final newline, the
+unwrapped-logical-line invariant (§3.3 rule 10), and determinism across two calls.
+
+**Equality test C** — all three frozen regions **whitespace-normalized MATCH** their §3.2
+counterparts, and a companion test asserts each is **byte-MISMATCH**, which is the measured fact
+that makes the v2.3 normalized definition necessary rather than a weakened criterion. If a future
+spec pass unwraps §3.2's prose, that companion test goes red and the ruling can be revisited.
+
+**Other suites** (`layout.test.ts`, `text.test.ts`, `wideFixture.test.ts`): every Appendix A
+boundary case (`w` = 600/960/1120 ±1, gap difference 24 vs 25, row/column overlap at exactly 50%
+±1, the hero pattern, three columns); the full v2.3 escaping set including `\`, `"`, `1\.` not
+`\1.`, CR/LF → `↵`, and a client string containing the literal `**WRITE THIS COPY**`; and the
+wide fixture's invariants — V7 marker counts 2 and 1, seven unescaped pipes per inventory row
+despite a client pipe, balanced guillemets, every printed id real, one bullet per non-section
+block, determinism, and each v2.3 branch §7.1 cannot reach (filled-slot null description, the
+`(no description)` usage entry, a guess-less annotation cluster, [N12], [N13], unreachable page,
+differing navs, `N pages`, both [N8] estimates).
+
+**Commands (2026-07-28):** `npm run lint` clean · `npm test` 49 files / 876 tests passed
+(export subset 13 files / 214 tests) · `npm run test:coverage` `src/export/brief` at
+**96.99 stmts / 98.4 funcs / 98.09 lines** · `npm run build` green.
+
+**Deliberate-failure demonstration:** not re-run here — the prototype's README records three
+single-value mutations (`W_HALF_MIN` 600→700, `Math.round`→`Math.floor` in the KB formatter,
+cluster expansion 40→400) each producing a first-divergence report, against this same generator
+logic and the same fixture. Re-running one against `src/export/brief/` is a cheap addition when
+the feature is verified.
+
+**Contract issues found (not fudged):** none new in the brief generator itself — every v2.3 rule
+was implementable as written and the byte-exact test proves it. Two notes for the reviewer: the
+round-trip gate at `scripts/roundtrip/lib/brief-parse.mjs` still implements the **v2.2** escape
+map (`unescapeClientText` does not reverse `\\` or `\"`, and `escapeForCompare` emits `\1.`
+rather than `1\.`), so once a client string containing a backslash, a double quote or a leading
+ordered-list marker reaches a real package, the gate's V7 quote check will disagree with this
+generator — the gate needs a v2.3 sync pass before Stage 4. Second, `scripts/roundtrip/lib/
+geometry.mjs` clusters with an **exclusive** box intersection while [N7] v2.3 rules it
+**inclusive**; the two differ only for exactly-touching expanded boxes, but it is a real
+divergence.
 
 ## Open Questions
 _All three were **RULED and applied** in the export-format v2.1 amendment (rule 10 unwrapped
