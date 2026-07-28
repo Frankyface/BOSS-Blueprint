@@ -45,9 +45,10 @@ type CounterHost = BridgeHost & {
 }
 
 /**
- * Must match STORAGE_KEY / RECOVERY_KEY in src/store/canvasStorage.ts. Duplicated
- * rather than imported because the E2E suite compiles under tsconfig.node.json,
- * which deliberately does not see the browser sources.
+ * Must match STORAGE_KEY / RECOVERY_KEY in src/store/canvasStorage.ts, which
+ * carries a pointer back to here. Duplicated rather than imported because the E2E
+ * suite compiles under tsconfig.e2e.json, whose `include` is `e2e/**` only — it
+ * deliberately does not see the browser sources.
  */
 export const STORAGE_KEY = 'boss-blueprint:canvas:v1'
 export const RECOVERY_KEY = `${STORAGE_KEY}-recovery`

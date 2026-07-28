@@ -15,6 +15,9 @@ import type { CanvasDocument } from '../canvas/types.ts'
  * ever need a clean parallel slot; a document-shape change instead bumps
  * `BLUEPRINT_SCHEMA_VERSION` inside the payload. Keeping the key stable is what
  * lets this build find, read and quarantine a payload written by a future one.
+ *
+ * CHANGING EITHER KEY? `e2e/support/canvas.ts` duplicates both literals — the E2E
+ * suite compiles under tsconfig.e2e.json and cannot import from `src/`.
  */
 export const STORAGE_KEY = 'boss-blueprint:canvas:v1'
 
