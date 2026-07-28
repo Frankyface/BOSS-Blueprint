@@ -8,6 +8,8 @@ import { toRect } from '../canvas/types.ts'
 import { bringForward, insertBlock, sendBackward } from '../canvas/zorder.ts'
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 
+import { installDocumentFreeze } from './devFreeze.ts'
+
 /**
  * The whole document lives in this one store as serialisable JSON, and every
  * mutation is a discrete named action that replaces state immutably. Both
@@ -199,6 +201,11 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     set({ ...INITIAL_CANVAS_STATE })
   },
 }))
+
+// Makes the "immutable updates only" house rule enforced rather than merely
+// asserted: any in-place write to the document throws in dev, in Vitest and in the
+// E2E build. Folded out of the production bundle. See src/store/devFreeze.ts.
+installDocumentFreeze(useCanvasStore)
 
 /** Convenience for tests and the window test bridge. */
 export function getCanvasSnapshot(): CanvasState {
