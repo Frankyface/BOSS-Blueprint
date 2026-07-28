@@ -16,7 +16,7 @@ import {
   undo,
 } from './canvasSession.ts'
 import { getCanvasDocument, useCanvasStore } from './canvasStore.ts'
-import { RECOVERY_KEY, STORAGE_KEY } from './canvasStorage.ts'
+import { RECOVERY_KEY, STORAGE_KEY, STORAGE_WARNING_BYTES } from './canvasStorage.ts'
 import { useEditorStore } from './editorStore.ts'
 import { canRedo, canUndo } from './history.ts'
 
@@ -270,6 +270,18 @@ describe('autosave', () => {
     expect(storage.entries.get(STORAGE_KEY)).toBe(afterAdd)
   })
 
+  it('warns when a design approaches the quota, and still saves it', () => {
+    const id = canvas().addBlock('text')
+    // One block whose text alone carries the payload past the warning threshold.
+    canvas().setBlockText(id, 'x'.repeat(STORAGE_WARNING_BYTES))
+
+    vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+
+    // A warning, not a refusal: the design is on disk and the client is told.
+    expect(editor().notice).toMatchObject({ kind: 'near-quota' })
+    expect(storage.entries.get(STORAGE_KEY)).toBe(serialiseDocument(getCanvasDocument()))
+  })
+
   it('warns without blocking when the browser refuses the write', () => {
     canvas().addBlock('heading')
     storage.failWrites(quotaExceededError())
@@ -315,6 +327,49 @@ describe('autosave', () => {
     flushAutosave()
 
     expect(storage.entries.has(STORAGE_KEY)).toBe(true)
+  })
+})
+
+describe('saving when the page goes away', () => {
+  /**
+   * The Goal promises the design survives an "accidental tab close". Without these
+   * listeners that is only true if the client happened to pause for a second first
+   * — a change made and then immediately closed would die in the debounce timer.
+   */
+  it('writes the queued design on pagehide, without waiting out the debounce', () => {
+    canvas().addBlock('heading')
+    expect(storage.entries.has(STORAGE_KEY)).toBe(false)
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(storage.entries.get(STORAGE_KEY)).toBe(serialiseDocument(getCanvasDocument()))
+  })
+
+  it('writes the queued design when the tab is hidden', () => {
+    canvas().addBlock('heading')
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(storage.entries.get(STORAGE_KEY)).toBe(serialiseDocument(getCanvasDocument()))
+  })
+
+  it('does not write while the tab is merely becoming visible again', () => {
+    canvas().addBlock('heading')
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(storage.entries.has(STORAGE_KEY)).toBe(false)
+  })
+
+  it('stops listening once the session is torn down', () => {
+    canvas().addBlock('heading')
+    stopCanvasSession()
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(storage.entries.has(STORAGE_KEY)).toBe(false)
   })
 })
 
@@ -411,11 +466,26 @@ describe('start over', () => {
     expect(storage.entries.has(STORAGE_KEY)).toBe(false)
   })
 
-  it('clears any standing notice', () => {
-    editor().setNotice({ kind: 'near-quota', message: 'Getting big.' })
+  it.each(['near-quota', 'save-failed', 'recovered'] as const)(
+    'clears the %s notice, which the cleared design made obsolete',
+    (kind) => {
+      editor().setNotice({ kind, message: 'Something about this design.' })
+
+      startOver()
+
+      expect(editor().notice).toBeNull()
+    },
+  )
+
+  it('keeps the "not being saved" notice, which start over does not fix', () => {
+    // Storage being unusable is a fact about the BROWSER, not about the design —
+    // clearing the page does not make it any less true, and silently dismissing it
+    // would tell the client their work is safe when it is not.
+    const notice = { kind: 'unavailable', message: 'Your work is not being saved.' } as const
+    editor().setNotice(notice)
 
     startOver()
 
-    expect(editor().notice).toBeNull()
+    expect(editor().notice).toEqual(notice)
   })
 })

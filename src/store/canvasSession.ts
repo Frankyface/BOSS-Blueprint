@@ -31,7 +31,7 @@ import type { History } from './history.ts'
 interface Session {
   readonly storage: StorageLike | null
   readonly autosave: Autosave<CanvasDocument>
-  readonly unsubscribe: () => void
+  readonly teardown: () => void
 }
 
 let session: Session | null = null
@@ -113,6 +113,41 @@ function noticeForLoad(outcome: LoadOutcome): StorageNotice | null {
   return null
 }
 
+/**
+ * Write the queued design out the moment the page is being hidden.
+ *
+ * Without this, "accidental tab close" in the Goal is only true if the client
+ * happened to pause for a second first: a change made and then immediately closed
+ * dies in the debounce timer.
+ *
+ * `pagehide` + `visibilitychange`, deliberately NOT `beforeunload`. `beforeunload`
+ * is unreliable on mobile, is skipped when a page is discarded, and registering it
+ * at all disqualifies the page from the back/forward cache — a real cost for a
+ * guarantee it does not actually provide. `pagehide` covers closing and navigating
+ * away, `visibilitychange → hidden` covers switching tabs and backgrounding the
+ * browser, and both are bfcache-safe.
+ */
+function installFlushOnHide(autosave: Autosave<CanvasDocument>): () => void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return () => undefined
+  }
+
+  const flush = (): void => {
+    autosave.flush()
+  }
+  const flushWhenHidden = (): void => {
+    if (document.visibilityState === 'hidden') flush()
+  }
+
+  window.addEventListener('pagehide', flush)
+  document.addEventListener('visibilitychange', flushWhenHidden)
+
+  return () => {
+    window.removeEventListener('pagehide', flush)
+    document.removeEventListener('visibilitychange', flushWhenHidden)
+  }
+}
+
 function applyHistory(next: History<CanvasDocument>): void {
   isReplaying = true
   try {
@@ -168,13 +203,22 @@ export function startCanvasSession(options: CanvasSessionOptions = {}): () => vo
     autosave.schedule(document)
   })
 
-  session = { storage, autosave, unsubscribe }
+  const stopFlushOnHide = installFlushOnHide(autosave)
+
+  session = {
+    storage,
+    autosave,
+    teardown: () => {
+      unsubscribe()
+      stopFlushOnHide()
+    },
+  }
   return stopCanvasSession
 }
 
 export function stopCanvasSession(): void {
   if (!session) return
-  session.unsubscribe()
+  session.teardown()
   session.autosave.cancel()
   session = null
 }
@@ -194,6 +238,21 @@ export function redo(): void {
 }
 
 /**
+ * Kinds that describe the DESIGN, and so stop being true the moment it is cleared:
+ * the page is no longer large, the failed save no longer matters, and the
+ * quarantined file has just been deleted along with everything else.
+ *
+ * `unavailable` is deliberately absent — "this browser will not let us save your
+ * work" is a standing fact about the browser, not about the design, and it is still
+ * every bit as true after starting over.
+ */
+const NOTICE_KINDS_RESOLVED_BY_START_OVER: ReadonlySet<StorageNoticeKind> = new Set([
+  'near-quota',
+  'save-failed',
+  'recovered',
+])
+
+/**
  * "Start over": empty page, empty undo stack, empty storage. The reset itself is
  * flagged as a replay so it does not land on the stack we are about to throw away,
  * and the queued autosave is cancelled before the keys are removed so a timer that
@@ -210,7 +269,9 @@ export function startOver(): void {
 
   session?.autosave.cancel()
   clearStoredDocument(session?.storage ?? null)
-  useEditorStore.getState().setNotice(null)
+
+  const { notice, setNotice } = useEditorStore.getState()
+  if (notice !== null && NOTICE_KINDS_RESOLVED_BY_START_OVER.has(notice.kind)) setNotice(null)
 }
 
 /** Write any queued document immediately. */

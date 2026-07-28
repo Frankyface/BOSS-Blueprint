@@ -20,7 +20,11 @@ export interface AutosaveOptions<T> {
 export interface Autosave<T> {
   /** Queue `value`, replacing anything already queued, and restart the timer. */
   schedule: (value: T) => void
-  /** Write the queued value now (used on page hide / explicit save). */
+  /**
+   * Write the queued value now. Wired to `pagehide` and `visibilitychange` by
+   * `startCanvasSession`, so a change made a fraction of a second before the tab
+   * closes still lands instead of dying in the timer.
+   */
   flush: () => void
   /** Drop the queued value without writing it (used by "start over"). */
   cancel: () => void
