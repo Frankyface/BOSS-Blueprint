@@ -1,0 +1,15 @@
+# Normalize every text file to LF in the repository and on checkout.
+# Windows checkouts were producing CRLF working trees, which polluted spec
+# extraction (the round-trip gate reads source files byte-for-byte) and made
+# every commit emit "LF will be replaced by CRLF" warnings.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending processed. Playwright visual
+# baselines in particular are byte-compared.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
