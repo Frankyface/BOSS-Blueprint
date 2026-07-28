@@ -41,14 +41,21 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Build
-        run: npm run build
+      # Production-mode build that additionally carries the window store seam
+      # Playwright asserts on (see src/store/testBridge.ts). Same base path, same
+      # bundler settings — only the test hook differs from the deployed build.
+      - name: Build (E2E, with test hooks)
+        run: npm run build:e2e
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 
       - name: E2E tests (production build under the Pages base path)
         run: npx playwright test
+
+      # Rebuild clean so the deployed artifact has no test seam in it.
+      - name: Build (deploy artifact)
+        run: npm run build
 
       - name: Upload Playwright report on failure
         if: failure()

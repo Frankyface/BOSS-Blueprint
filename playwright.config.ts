@@ -8,6 +8,13 @@ const CI_RETRIES = 2
 const CI_WORKERS = 1
 
 /**
+ * Desktop-first, and wide enough that the 1200px page renders at 1:1 fit-to-window
+ * zoom — so a scripted 40px mouse drag is exactly 40 page pixels and coordinate
+ * assertions read straight off the store. Narrow-viewport zoom has its own test.
+ */
+const VIEWPORT = { width: 1600, height: 1000 }
+
+/**
  * E2E always runs against the *production* build served by `vite preview`,
  * so every run also proves the `/BOSS-Blueprint/` base path is correct.
  * Build first (`npm run e2e` does `npm run build && playwright test`).
@@ -23,11 +30,12 @@ export default defineConfig({
   use: {
     baseURL: PREVIEW_BASE_URL,
     trace: 'on-first-retry',
+    viewport: VIEWPORT,
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT } },
   ],
   webServer: {
     command: 'npm run preview',
