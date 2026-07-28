@@ -86,7 +86,12 @@ never let the export grow a rename shim that hides drift).
 - [ ] `npm run lint`, `npm test`, `npm run build`, `npm run e2e` all green in CI on `main`
 - [ ] Every feature file above is `verified done` with Verification Log evidence
 
-## Open Questions (must be ruled before or during implementation)
+## Open Questions — ALL RULED 2026-07-28, kept for context
+**Every question below was ruled the same day and applied as the export-format v2.1 amendment
+(now live in `docs/export-format.md`; rulings + rationale in `docs/decisions.md`). Implementers
+follow the amended spec: unwrapped logical lines + regenerated §7.2 (Q1), frame-tuple-anchored
+V7 (Q2), V25 WARN right-overflow clip, V26 blank-label BLOCK, height floor 800. The feature
+files' references to "pending ruling" are superseded accordingly.**
 1. **§7.2 is hand-wrapped; byte-exact equality test B is unsatisfiable as written.** Measured
    this session against `docs/export-format.md`: line 1454 (`- **Client style notes:** …dark
    green`, 88 chars, next word `accents.»`) forces any greedy wrap width `W ≥ 88`, while line
