@@ -11,6 +11,9 @@ const IGNORED_PATHS = [
   'playwright-report/**',
   'test-results/**',
   'blob-report/**',
+  // Design-time assets (specs, fixtures awaiting their stage) — not part of any tsconfig
+  // project, so typed linting must not try to place them in one.
+  'design-assets/**',
 ]
 
 /**

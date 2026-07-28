@@ -142,3 +142,27 @@ items cap at 7 in UI while the schema allows 10 · **Because:** transaction fact
 facts; deterministic dims + email-forward size budget favor 1×; enum drift between schema and
 UI would break validation · **Rejected:** folding submission into siteSettings, 2×-by-default
 renders · **Revisit if:** first real pen-stroke render tests show illegible handwriting at 1×.
+
+## 2026-07-28 — Export format v2 adopted (docs/export-format.md)
+**Chose:** the Fable-designed package spec, hardened by an adversarial dry-run (an agent played
+the zero-context builder against the spec's own worked example; 23 defects found and fixed —
+row/column narration, honest PNG-carries table, responsive boilerplate, alt-text separation,
+invention scope rules, client-text escaping, §4.8 ordinal id remapping with V24 leak-block,
+byte-exact `generateBrief` CI requirement; 173 self-check assertions green) · **Because:** the
+round-trip test is v1's bar and the spec is the product's core contract — it got the
+debate-grade treatment before implementation exists · **Rejected (arbitrated):** reclassifying
+filled-slot pen strokes as annotations (they are instructions about the image), an invalid
+fixture state contradicting V14, 1.5× stroke-page renders (breaks the 1× dims contract; the
+harness's legibility probe is the empirical test) · **Revisit if:** the Stage 4 round-trip
+fails on a defect class the dry-run missed.
+
+## 2026-07-28 — Round-trip harness protocol adopted (docs/roundtrip-protocol.md)
+**Chose:** the Fable-designed protocol: one declarative scenario.json driving fake client, gate
+and evaluator; two gating scenarios (template-start + blank-start/smoke); sandboxed zero-context
+builder with mechanical no-questions detection; 8 hard gates + 100-pt rubric with floors;
+per-failure-class routing; smoke run MANDATORY before merging any export/schema/brief/renderer
+change once Stage 3 lands. All six designer recommendations adopted (deployed-leg ship-gate-only,
+builder network denied, scripted client gates, strongest-model builder, keep the 1× legibility
+probe, ±24px tolerance) · **Because:** v1's definition of done needs to be executable and
+repeatable, not aspirational · **Revisit if:** two consecutive fix loops fail the same class
+(protocol's own escalation: Fable debate).
