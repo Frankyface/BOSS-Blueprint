@@ -1,6 +1,7 @@
+import { DEFAULT_IMAGE_FIT } from './imageAssets.ts'
 import { linksEqual, NO_LINK } from './links.ts'
 import { createNavItem, navItemsFromText, withNavItems } from './navItems.ts'
-import type { Block, BlockLink, BlockTypeId, CopyMode, NavItem } from './types.ts'
+import type { Block, BlockLink, BlockTypeId, CopyMode, ImageFit, NavItem } from './types.ts'
 
 /**
  * Pure single-block edits: copy mode, link target, nav items — plus the equality
@@ -51,6 +52,16 @@ export function withTypeDefaults(block: Block): Block {
   if (block.type === 'button') return { link: NO_LINK, ...block }
   if (block.type === 'nav-bar') return withNavItems(block, block.items ?? navItemsFromText(block.text))
 
+  if (block.type === 'image') {
+    return {
+      imageData: '',
+      originalFilename: '',
+      fit: DEFAULT_IMAGE_FIT,
+      description: '',
+      ...block,
+    }
+  }
+
   return block
 }
 
@@ -93,6 +104,59 @@ export function withLink(block: Block, link: BlockLink): Block {
 
 export function navItemsOf(block: Block): readonly NavItem[] {
   return block.items ?? []
+}
+
+/* --- Image slots ---------------------------------------------------------- */
+
+export function isImageBlock(block: Block): boolean {
+  return block.type === 'image'
+}
+
+export function imageDataOf(block: Block): string {
+  return block.imageData ?? ''
+}
+
+export function imageFilenameOf(block: Block): string {
+  return block.originalFilename ?? ''
+}
+
+export function imageFitOf(block: Block): ImageFit {
+  return block.fit ?? DEFAULT_IMAGE_FIT
+}
+
+export function imageDescriptionOf(block: Block): string {
+  return block.description ?? ''
+}
+
+export function hasImage(block: Block): boolean {
+  return isImageBlock(block) && imageDataOf(block).length > 0
+}
+
+/**
+ * Put a photo in the slot, or (with `''`) take it back out.
+ *
+ * The photo and the name it arrived under move TOGETHER — an emptied slot that
+ * kept `originalFilename` would put a filename in the export manifest for an asset
+ * that is not in the package.
+ *
+ * The DESCRIPTION deliberately survives both: a client who uploads a stand-in and
+ * then removes it still meant everything they wrote about the picture they want,
+ * and an empty slot that still carries a description is the export's "SOURCE AN
+ * IMAGE" instruction (§3.2), not an empty box.
+ */
+export function withImageData(block: Block, imageData: string, originalFilename = ''): Block {
+  if (!isImageBlock(block)) return block
+  return { ...block, imageData, originalFilename }
+}
+
+export function withImageFit(block: Block, fit: ImageFit): Block {
+  if (!isImageBlock(block)) return block
+  return { ...block, fit }
+}
+
+export function withImageDescription(block: Block, description: string): Block {
+  if (!isImageBlock(block)) return block
+  return { ...block, description: description.trim() }
 }
 
 /** Does this block point anywhere yet? Drives the linked marker on the page. */
@@ -162,6 +226,10 @@ export function blocksEqual(a: Block, b: Block): boolean {
     (a.generateDescription ?? '') === (b.generateDescription ?? '') &&
     (a.lengthHint ?? '') === (b.lengthHint ?? '') &&
     linksEqual(linkOf(a), linkOf(b)) &&
-    navItemsEqual(navItemsOf(a), navItemsOf(b))
+    navItemsEqual(navItemsOf(a), navItemsOf(b)) &&
+    imageDataOf(a) === imageDataOf(b) &&
+    imageFilenameOf(a) === imageFilenameOf(b) &&
+    imageFitOf(a) === imageFitOf(b) &&
+    imageDescriptionOf(a) === imageDescriptionOf(b)
   )
 }

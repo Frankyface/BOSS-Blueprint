@@ -1,6 +1,6 @@
 import { createBlockId } from './blockFactory.ts'
 import { createNavItemId } from './navItems.ts'
-import type { Block, Page } from './types.ts'
+import type { Block, Page, PenStroke } from './types.ts'
 
 /**
  * PAGES — naming, identity and duplication.
@@ -57,9 +57,10 @@ export function createPage(
   name: string,
   takenIds: Iterable<string> = [],
   blocks: readonly Block[] = [],
+  penStrokes: readonly PenStroke[] = [],
 ): Page {
   const pageName = normalisePageName(name) || NEW_PAGE_NAME
-  return { id: createPageId(pageName, takenIds), name: pageName, blocks }
+  return { id: createPageId(pageName, takenIds), name: pageName, blocks, penStrokes }
 }
 
 /** "Menu" → "Menu copy" → "Menu copy 2" … so duplicating twice reads sensibly. */

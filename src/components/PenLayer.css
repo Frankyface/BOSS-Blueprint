@@ -1,0 +1,53 @@
+/*
+ * The pen overlay sits on top of every block on the page. `z-index` is far above
+ * any block's (blocks are numbered from 1 by their array position) because the
+ * export contract is explicit: pen strokes always paint above the blocks (§2.9).
+ */
+.pen-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 100000;
+  overflow: visible;
+  touch-action: none;
+  /*
+   * WITH THE PEN OFF THE LAYER IS NOT THERE. This one line is what keeps "block
+   * editing still works normally when the pen tool is off" true — the strokes stay
+   * visible, but every pointer event goes straight through to the block underneath.
+   */
+  pointer-events: none;
+}
+
+.pen-layer[data-pen-mode='draw'],
+.pen-layer[data-pen-mode='erase'] {
+  pointer-events: auto;
+}
+
+.pen-layer[data-pen-mode='draw'] {
+  cursor: crosshair;
+}
+
+.pen-layer[data-pen-mode='erase'] {
+  cursor: cell;
+}
+
+/* Drawing must be able to cross an existing stroke, so only the eraser hits them. */
+.pen-layer__stroke {
+  pointer-events: none;
+}
+
+.pen-layer[data-pen-mode='erase'] .pen-layer__stroke {
+  pointer-events: auto;
+}
+
+.pen-layer[data-pen-mode='erase'] .pen-layer__stroke:hover {
+  opacity: 0.45;
+}
+
+/* Hit-test on the geometry, not on the paint — the line is deliberately invisible. */
+.pen-layer__hit {
+  pointer-events: stroke;
+}
+
+.pen-layer__live {
+  pointer-events: none;
+}

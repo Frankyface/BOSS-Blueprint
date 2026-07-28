@@ -47,6 +47,32 @@ export interface NavItem {
   readonly link: BlockLink
 }
 
+/** How an uploaded photo fills its slot (`docs/export-format.md` §2.7 `imageSlot`). */
+export type ImageFit = 'cover' | 'contain'
+
+/** One sample of a pen stroke, in unscaled page pixels. */
+export interface PenPoint {
+  readonly x: number
+  readonly y: number
+}
+
+/**
+ * One freehand pen stroke on a page (`docs/export-format.md` §2.9).
+ *
+ * GEOMETRY ONLY. `role` and `targetBlockId` are in the export schema but NOT here:
+ * §4.5 computes both from pure geometry at package time, so storing them would let
+ * derived data drift the moment a block moved underneath a stroke.
+ */
+export interface PenStroke {
+  readonly id: string
+  /** Draw order, thinned on commit. Always at least two points (a tap is a dot). */
+  readonly points: readonly PenPoint[]
+  /** `#rrggbb`, as drawn. */
+  readonly color: string
+  /** Stroke width in page pixels. */
+  readonly width: number
+}
+
 /**
  * One placed block. Array order within a page is the paint order (z-order).
  *
@@ -76,6 +102,25 @@ export interface Block {
   readonly link?: BlockLink
   /** Nav bars only. `text` is kept as the comma-joined labels of these. */
   readonly items?: readonly NavItem[]
+  /**
+   * Image slots: the uploaded photo as a `data:` URL, already compressed on
+   * ingest. `''` means the slot is empty — which, with a `description`, is the
+   * client deliberately asking us to source that image (§2.7).
+   */
+  readonly imageData?: string
+  /**
+   * Image slots: the name of the file the client chose, VERBATIM.
+   *
+   * Kept because the export's asset manifest requires it (§2.3/§4.6) and it
+   * cannot be reconstructed at package time — the compressed data URL carries no
+   * trace of where it came from. Metadata only: it is never used as a path, and
+   * it is never sanitised here (the export owns naming).
+   */
+  readonly originalFilename?: string
+  /** Image slots: how the photo fills the frame. */
+  readonly fit?: ImageFit
+  /** Image slots: the client's words about the photo. NOT alt text (§2.7). */
+  readonly description?: string
 }
 
 /**
@@ -87,6 +132,13 @@ export interface Page {
   readonly id: string
   readonly name: string
   readonly blocks: readonly Block[]
+  /**
+   * The page's freehand pen marks, in draw order. Required rather than optional:
+   * the export schema requires it (§2.9), and a field that is sometimes missing is
+   * a field every consumer has to defend against. Payloads written before the pen
+   * layer existed simply parse to `[]`.
+   */
+  readonly penStrokes: readonly PenStroke[]
 }
 
 /** The pick-list values, sourced from the export schema's `vibe` enum (§2.4). */

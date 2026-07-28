@@ -1,7 +1,7 @@
 import { NO_LINK } from '../canvas/links.ts'
 import { navItemsFromText, withNavItems } from '../canvas/navItems.ts'
 import { emptySiteSettings } from '../canvas/siteSettings.ts'
-import type { Block, CanvasDocument, Page } from '../canvas/types.ts'
+import type { Block, CanvasDocument, Page, PenStroke } from '../canvas/types.ts'
 
 /**
  * Document fixtures shared by the storage, session and file-format tests.
@@ -62,11 +62,43 @@ export function testBlock(overrides: Partial<Block> = {}): Block {
     return withNavItems(base, merged.items ?? navItemsFromText(base.text))
   }
 
+  if (base.type === 'image') {
+    return {
+      ...base,
+      imageData: merged.imageData ?? '',
+      originalFilename: merged.originalFilename ?? '',
+      fit: merged.fit ?? 'cover',
+      description: merged.description ?? '',
+    }
+  }
+
   return base
 }
 
-export function testPage(id: string, name: string, blocks: readonly Block[] = []): Page {
-  return { id, name, blocks }
+export function testPage(
+  id: string,
+  name: string,
+  blocks: readonly Block[] = [],
+  penStrokes: readonly PenStroke[] = [],
+): Page {
+  return { id, name, blocks, penStrokes }
+}
+
+/**
+ * A stroke fixture with the shape the parser guarantees: at least two points, a
+ * six-digit hex colour, a positive width.
+ */
+export function testStroke(overrides: Partial<PenStroke> = {}): PenStroke {
+  return {
+    id: 'stroke-1',
+    points: [
+      { x: 100, y: 100 },
+      { x: 140, y: 160 },
+    ],
+    color: '#d92d20',
+    width: 4,
+    ...overrides,
+  }
 }
 
 /** A one-page document — the shape a migrated schema-1 payload also produces. */

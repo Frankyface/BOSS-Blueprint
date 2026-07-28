@@ -4,6 +4,7 @@ import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 import { selectSelectedBlock, useCanvasStore } from '../store/canvasStore.ts'
 
 import { CopyModeEditor } from './CopyModeEditor.tsx'
+import { ImageSettings } from './ImageSettings.tsx'
 import { LinkPicker } from './LinkPicker.tsx'
 import { NavItemsEditor } from './NavItemsEditor.tsx'
 
@@ -29,7 +30,11 @@ export function BlockInspector() {
     setBlockLink(block.id, link)
   }
 
-  const hasSettings = isCopyBlock(block) || block.type === 'button' || block.type === 'nav-bar'
+  const hasSettings =
+    isCopyBlock(block) ||
+    block.type === 'button' ||
+    block.type === 'nav-bar' ||
+    block.type === 'image'
 
   return (
     <div className="side-panel__body" data-testid="block-inspector" data-block-type={block.type}>
@@ -51,6 +56,8 @@ export function BlockInspector() {
           />
         </section>
       )}
+
+      {block.type === 'image' && <ImageSettings block={block} />}
 
       {block.type === 'nav-bar' && <NavItemsEditor block={block} pages={pages} />}
 

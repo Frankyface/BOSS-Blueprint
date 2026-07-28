@@ -9,8 +9,9 @@ import {
   pageById,
   pageIndexById,
 } from './pages.ts'
+import { duplicateStrokes } from './penStrokes.ts'
 import { emptySiteSettings, siteSettingsEqual } from './siteSettings.ts'
-import type { Block, CanvasDocument, Page, SiteSettings } from './types.ts'
+import type { Block, CanvasDocument, Page, PenStroke, SiteSettings } from './types.ts'
 
 /**
  * DOCUMENT-LEVEL TRANSFORMS — every page operation, as pure functions.
@@ -27,6 +28,9 @@ import type { Block, CanvasDocument, Page, SiteSettings } from './types.ts'
 /** A site always has at least this many pages — you cannot delete your way to none. */
 export const MIN_PAGE_COUNT = 1
 
+/** Shared empty list so "this page has no pen marks" is a stable reference. */
+const NO_STROKES: readonly PenStroke[] = []
+
 export function emptyDocument(): CanvasDocument {
   return { siteSettings: emptySiteSettings(), pages: [createPage(HOME_PAGE_NAME)] }
 }
@@ -34,6 +38,14 @@ export function emptyDocument(): CanvasDocument {
 export function blocksOfPage(document: CanvasDocument, pageId: string | null): readonly Block[] {
   if (pageId === null) return []
   return pageById(document.pages, pageId)?.blocks ?? []
+}
+
+export function strokesOfPage(
+  document: CanvasDocument,
+  pageId: string | null,
+): readonly PenStroke[] {
+  if (pageId === null) return NO_STROKES
+  return pageById(document.pages, pageId)?.penStrokes ?? NO_STROKES
 }
 
 export function pageNames(document: CanvasDocument): readonly string[] {
@@ -61,6 +73,26 @@ export function withPageBlocks(
 
   const pages = document.pages.slice()
   pages[index] = { ...page, blocks }
+  return { ...document, pages }
+}
+
+/** The same contract as `withPageBlocks`, for the page's pen layer. */
+export function withPageStrokes(
+  document: CanvasDocument,
+  pageId: string,
+  update: (strokes: readonly PenStroke[]) => readonly PenStroke[],
+): CanvasDocument {
+  const index = pageIndexById(document.pages, pageId)
+  if (index < 0) return document
+
+  const page = document.pages[index]
+  if (!page) return document
+
+  const penStrokes = update(page.penStrokes)
+  if (penStrokes === page.penStrokes) return document
+
+  const pages = document.pages.slice()
+  pages[index] = { ...page, penStrokes }
   return { ...document, pages }
 }
 
@@ -114,6 +146,9 @@ export function duplicatePage(
   const copy: Page = {
     ...createPage(name, pageIds(document)),
     blocks: duplicateBlocks(source.blocks),
+    // The client's marks are part of the page they copied — with fresh ids, since
+    // stroke ids are unique site-wide exactly like block ids.
+    penStrokes: duplicateStrokes(source.penStrokes),
   }
 
   const pages = document.pages.slice()

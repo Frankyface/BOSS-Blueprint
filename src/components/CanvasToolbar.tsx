@@ -2,6 +2,7 @@ import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 import { selectSelectedBlock, useCanvasStore } from '../store/canvasStore.ts'
 
 import { HistoryControls } from './HistoryControls.tsx'
+import { PenControls } from './PenControls.tsx'
 import { StartOverButton } from './StartOverButton.tsx'
 
 import './CanvasToolbar.css'
@@ -9,10 +10,10 @@ import './CanvasToolbar.css'
 const EMPTY_HINT = 'Click a block to select it. Double-click to type.'
 
 /**
- * Toolbar above the page, in two groups: page-wide actions (undo, redo, start over)
- * and the selection actions that are hard to discover from the block itself
- * (stacking order and delete). Both sets are also bound to keys — see
- * `useCanvasKeyboard`.
+ * Toolbar above the page, in three groups: what is selected, the pen (which is a
+ * MODE and so belongs next to the canvas it changes), and the page-wide/selection
+ * actions — undo, redo, stacking order, delete, start over. The action keys are
+ * also bound to the keyboard; see `useCanvasKeyboard`.
  */
 export function CanvasToolbar() {
   const selectedBlock = useCanvasStore(selectSelectedBlock)
@@ -27,6 +28,7 @@ export function CanvasToolbar() {
       <p className="canvas-toolbar__status" data-testid="canvas-toolbar-status">
         {label ? `${label} selected` : EMPTY_HINT}
       </p>
+      <PenControls />
       <div className="canvas-toolbar__actions">
         <HistoryControls />
         <span className="canvas-toolbar__divider" aria-hidden="true" />

@@ -4,6 +4,7 @@ import {
   emptyDocument,
   MIN_PAGE_COUNT,
   withPageBlocks,
+  withPageStrokes,
   withSiteSettings,
 } from '../canvas/document.ts'
 import { pageById } from '../canvas/pages.ts'
@@ -15,7 +16,9 @@ import type {
   BlockTypeId,
   CanvasDocument,
   CopyMode,
+  ImageFit,
   Page,
+  PenStroke,
   ResizeHandle,
   SiteSettings,
 } from '../canvas/types.ts'
@@ -64,6 +67,19 @@ export interface CanvasActions {
   startEditingBlock: (id: string) => void
   stopEditingBlock: () => void
 
+  /**
+   * `''` empties the slot (and clears the filename with it). The description is
+   * kept either way. `originalFilename` is the client's own file name, verbatim —
+   * the export manifest needs it and cannot recover it later (§4.6).
+   */
+  setBlockImage: (id: string, imageData: string, originalFilename?: string) => void
+  setBlockImageFit: (id: string, fit: ImageFit) => void
+  setBlockImageDescription: (id: string, description: string) => void
+
+  /** One finished stroke = one undo step; the in-progress trail never comes here. */
+  addPenStroke: (stroke: PenStroke) => void
+  removePenStroke: (strokeId: string) => void
+
   setBlockCopyMode: (id: string, mode: CopyMode) => void
   setBlockGenerateDescription: (id: string, description: string) => void
   setBlockLengthHint: (id: string, hint: string) => void
@@ -94,6 +110,7 @@ export type CanvasStore = CanvasState & CanvasActions
 
 /** Shared empty list so "this page has no blocks" is a stable reference. */
 const NO_BLOCKS: readonly Block[] = []
+const NO_STROKES: readonly PenStroke[] = []
 
 export function initialState(): CanvasState {
   const document = emptyDocument()
@@ -120,11 +137,15 @@ export function selectCurrentBlocks(state: CanvasState): readonly Block[] {
   return selectCurrentPage(state)?.blocks ?? NO_BLOCKS
 }
 
+export function selectCurrentStrokes(state: CanvasState): readonly PenStroke[] {
+  return selectCurrentPage(state)?.penStrokes ?? NO_STROKES
+}
+
 /** Is there anything for "Start over" to clear — on ANY page, or in the settings? */
 export function selectHasContent(state: CanvasState): boolean {
   return (
     state.pages.length > MIN_PAGE_COUNT ||
-    state.pages.some((page) => page.blocks.length > 0) ||
+    state.pages.some((page) => page.blocks.length > 0 || page.penStrokes.length > 0) ||
     !isEmptySiteSettings(state.siteSettings)
   )
 }
@@ -166,6 +187,15 @@ export function updateCurrentBlocks(
   update: (blocks: readonly Block[]) => readonly Block[],
 ): StateUpdate {
   const next = withPageBlocks(documentOf(state), state.currentPageId, update)
+  return next.pages === state.pages ? state : { pages: next.pages }
+}
+
+/** Apply a strokes transform to the current page; identity in, identity out. */
+export function updateCurrentStrokes(
+  state: CanvasState,
+  update: (strokes: readonly PenStroke[]) => readonly PenStroke[],
+): StateUpdate {
+  const next = withPageStrokes(documentOf(state), state.currentPageId, update)
   return next.pages === state.pages ? state : { pages: next.pages }
 }
 

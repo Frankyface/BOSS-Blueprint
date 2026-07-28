@@ -3,6 +3,9 @@ import { create } from 'zustand'
 import {
   withCopyMode,
   withGenerateDescription,
+  withImageData,
+  withImageDescription,
+  withImageFit,
   withLengthHint,
   withLink,
   withNavItemAdded,
@@ -23,6 +26,7 @@ import {
 import { moveRect, resizeRect } from '../canvas/geometry.ts'
 import { navItemsFromText, withNavItems } from '../canvas/navItems.ts'
 import { pageById } from '../canvas/pages.ts'
+import { withStrokeAdded, withStrokeRemoved } from '../canvas/penStrokes.ts'
 import { applySettingsPatch, withColorAt, withColorRemoved } from '../canvas/siteSettings.ts'
 import type { CanvasDocument } from '../canvas/types.ts'
 import { toRect } from '../canvas/types.ts'
@@ -38,6 +42,7 @@ import {
   selectCurrentBlocks,
   updateCurrentBlock,
   updateCurrentBlocks,
+  updateCurrentStrokes,
   updateSettings,
 } from './canvasState.ts'
 import type { CanvasState, CanvasStore } from './canvasState.ts'
@@ -52,6 +57,7 @@ export {
   INITIAL_CANVAS_STATE,
   selectCurrentBlocks,
   selectCurrentPage,
+  selectCurrentStrokes,
   selectHasContent,
   selectSelectedBlock,
 } from './canvasState.ts'
@@ -166,6 +172,42 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
 
   stopEditingBlock: () => {
     set((state) => (state.editingBlockId === null ? state : { editingBlockId: null }))
+  },
+
+  /**
+   * A finished upload, an emptied slot, a fit change and a description are each
+   * ONE store write and therefore one undo step. The compression work happens
+   * before this is ever called (`compressImage`), so the document never holds a
+   * half-processed photo.
+   */
+  setBlockImage: (id, imageData, originalFilename = '') => {
+    set((state) =>
+      updateCurrentBlock(state, id, (block) => withImageData(block, imageData, originalFilename)),
+    )
+  },
+
+  setBlockImageFit: (id, fit) => {
+    set((state) => updateCurrentBlock(state, id, (block) => withImageFit(block, fit)))
+  },
+
+  setBlockImageDescription: (id, description) => {
+    set((state) =>
+      updateCurrentBlock(state, id, (block) => withImageDescription(block, description)),
+    )
+  },
+
+  /**
+   * The pen's commit point. Everything up to pointerup is previewed by writing an
+   * SVG path directly (`PenLayer`), exactly as the block gesture previews a drag —
+   * so a 200-sample scribble is one re-render, one history entry and one autosave,
+   * not two hundred.
+   */
+  addPenStroke: (stroke) => {
+    set((state) => updateCurrentStrokes(state, (strokes) => withStrokeAdded(strokes, stroke)))
+  },
+
+  removePenStroke: (strokeId) => {
+    set((state) => updateCurrentStrokes(state, (strokes) => withStrokeRemoved(strokes, strokeId)))
   },
 
   setBlockCopyMode: (id, mode) => {

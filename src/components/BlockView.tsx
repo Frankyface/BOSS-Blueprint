@@ -57,7 +57,22 @@ export const BlockView = memo(function BlockView({
     onPointerDown(event)
   }
 
+  /**
+   * Double-click is "open this block for editing", whatever that means for the
+   * type. For an image slot it means the file picker — the slot has no inline text
+   * editor for it to collide with, and clients try double-clicking a photo box
+   * long before they find the button on it.
+   *
+   * Reaching for the input through the DOM (rather than lifting it up here) keeps
+   * every piece of upload wiring inside `ImageSlot`: one file input, one handler,
+   * one place that knows how ingest works.
+   */
   const handleDoubleClick = () => {
+    if (block.type === 'image') {
+      elementRef.current?.querySelector<HTMLInputElement>('[data-testid="image-file-input"]')?.click()
+      return
+    }
+
     if (definition.textMode === 'none') return
     startEditingBlock(block.id)
   }

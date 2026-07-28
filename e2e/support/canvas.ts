@@ -35,12 +35,29 @@ export interface StoredBlock {
   lengthHint?: string
   link?: StoredLink
   items?: StoredNavItem[]
+  imageData?: string
+  originalFilename?: string
+  fit?: 'cover' | 'contain'
+  description?: string
+}
+
+export interface StoredPoint {
+  x: number
+  y: number
+}
+
+export interface StoredStroke {
+  id: string
+  points: StoredPoint[]
+  color: string
+  width: number
 }
 
 export interface StoredPage {
   id: string
   name: string
   blocks: StoredBlock[]
+  penStrokes: StoredStroke[]
 }
 
 export interface StoredSiteSettings {

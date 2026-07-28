@@ -129,7 +129,9 @@ test.describe('block canvas', () => {
     expect(Object.keys(heading ?? {}).sort()).toEqual(
       [...BASE_BLOCK_KEYS, 'copyMode', 'generateDescription', 'lengthHint'].sort(),
     )
-    expect(Object.keys(image ?? {}).sort()).toEqual([...BASE_BLOCK_KEYS].sort())
+    expect(Object.keys(image ?? {}).sort()).toEqual(
+      [...BASE_BLOCK_KEYS, 'imageData', 'originalFilename', 'fit', 'description'].sort(),
+    )
   })
 
   test('shrinks the page to fit a narrow window (fit-to-window zoom)', async ({ page }) => {

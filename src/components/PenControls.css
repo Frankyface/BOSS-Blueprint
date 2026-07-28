@@ -1,0 +1,44 @@
+.pen-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pen-controls__toggle[aria-pressed='true'] {
+  color: var(--boss-text-invert);
+  background: var(--boss-ink);
+  border-color: var(--boss-ink);
+}
+
+.pen-controls__swatches,
+.pen-controls__widths {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pen-controls__swatch {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 2px solid var(--boss-line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* The selected swatch reads as a ring rather than as a border-colour change, so the
+   colour it represents stays exactly what you see. */
+.pen-controls__swatch[aria-pressed='true'] {
+  border-color: var(--boss-surface);
+  box-shadow: 0 0 0 2px var(--boss-ink);
+}
+
+.pen-controls__width[aria-pressed='true'] {
+  border-color: var(--boss-select);
+  box-shadow: inset 0 0 0 1px var(--boss-select);
+}
+
+.pen-controls__hint {
+  font-size: 0.75rem;
+  color: var(--boss-text-muted);
+}

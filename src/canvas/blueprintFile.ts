@@ -1,5 +1,6 @@
 import { parseBlocks } from './blueprintBlock.ts'
 import { createPage, HOME_PAGE_NAME, normalisePageName } from './pages.ts'
+import { parsePenStrokes } from './penStrokes.ts'
 import { emptySiteSettings, parseSiteSettings } from './siteSettings.ts'
 import type { Block, CanvasDocument, Page, SiteSettings } from './types.ts'
 
@@ -27,6 +28,13 @@ import type { Block, CanvasDocument, Page, SiteSettings } from './types.ts'
  * never quarantined: a client who sketched a page yesterday must find it here
  * today. Quarantine is reserved for payloads that are corrupt or written by a
  * version this build has never heard of.
+ *
+ * **ADDITIVE FIELDS DO NOT BUMP THIS.** The pen layer's `page.penStrokes` and the
+ * image slot's `imageData`/`fit`/`description` all arrived after v2 shipped and
+ * all default cleanly when absent, so a v2 payload written last week still parses
+ * to exactly the design it described. A bump means "older builds must not read
+ * this", which costs every one of them their client's work — it is reserved for
+ * changes that genuinely break, not for fields that grow.
  */
 export const BLUEPRINT_SCHEMA_VERSION = 2
 
@@ -94,7 +102,12 @@ function parsePage(value: unknown): Page | null {
   if (pageName.length === 0) return null
 
   const blocks = parseBlocks(value.blocks)
-  return blocks === null ? null : { id, name: pageName, blocks }
+  if (blocks === null) return null
+
+  // Absent = a page saved before the pen layer existed. That is not corruption,
+  // it is a page with no marks on it.
+  const penStrokes = parsePenStrokes(value.penStrokes)
+  return penStrokes === null ? null : { id, name: pageName, blocks, penStrokes }
 }
 
 /** Ids are React keys and the handle every action takes — a repeat is corruption. */
@@ -104,6 +117,10 @@ function hasDuplicates(ids: readonly string[]): boolean {
 
 function allBlockIds(pages: readonly Page[]): readonly string[] {
   return pages.flatMap((page) => page.blocks.map((block: Block) => block.id))
+}
+
+function allStrokeIds(pages: readonly Page[]): readonly string[] {
+  return pages.flatMap((page) => page.penStrokes.map((stroke) => stroke.id))
 }
 
 /** The current shape: `{ schemaVersion: 2, siteSettings, pages[] }`. */
@@ -130,6 +147,11 @@ function parseCurrent(parsed: Record<string, unknown>): BlueprintParseResult {
   // (§4.8), so two pages sharing a block id would collide there too.
   if (hasDuplicates(allBlockIds(pages))) {
     return corrupt('The saved design contains duplicate block ids.')
+  }
+
+  // Strokes are numbered site-wide at export too (§4.8), so the same rule applies.
+  if (hasDuplicates(allStrokeIds(pages))) {
+    return corrupt('The saved design contains duplicate pen stroke ids.')
   }
 
   return ok({ siteSettings, pages }, null)

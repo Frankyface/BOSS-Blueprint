@@ -1,6 +1,9 @@
 .canvas-toolbar {
   display: flex;
   align-items: center;
+  /* Wraps rather than overflows: the pen group joins an already-busy row, and a
+     narrow window must not push "Start over" off the edge of the screen. */
+  flex-wrap: wrap;
   gap: var(--boss-gap);
   flex: 0 0 auto;
   padding: 0.5rem 0.9rem;

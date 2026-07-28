@@ -75,6 +75,7 @@
 
 /* --- Image slot ----------------------------------------------------------- */
 .block-content--image {
+  position: relative;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -82,6 +83,69 @@
   background: var(--boss-band);
   border: 2px dashed var(--boss-line-strong);
   border-radius: 4px;
+}
+
+/*
+ * A filled slot is a photo, not a placeholder: the dashed "something goes here"
+ * frame and the band fill both go away, so the page reads the way the site will.
+ */
+.block-content--image-filled {
+  gap: 0;
+  background: transparent;
+  border: none;
+}
+
+.block-content--image[data-drop-target='true'] {
+  border: 2px solid var(--boss-select);
+  box-shadow: inset 0 0 0 4px rgb(47 109 246 / 18%);
+}
+
+.block-content__photo {
+  width: 100%;
+  height: 100%;
+  /* `object-fit` is set inline from the block's own `fit` field. */
+  object-position: center;
+  border-radius: 2px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/*
+ * The upload affordance sits ON the slot rather than replacing its face, so a
+ * filled slot can be replaced without first being emptied. Small and cornered: the
+ * photo is the point, this is the handle.
+ */
+.block-content__upload {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.block-content__upload:hover:not(:disabled) {
+  border-color: var(--boss-select);
+}
+
+.block-content__upload:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Hidden, but still a real focusable input the file picker is opened through. */
+.block-content__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .block-content__glyph {

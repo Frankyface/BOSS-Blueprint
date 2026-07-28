@@ -9,6 +9,7 @@ import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
 
 import { BlockView } from './BlockView.tsx'
 import { CanvasToolbar } from './CanvasToolbar.tsx'
+import { PenLayer } from './PenLayer.tsx'
 
 import './CanvasArea.css'
 
@@ -76,6 +77,11 @@ export function CanvasArea() {
                 getScale={getScale}
               />
             ))}
+            {/* Last child and top of the stacking order: pen marks paint over
+                everything, and the layer is transparent to pointers when the pen
+                is put away. Keyed by page so a switch cannot leak a half-drawn
+                stroke onto the next one. */}
+            <PenLayer key={currentPageId} pageHeight={pageHeight} />
           </div>
         </div>
       </div>

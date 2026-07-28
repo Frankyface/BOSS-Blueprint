@@ -1,4 +1,5 @@
 import { DEFAULT_COPY_MODE, isCopyBlockType } from './blockEdits.ts'
+import { DEFAULT_IMAGE_FIT, isImageDataUrl, isImageFit } from './imageAssets.ts'
 import { NO_LINK, parseLink } from './links.ts'
 import { NAV_ITEMS_SCHEMA_MAX, navItemsFromText, parseNavItem, withNavItems } from './navItems.ts'
 import type { Block, BlockTypeId, CopyMode, NavItem } from './types.ts'
@@ -47,6 +48,18 @@ function parseOptionalText(value: unknown): string | null {
   return typeof value === 'string' ? value : null
 }
 
+/**
+ * A slot's photo. Absent is an empty slot; present must be a `data:` URL of one of
+ * the three raster types (`imageAssets.ts`). That check is a SECURITY boundary as
+ * much as a validation one: a `.blueprint` file is untrusted input, and a
+ * `data:image/svg+xml` or `data:text/html` URL rendered into an `<img>` on our own
+ * origin is a script-injection vector.
+ */
+function parseImageData(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return ''
+  return isImageDataUrl(value) ? value : null
+}
+
 function parseNavItems(value: unknown): readonly NavItem[] | null {
   if (!Array.isArray(value)) return null
   if (value.length > NAV_ITEMS_SCHEMA_MAX) return null
@@ -77,6 +90,21 @@ function withTypeFields(base: Block, value: Record<string, unknown>): Block | nu
     if (value.link === undefined || value.link === null) return { ...base, link: NO_LINK }
     const link = parseLink(value.link)
     return link === null ? null : { ...base, link }
+  }
+
+  if (base.type === 'image') {
+    const imageData = parseImageData(value.imageData)
+    const description = parseOptionalText(value.description)
+    // Verbatim, untrimmed: it is the client's own filename, metadata for the
+    // export manifest (§4.6) and never a path.
+    const originalFilename = parseOptionalText(value.originalFilename)
+    if (imageData === null || description === null || originalFilename === null) return null
+
+    // An unknown fit is corruption, but a MISSING one is just a pre-upload block.
+    if (value.fit !== undefined && value.fit !== null && !isImageFit(value.fit)) return null
+    const fit = isImageFit(value.fit) ? value.fit : DEFAULT_IMAGE_FIT
+
+    return { ...base, imageData, originalFilename, fit, description }
   }
 
   if (base.type === 'nav-bar') {

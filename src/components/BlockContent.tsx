@@ -2,7 +2,8 @@ import { copyModeOf, isGenerateBlock, linkOf, navItemsOf } from '../canvas/block
 import { displayText, isShowingPlaceholder, parseNavItems } from '../canvas/blockText.ts'
 import type { Block, BlockLink } from '../canvas/types.ts'
 
-const IMAGE_GLYPH = '⛰'
+import { ImageSlot } from './ImageSlot.tsx'
+
 const LINKED_GLYPH = '↪'
 const EXTERNAL_GLYPH = '↗'
 
@@ -57,16 +58,10 @@ export function BlockContent({ block }: BlockContentProps) {
 
   if (isGenerateBlock(block)) return <GenerateFace block={block} />
 
-  if (block.type === 'image') {
-    return (
-      <div className="block-content block-content--image" data-placeholder="true">
-        <span className="block-content__glyph" aria-hidden="true">
-          {IMAGE_GLYPH}
-        </span>
-        <span className="block-content__caption">{text}</span>
-      </div>
-    )
-  }
+  // The image slot owns its own upload wiring, so it is a component rather than
+  // markup — everything else here stays a pure function of the block.
+  if (block.type === 'image') return <ImageSlot block={block} />
+
 
   if (block.type === 'section') {
     return (
