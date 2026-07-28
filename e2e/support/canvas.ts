@@ -33,9 +33,16 @@ interface BlueprintTestBridge {
     addBlock: (type: BlockTypeId) => string
     resetCanvas: () => void
   }
+  subscribe: (listener: () => void) => () => void
 }
 
 type BridgeHost = { __blueprintStore?: BlueprintTestBridge }
+
+/** Counter installed by `startStoreWriteCounter`, read back by the perf probe. */
+type CounterHost = BridgeHost & {
+  __blueprintWrites?: number
+  __blueprintStopCounting?: () => void
+}
 
 /**
  * Must match STORAGE_KEY / RECOVERY_KEY in src/store/canvasStorage.ts. Duplicated
@@ -55,16 +62,32 @@ export interface DomBlock {
   height: number
 }
 
+/**
+ * Loading the bundle and installing the seam is fast, but it is real work, and
+ * three engines running in parallel on a loaded machine can make the default 5s
+ * poll window too tight. Generous rather than fixed-sleep — a genuinely missing
+ * seam still fails, it just takes longer to say so.
+ */
+const APP_READY_TIMEOUT_MS = 15_000
+
+/**
+ * The seam must exist in the build under test — everything else depends on it.
+ * (It is the zustand hook itself, so a function carrying `getState`.)
+ */
+async function waitForStoreBridge(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () => page.evaluate(() => typeof (globalThis as BridgeHost).__blueprintStore?.getState),
+      { timeout: APP_READY_TIMEOUT_MS },
+    )
+    .toBe('function')
+}
+
 export async function openCanvas(page: Page): Promise<void> {
   const response = await page.goto('./')
   expect(response?.status()).toBe(200)
   await expect(page.getByTestId('canvas-page')).toBeVisible()
-
-  // The seam must exist in the build under test — everything else depends on it.
-  // (It is the zustand hook itself, so a function carrying `getState`.)
-  await expect
-    .poll(() => page.evaluate(() => typeof (globalThis as BridgeHost).__blueprintStore?.getState))
-    .toBe('function')
+  await waitForStoreBridge(page)
 }
 
 export function blocks(page: Page): Locator {
@@ -115,6 +138,32 @@ export async function readBlock(page: Page, id: string): Promise<StoredBlock> {
   const found = document.blocks.find((block) => block.id === id)
   if (!found) throw new Error(`No block ${id} in the store`)
   return found
+}
+
+/**
+ * Count every notification the document store emits from now on.
+ *
+ * This is what turns the drag perf probe from a stopwatch into an invariant: the
+ * gesture fast path promises the store is not written while the pointer is down,
+ * and a subscriber counting notifications either sees zero or it doesn't. Unlike
+ * elapsed time it cannot be perturbed by Playwright's own IPC.
+ */
+export async function startStoreWriteCounter(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const host = globalThis as CounterHost
+    const store = host.__blueprintStore
+    if (!store) throw new Error('The store test bridge is missing from this build')
+
+    host.__blueprintStopCounting?.()
+    host.__blueprintWrites = 0
+    host.__blueprintStopCounting = store.subscribe(() => {
+      host.__blueprintWrites = (host.__blueprintWrites ?? 0) + 1
+    })
+  })
+}
+
+export function readStoreWriteCount(page: Page): Promise<number> {
+  return page.evaluate(() => (globalThis as CounterHost).__blueprintWrites ?? -1)
 }
 
 /** Id of the first block of that type on the page. */
@@ -216,9 +265,7 @@ export async function waitForAutosave(page: Page): Promise<void> {
 export async function reloadCanvas(page: Page): Promise<void> {
   await page.reload()
   await expect(page.getByTestId('canvas-page')).toBeVisible()
-  await expect
-    .poll(() => page.evaluate(() => typeof (globalThis as BridgeHost).__blueprintStore?.getState))
-    .toBe('function')
+  await waitForStoreBridge(page)
 }
 
 export async function undoOnce(page: Page): Promise<void> {

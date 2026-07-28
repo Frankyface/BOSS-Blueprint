@@ -33,9 +33,11 @@ const redoButton = (page: Page) => page.getByTestId('toolbar-redo')
  * fails here.
  */
 async function expectDocument(page: Page, expected: StoredDocument): Promise<void> {
-  await expect(blocks(page)).toHaveCount(expected.blocks.length)
+  // Poll the DOM (which also covers the block count and the paint order), then
+  // check the store. Two round trips per step rather than three: this runs 21
+  // times in the session test below, so the saving is real.
+  await expect.poll(() => readDomBlocks(page)).toEqual(domShapeOf(expected))
   expect(await readDocument(page)).toMatchObject({ blocks: expected.blocks })
-  expect(await readDomBlocks(page)).toEqual(domShapeOf(expected))
 }
 
 test.describe('undo / redo', () => {
@@ -51,6 +53,11 @@ test.describe('undo / redo', () => {
   test('a 10-edit session rewinds and replays, asserting the page at every step', async ({
     page,
   }) => {
+    // 10 edits + 10 undos + 10 redos, each verified against BOTH the DOM and the
+    // store: ~60 assertions and well over a hundred round trips. Legitimately long
+    // rather than slow — nothing here is waiting on the app.
+    test.slow()
+
     const snapshots: StoredDocument[] = [await readDocument(page)]
     const record = async () => {
       snapshots.push(await readDocument(page))

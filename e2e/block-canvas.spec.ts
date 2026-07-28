@@ -5,21 +5,22 @@ import {
   attachPageScreenshot,
   blockOfType,
   blocks,
-  dragBy,
   idOfType,
   openCanvas,
   pageScale,
   readDocument,
+  readStoreWriteCount,
   seedBlocks,
+  startStoreWriteCounter,
 } from './support/canvas.ts'
 import type { BlockTypeId } from './support/canvas.ts'
 
 const ALL_TYPES: readonly BlockTypeId[] = ['section', 'heading', 'text', 'image', 'button', 'nav-bar']
 const DESIGN_WIDTH_PX = 1200
 const PERF_BLOCK_COUNT = 30
-const PERF_DRAG_STEPS = 20
-/** Generous ceiling: this catches "drag re-renders the whole page", not microseconds. */
-const PERF_DRAG_BUDGET_MS = 4000
+/** 60 discrete pointermoves — enough that a per-move store write could not hide. */
+const PERF_DRAG_STEPS = 60
+const DRAG_DISTANCE_PX = 80
 
 test.describe('block canvas', () => {
   test.beforeEach(async ({ page }) => {
@@ -135,7 +136,18 @@ test.describe('block canvas', () => {
     expect(box!.width).toBeLessThanOrEqual(1024)
   })
 
-  test(`stays responsive dragging with ${PERF_BLOCK_COUNT}+ blocks on the page`, async ({
+  /**
+   * The perf probe, as a DETERMINISTIC invariant rather than a stopwatch
+   * (review MEDIUM-1).
+   *
+   * What actually keeps a 30-block canvas smooth is the gesture fast path: while
+   * the pointer is down nothing is written to the store, so React never re-renders
+   * mid-drag. That is a property, and a subscriber counting notifications either
+   * sees zero of them or it doesn't. The old `elapsed < 4000ms` assertion mostly
+   * measured Playwright's own IPC round-trips, which is why it is now recorded as
+   * evidence in the report but no longer gates the test.
+   */
+  test(`writes to the store 0 times mid-drag and once on release with ${PERF_BLOCK_COUNT}+ blocks`, async ({
     page,
   }) => {
     await seedBlocks(page, 'button', PERF_BLOCK_COUNT)
@@ -145,18 +157,46 @@ test.describe('block canvas', () => {
     const headingId = await idOfType(page, 'heading')
     const heading = page.locator(`[data-block-id="${headingId}"]`)
 
+    // Select first. `pointerdown` calls `selectBlock`, and re-selecting the block
+    // that is already selected returns the identical state (so Zustand does not
+    // notify) — without this the count would include one selection write and say
+    // nothing about the gesture itself.
+    await heading.click()
+
+    const box = await heading.boundingBox()
+    if (!box) throw new Error('The dragged block has no bounding box')
+    const startX = box.x + box.width / 2
+    const startY = box.y + box.height / 2
+
+    await startStoreWriteCounter(page)
+
     const startedAt = Date.now()
-    await dragBy(page, heading, 80, 80, PERF_DRAG_STEPS)
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    expect(await readStoreWriteCount(page)).toBe(0)
+
+    for (let step = 1; step <= PERF_DRAG_STEPS; step += 1) {
+      const progress = step / PERF_DRAG_STEPS
+      await page.mouse.move(startX + DRAG_DISTANCE_PX * progress, startY + DRAG_DISTANCE_PX * progress)
+    }
+
+    // The whole gesture so far: 1 pointerdown + 60 pointermoves, 0 store writes.
+    expect(await readStoreWriteCount(page)).toBe(0)
+
+    await page.mouse.up()
     const elapsedMs = Date.now() - startedAt
+
+    await expect.poll(() => readStoreWriteCount(page)).toBe(1)
 
     const moved = (await readDocument(page)).blocks.find((block) => block.id === headingId)
     expect(moved).toMatchObject({ x: 160, y: 200 })
 
-    // The measurement is the point of this probe, so it goes in the report.
     await test.info().attach('drag-perf.txt', {
-      body: `${PERF_DRAG_STEPS}-step drag over ${PERF_BLOCK_COUNT + 1} blocks: ${elapsedMs}ms`,
+      body:
+        `${PERF_DRAG_STEPS}-step drag over ${PERF_BLOCK_COUNT + 1} blocks: ${elapsedMs}ms wall ` +
+        `(includes Playwright IPC — recorded as evidence, not asserted).\n` +
+        `Store writes: 0 during the gesture, 1 on release.`,
       contentType: 'text/plain',
     })
-    expect(elapsedMs).toBeLessThan(PERF_DRAG_BUDGET_MS)
   })
 })
