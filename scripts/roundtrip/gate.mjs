@@ -8,7 +8,7 @@
  *   1. filename convention + EXACT §1 zip entry layout
  *   2. ajv (draft-07 + formats) validation of site.json against the schema
  *      EXTRACTED FROM docs/export-format.md §2.2 — the spec stays source of truth
- *   3. an external replay of every machine-checkable §5 validator rule V1-V26
+ *   3. an external replay of every machine-checkable §5 validator rule V1-V27
  *
  * This gate imports NO app code: it re-derives everything from the spec and the
  * package, so it can fail a package the app's own validator would have passed.
@@ -21,7 +21,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, UsageError, USAGE } from './lib/args.mjs';
 import { loadPackage } from './lib/package-load.mjs';
-import { loadSchema } from './lib/schema-extract.mjs';
+import { loadSchema, extractExampleSiteJson } from './lib/schema-extract.mjs';
+import { deriveCanonicalOrder } from './lib/key-order.mjs';
 import { runAllChecks } from './lib/rules/index.mjs';
 import { renderReport, tally, failedIds, warnedIds } from './lib/report.mjs';
 
@@ -34,20 +35,35 @@ export async function runGate(argvOptions) {
   const specPath = options.specPath ?? DEFAULT_SPEC;
 
   const { schema, schemaText, source } = await loadSchema({ schemaPath: options.schemaPath, specPath });
+  const canonical = await loadCanonicalOrder(specPath);
   const pkg = await loadPackage(options.packagePath);
   const internalIds = await loadInternalIds(options.internalIdsPath);
 
-  const checks = runAllChecks(pkg, { schema, options, internalIds });
+  const checks = runAllChecks(pkg, { schema, options, internalIds, canonical });
 
   const header = [
     `package : ${pkg.basename} (${(pkg.zipBytes / 1024).toFixed(1)} KB, ${pkg.entryNames.length} entries)`,
     `schema  : ${source}`,
-    `steps   : protocol §2.1 layout · §2.2 ajv · §2.3 validator replay V1-V26` +
+    `steps   : protocol §2.1 layout · §2.2 ajv · §2.3 validator replay V1-V27` +
       `${options.noManifest ? ' · §2.4 skipped (--no-manifest)' : ''}`,
     '',
   ];
 
   return { pkg, checks, header, schemaText, schemaSource: source };
+}
+
+/**
+ * V27's canon is the §7.1 fixture (§2.1: "§7.1 is the canon"). It is derived, never
+ * hardcoded. If the spec cannot be read (e.g. only --schema was supplied), V27 SKIPs
+ * rather than guessing an order.
+ */
+async function loadCanonicalOrder(specPath) {
+  try {
+    const specText = await readFile(specPath, 'utf8');
+    return deriveCanonicalOrder(extractExampleSiteJson(specText).json);
+  } catch {
+    return null;
+  }
 }
 
 async function loadInternalIds(file) {

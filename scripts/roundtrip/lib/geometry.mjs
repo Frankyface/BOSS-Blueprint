@@ -25,8 +25,21 @@ export function strokeBbox(stroke) {
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
+/**
+ * Strict (exclusive) overlap: touching edges do NOT count. Used where the spec talks
+ * about frames genuinely intersecting.
+ */
 export function boxesIntersect(a, b) {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+/**
+ * Inclusive overlap: touching edges DO count. [N7] (v2.3) is explicit that cluster
+ * intersection is inclusive, so two strokes whose 40px-expanded bboxes merely abut
+ * belong to one cluster.
+ */
+export function boxesIntersectInclusive(a, b) {
+  return a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
 }
 
 export function expandBox(box, pad) {
@@ -63,7 +76,8 @@ export function clusterStrokes(strokes, pad = 40) {
 
   for (let i = 0; i < items.length; i += 1) {
     for (let j = i + 1; j < items.length; j += 1) {
-      if (boxesIntersect(expandBox(items[i].bbox, pad), expandBox(items[j].bbox, pad))) union(i, j);
+      // [N7] v2.3: inclusive — touching 40px-expanded bboxes join.
+      if (boxesIntersectInclusive(expandBox(items[i].bbox, pad), expandBox(items[j].bbox, pad))) union(i, j);
     }
   }
 

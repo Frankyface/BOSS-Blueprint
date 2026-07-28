@@ -64,12 +64,31 @@ export function sectionStartingWith(map, prefix) {
   return null;
 }
 
-/** Reverse §3.3 rule 7 escaping. */
+/**
+ * §3.3 rule 7 (v2.4) escaping, forward direction.
+ *   backslash-escape `\` FIRST (v2.3 — without it the map has no inverse), then
+ *   « » | * " and backtick; prefix a leading # - > with `\`; a leading ordered-list
+ *   marker escapes the PERIOD (`1\.`), because a backslash before a digit is a
+ *   literal backslash in CommonMark and escapes nothing (v2.3).
+ */
+export function escapeClientText(s) {
+  const escaped = String(s ?? '').replace(/[\\«»|*"`]/g, (c) => `\\${c}`);
+  if (/^[#\->]/.test(escaped)) return `\\${escaped}`;
+  return escaped.replace(/^(\d+)\./, '$1\\.');
+}
+
+/**
+ * Reverse §3.3 rule 7 escaping (v2.4).
+ *
+ * Because rule 7 escapes `\` first, every backslash in an emitted client string is an
+ * escape introducer, so the exact inverse is "drop each backslash and take the next
+ * character literally" — one left-to-right pass. This is precisely the invertibility
+ * property v2.3 added `\` to the escape set to guarantee, and it covers the
+ * anywhere-escaped set, the leading-punctuation prefixes, and the `1\.` period form
+ * without needing to know which produced a given pair.
+ */
 export function unescapeClientText(s) {
-  return String(s)
-    .replace(/\\([«»|*`])/g, '$1')
-    .replace(/^\\([#\->])/, '$1')
-    .replace(/^\\(\d+\.)/, '$1');
+  return String(s).replace(/\\([\s\S])/g, '$1');
 }
 
 /** §3.3 rule 8: CR/LF render as ↵ inside «…». */

@@ -1,11 +1,12 @@
 /**
  * export-format.md §5 rules that read site.json's structure and content:
- * V1, V2, V3, V5, V8, V9, V13, V14, V19, V20, V26.
+ * V1, V2, V3, V5, V8, V9, V13, V14, V19, V20, V26, V27.
  */
 
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { check } from '../report.mjs';
+import { checkKeyOrder } from '../key-order.mjs';
 import { pagesOf, assetsOf, blocksOf, strokesOf, eachBlock, eachLink, blockLabel } from './walk.mjs';
 
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -321,6 +322,36 @@ export function v26LabelsAndNav(site, ctx) {
     ref: 'export-format §5 V26 (v2.1)',
     cls: 'BLOCK',
     problems,
+    ...ctx,
+  });
+}
+
+/**
+ * V27 (v2.4) — `site.json` key order equals the normative §7.1 order everywhere (§2.1).
+ * The canonical table is DERIVED from §7.1 (see lib/key-order.mjs), so the spec stays
+ * the source of truth. Without the spec (e.g. `--schema` given and the spec unreadable)
+ * there is no canon to compare against and the check reports SKIP.
+ */
+export function v27KeyOrder(site, canonical, ctx) {
+  if (!canonical || canonical.table.size === 0) {
+    return check({
+      id: 'V27',
+      title: 'site.json key order equals the normative §7.1 order',
+      ref: 'export-format §5 V27 / §2.1 (v2.4)',
+      cls: 'WARN',
+      skipped: true,
+      detail: 'no §7.1 canon available (spec not readable)',
+      ...ctx,
+    });
+  }
+  const problems = [...canonical.conflicts, ...checkKeyOrder(site, canonical.table)];
+  return check({
+    id: 'V27',
+    title: 'site.json key order equals the normative §7.1 order everywhere',
+    ref: 'export-format §5 V27 / §2.1 (v2.4)',
+    cls: 'WARN',
+    problems: problems.slice(0, 30),
+    detail: `${canonical.table.size} node kinds derived from §7.1`,
     ...ctx,
   });
 }

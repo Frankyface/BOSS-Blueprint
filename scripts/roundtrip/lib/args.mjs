@@ -28,7 +28,7 @@ export const USAGE = `
 Usage: node gate.mjs --package <zip> [options]
 
 Round-trip PACKAGE GATE — docs/roundtrip-protocol.md §2 steps 1-3.
-Replays docs/export-format.md v2.2 §5 validator rules V1-V26 against a real zip.
+Replays docs/export-format.md v2.4 §5 validator rules V1-V27 against a real zip.
 
 Required:
   --package <zip>        the export package to gate

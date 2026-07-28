@@ -20,6 +20,7 @@ import {
   countMatches,
   sections,
   sectionStartingWith,
+  escapeClientText,
   unescapeClientText,
   newlineGlyph,
   normalizeWs,
@@ -122,6 +123,12 @@ function checkHeadingsAndInventory(brief, secs, pages) {
 
   const inventory = secs.get('Site inventory');
   if (inventory === undefined) return [...problems, 'brief.md has no "## Site inventory" section'];
+
+  // [N11] v2.3: the inventory count line pluralizes — "1 page" / "N pages".
+  const wantCount = `${pages.length} ${pages.length === 1 ? 'page' : 'pages'}. **Page 1 is the homepage.**`;
+  if (!inventory.includes(wantCount)) {
+    problems.push(`site inventory count line is not "${wantCount}" [N11]`);
+  }
 
   const rows = inventory
     .split('\n')
@@ -235,13 +242,45 @@ function checkPrintedIds(brief, site) {
 }
 
 /**
- * Every «…»-quoted string matches a site.json string field in one of the defined
- * derived forms: verbatim, ↵-glyphed, or (when it ends with …) a 40-char prefix.
- * Comparison is whitespace-normalized, after reversing rule-7 escapes.
+ * §4.4 "Reference text" (v2.3, shared by [N5]/[N7]/[N8]) — the string those rules print
+ * for a referenced block. Not always a bare field: a generate block references its
+ * `generateDescription` (never its residual `text`), and a navBar references its item
+ * labels joined with ", ", which exists nowhere in site.json as a single value.
+ */
+function referenceTexts(site) {
+  const out = [];
+  for (const { block } of eachBlock(site)) {
+    switch (block?.type) {
+      case 'heading':
+      case 'text':
+        out.push(block.copyMode === 'generate' ? block.generateDescription : block.text);
+        break;
+      case 'button':
+        out.push(block.label);
+        break;
+      case 'imageSlot':
+        out.push(block.description);
+        break;
+      case 'navBar':
+        out.push((Array.isArray(block.items) ? block.items : []).map((i) => i?.label ?? '').join(', '));
+        break;
+      default:
+        break; // section blocks are never referenced
+    }
+  }
+  return out.filter((s) => typeof s === 'string');
+}
+
+/**
+ * Every «…»-quoted string matches a site.json string field — or a §4.4 reference text —
+ * in one of the defined derived forms: verbatim, ↵-glyphed, or (when it ends with …) a
+ * 40-char prefix. Comparison is whitespace-normalized, after reversing rule-7 escapes.
+ * v2.3 truncates the RAW string to 40 first and escapes after, so reversing the escapes
+ * before comparing keeps the two sides aligned.
  */
 function checkQuotes(brief, site) {
   const exempt = new Set(['…', 'X']);
-  const fields = eachString(site).map((s) => s.value);
+  const fields = [...eachString(site).map((s) => s.value), ...referenceTexts(site)];
   const verbatim = new Set();
   const prefixes = [];
   for (const f of fields) {
@@ -317,10 +356,5 @@ export function n13OverflowMarker(pkg, ctx) {
   });
 }
 
-/** Apply §3.3 rule 7 escaping so a brief-side value can be compared to a site.json value. */
-function escapeForCompare(s) {
-  return String(s ?? '')
-    .replace(/([«»|*`])/g, '\\$1')
-    .replace(/^([#\->])/, '\\$1')
-    .replace(/^(\d+\.)/, '\\$1');
-}
+/** §3.3 rule 7 (v2.4) escaping, so a brief-side value can be compared to a site.json value. */
+const escapeForCompare = escapeClientText;

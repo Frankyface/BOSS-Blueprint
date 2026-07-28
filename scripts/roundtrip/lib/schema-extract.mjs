@@ -9,6 +9,16 @@
 
 import { readFile } from 'node:fs/promises';
 
+/**
+ * The spec is authored with LF (§1's own file convention) but git `core.autocrlf=true`
+ * hands us CRLF on Windows checkouts. Normalizing here keeps every extracted artifact —
+ * schema bytes, §7.1, §7.2 — independent of the developer's git config; without it the
+ * gate's verdict would depend on how the repo happened to be cloned.
+ */
+function normalizeEol(text) {
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
 /** Find the line index of a heading, tolerant of trailing whitespace. */
 function headingIndex(lines, heading) {
   const idx = lines.findIndex((l) => l.trimEnd() === heading);
@@ -42,7 +52,7 @@ function fencedBlockAfter(lines, fromLine, lang) {
  * @returns {{ schemaText: string, schema: object }}
  */
 export function extractSchema(specText) {
-  const lines = specText.split('\n');
+  const lines = normalizeEol(specText).split('\n');
   const start = headingIndex(lines, '### 2.2 JSON Schema (draft-07)');
   const { body } = fencedBlockAfter(lines, start, 'json');
   const schemaText = `${body}\n`;
@@ -60,7 +70,7 @@ export function extractSchema(specText) {
 
 /** @returns {{ text: string, json: object }} the §7.1 worked-example site.json */
 export function extractExampleSiteJson(specText) {
-  const lines = specText.split('\n');
+  const lines = normalizeEol(specText).split('\n');
   const start = headingIndex(lines, '### 7.1 `site.json`');
   const { body } = fencedBlockAfter(lines, start, 'json');
   return { text: `${body}\n`, json: JSON.parse(body) };
@@ -68,7 +78,7 @@ export function extractExampleSiteJson(specText) {
 
 /** @returns {string} the §7.2 worked-example brief.md, verbatim */
 export function extractExampleBrief(specText) {
-  const lines = specText.split('\n');
+  const lines = normalizeEol(specText).split('\n');
   const start = headingIndex(lines, '### 7.2 Generated `brief.md`');
   const { body } = fencedBlockAfter(lines, start, 'markdown');
   return `${body}\n`;
@@ -80,7 +90,7 @@ export function extractExampleBrief(specText) {
  */
 export async function loadSchema({ schemaPath, specPath }) {
   if (schemaPath) {
-    const schemaText = await readFile(schemaPath, 'utf8');
+    const schemaText = normalizeEol(await readFile(schemaPath, 'utf8'));
     return { schema: JSON.parse(schemaText), schemaText, source: `file ${schemaPath}` };
   }
   const specText = await readFile(specPath, 'utf8');
