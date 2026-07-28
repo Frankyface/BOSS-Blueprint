@@ -1,15 +1,20 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { BLOCK_TYPES } from '../constants/blockTypes.ts'
+import { useCanvasStore } from '../store/canvasStore.ts'
 
 import { BlockPalette } from './BlockPalette.tsx'
 
 const EXPECTED_LABELS = ['Section', 'Heading', 'Text', 'Image', 'Button', 'Nav bar']
 const EXPECTED_IDS = ['section', 'heading', 'text', 'image', 'button', 'nav-bar']
 
+beforeEach(() => {
+  useCanvasStore.getState().resetCanvas()
+})
+
 describe('BlockPalette', () => {
-  it('lists the six planned block types in order', () => {
+  it('lists the six block types in order', () => {
     render(<BlockPalette />)
 
     const buttons = screen.getAllByRole('button')
@@ -25,14 +30,36 @@ describe('BlockPalette', () => {
     }
   })
 
-  it('renders every block type as inert (disabled) until the canvas exists', () => {
+  it('offers every block type as an enabled control', () => {
     render(<BlockPalette />)
 
     const buttons = screen.getAllByRole('button')
 
     expect(buttons).toHaveLength(BLOCK_TYPES.length)
     for (const button of buttons) {
-      expect(button).toBeDisabled()
+      expect(button).toBeEnabled()
     }
+  })
+
+  it('adds a block of the clicked type to the document and selects it', () => {
+    render(<BlockPalette />)
+
+    fireEvent.click(screen.getByTestId('palette-heading'))
+
+    const { blocks, selectedBlockId } = useCanvasStore.getState()
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]?.type).toBe('heading')
+    expect(selectedBlockId).toBe(blocks[0]?.id)
+  })
+
+  it('can add one of every type', () => {
+    render(<BlockPalette />)
+
+    for (const id of EXPECTED_IDS) {
+      fireEvent.click(screen.getByTestId(`palette-${id}`))
+    }
+
+    const types = useCanvasStore.getState().blocks.map((block) => block.type)
+    expect([...types].sort()).toEqual([...EXPECTED_IDS].sort())
   })
 })

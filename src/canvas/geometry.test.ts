@@ -1,0 +1,254 @@
+import { describe, expect, it } from 'vitest'
+
+import {
+  GRID_SIZE_PX,
+  MAX_PAGE_HEIGHT_PX,
+  MIN_ON_PAGE_PX,
+  MIN_PAGE_HEIGHT_PX,
+  MIN_PAGE_SCALE,
+  PAGE_WIDTH_PX,
+} from './constants.ts'
+import {
+  clamp,
+  clampPosition,
+  moveRect,
+  pageHeightForRects,
+  pageScaleForViewport,
+  resizeRect,
+  snapToGrid,
+} from './geometry.ts'
+import type { BlockRect, Size } from './types.ts'
+
+const HEADING_RECT: BlockRect = { x: 80, y: 120, width: 640, height: 72 }
+const HEADING_MIN: Size = { width: 96, height: 40 }
+
+describe('clamp', () => {
+  it('returns the value when it is already inside the range', () => {
+    expect(clamp(5, 0, 10)).toBe(5)
+  })
+
+  it('pins to the nearest bound outside the range', () => {
+    expect(clamp(-4, 0, 10)).toBe(0)
+    expect(clamp(99, 0, 10)).toBe(10)
+  })
+
+  it('returns the minimum when the range is inverted rather than NaN-ing', () => {
+    expect(clamp(5, 10, 0)).toBe(10)
+  })
+})
+
+describe('snapToGrid', () => {
+  it('rounds to the nearest 8px grid line', () => {
+    expect(snapToGrid(0)).toBe(0)
+    expect(snapToGrid(3)).toBe(0)
+    expect(snapToGrid(5)).toBe(8)
+    expect(snapToGrid(117)).toBe(120)
+    expect(snapToGrid(1195)).toBe(1192)
+  })
+
+  it('snaps negative coordinates too', () => {
+    expect(snapToGrid(-5)).toBe(-8)
+    expect(snapToGrid(-11)).toBe(-8)
+  })
+
+  it('accepts a custom grid size', () => {
+    expect(snapToGrid(17, 10)).toBe(20)
+  })
+
+  it('passes the value through when the grid size is not usable', () => {
+    expect(snapToGrid(17, 0)).toBe(17)
+    expect(snapToGrid(17, -8)).toBe(17)
+  })
+
+  it('leaves an already-aligned value untouched', () => {
+    expect(snapToGrid(GRID_SIZE_PX * 13)).toBe(GRID_SIZE_PX * 13)
+  })
+})
+
+describe('clampPosition', () => {
+  it('leaves an on-page block alone', () => {
+    expect(clampPosition(HEADING_RECT)).toEqual(HEADING_RECT)
+  })
+
+  it('keeps a sliver of the block on the page when dragged off the left', () => {
+    const clamped = clampPosition({ ...HEADING_RECT, x: -5000 })
+    expect(clamped.x).toBe(MIN_ON_PAGE_PX - HEADING_RECT.width)
+  })
+
+  it('keeps a sliver of the block on the page when dragged off the right', () => {
+    const clamped = clampPosition({ ...HEADING_RECT, x: 5000 })
+    expect(clamped.x).toBe(PAGE_WIDTH_PX - MIN_ON_PAGE_PX)
+  })
+
+  it('treats the top of the page as a hard edge', () => {
+    expect(clampPosition({ ...HEADING_RECT, y: -400 }).y).toBe(0)
+  })
+
+  it('caps the bottom at the maximum page height', () => {
+    expect(clampPosition({ ...HEADING_RECT, y: 99_999 }).y).toBe(MAX_PAGE_HEIGHT_PX - MIN_ON_PAGE_PX)
+  })
+
+  it('never changes the size', () => {
+    const clamped = clampPosition({ ...HEADING_RECT, x: -5000, y: -5000 })
+    expect(clamped.width).toBe(HEADING_RECT.width)
+    expect(clamped.height).toBe(HEADING_RECT.height)
+  })
+
+  it('returns a new object rather than mutating the input', () => {
+    const input: BlockRect = { ...HEADING_RECT, x: -5000 }
+    const result = clampPosition(input)
+    expect(result).not.toBe(input)
+    expect(input.x).toBe(-5000)
+  })
+})
+
+describe('moveRect', () => {
+  it('snaps the destination onto the grid', () => {
+    expect(moveRect(HEADING_RECT, 37, 21)).toEqual({ ...HEADING_RECT, x: 120, y: 144 })
+  })
+
+  it('snaps down when the delta lands in the lower half of a cell', () => {
+    expect(moveRect(HEADING_RECT, 3, 3)).toEqual({ ...HEADING_RECT, x: 80, y: 120 })
+  })
+
+  it('handles negative deltas', () => {
+    expect(moveRect(HEADING_RECT, -37, -21)).toEqual({ ...HEADING_RECT, x: 40, y: 96 })
+  })
+
+  it('cannot drag a block fully off the page', () => {
+    const offLeft = moveRect(HEADING_RECT, -9000, 0)
+    const offRight = moveRect(HEADING_RECT, 9000, 0)
+
+    expect(offLeft.x + offLeft.width).toBeGreaterThanOrEqual(MIN_ON_PAGE_PX)
+    expect(offRight.x).toBeLessThanOrEqual(PAGE_WIDTH_PX - MIN_ON_PAGE_PX)
+  })
+
+  it('is a no-op for a zero delta', () => {
+    expect(moveRect(HEADING_RECT, 0, 0)).toEqual(HEADING_RECT)
+  })
+})
+
+describe('resizeRect', () => {
+  it('grows from the south-east handle without moving the origin', () => {
+    expect(resizeRect(HEADING_RECT, 'se', 40, 40, HEADING_MIN)).toEqual({
+      x: 80,
+      y: 120,
+      width: 680,
+      height: 112,
+    })
+  })
+
+  it('snaps the dragged edge onto the grid', () => {
+    expect(resizeRect(HEADING_RECT, 'e', 37, 0, HEADING_MIN).width).toBe(680)
+    expect(resizeRect(HEADING_RECT, 's', 21, 0, HEADING_MIN).height).toBe(72)
+    expect(resizeRect(HEADING_RECT, 's', 0, 21, HEADING_MIN).height).toBe(96)
+  })
+
+  it('moves the origin when dragging the north-west handle', () => {
+    expect(resizeRect(HEADING_RECT, 'nw', -40, -40, HEADING_MIN)).toEqual({
+      x: 40,
+      y: 80,
+      width: 680,
+      height: 112,
+    })
+  })
+
+  it('clamps to the minimum size from the south-east handle', () => {
+    expect(resizeRect(HEADING_RECT, 'se', -5000, -5000, HEADING_MIN)).toEqual({
+      x: 80,
+      y: 120,
+      width: HEADING_MIN.width,
+      height: HEADING_MIN.height,
+    })
+  })
+
+  it('clamps to the minimum size from the north-west handle with the far corner pinned', () => {
+    const right = HEADING_RECT.x + HEADING_RECT.width
+    const bottom = HEADING_RECT.y + HEADING_RECT.height
+
+    expect(resizeRect(HEADING_RECT, 'nw', 5000, 5000, HEADING_MIN)).toEqual({
+      x: right - HEADING_MIN.width,
+      y: bottom - HEADING_MIN.height,
+      width: HEADING_MIN.width,
+      height: HEADING_MIN.height,
+    })
+  })
+
+  it('cannot drag the west edge past the left edge of the page', () => {
+    const resized = resizeRect(HEADING_RECT, 'w', -400, 0, HEADING_MIN)
+    expect(resized.x).toBe(0)
+    expect(resized.width).toBe(720)
+  })
+
+  it('cannot drag the east edge past the right edge of the page', () => {
+    const nearRightEdge: BlockRect = { x: 1000, y: 0, width: 160, height: 72 }
+    const resized = resizeRect(nearRightEdge, 'e', 400, 0, HEADING_MIN)
+
+    expect(resized.width).toBe(PAGE_WIDTH_PX - nearRightEdge.x)
+    expect(resized.x + resized.width).toBe(PAGE_WIDTH_PX)
+  })
+
+  it('cannot drag the north edge above the top of the page', () => {
+    const resized = resizeRect({ x: 0, y: 40, width: 400, height: 200 }, 'n', -400, -400, HEADING_MIN)
+    expect(resized.y).toBe(0)
+    expect(resized.height).toBe(240)
+  })
+
+  it('only touches the axis its handle owns', () => {
+    const eastOnly = resizeRect(HEADING_RECT, 'e', 80, 999, HEADING_MIN)
+    expect(eastOnly.height).toBe(HEADING_RECT.height)
+    expect(eastOnly.y).toBe(HEADING_RECT.y)
+
+    const southOnly = resizeRect(HEADING_RECT, 's', 999, 80, HEADING_MIN)
+    expect(southOnly.width).toBe(HEADING_RECT.width)
+    expect(southOnly.x).toBe(HEADING_RECT.x)
+  })
+
+  it('returns a new object rather than mutating the input', () => {
+    const result = resizeRect(HEADING_RECT, 'se', 40, 40, HEADING_MIN)
+    expect(result).not.toBe(HEADING_RECT)
+    expect(HEADING_RECT).toEqual({ x: 80, y: 120, width: 640, height: 72 })
+  })
+})
+
+describe('pageHeightForRects', () => {
+  it('uses the minimum page height when the page is empty', () => {
+    expect(pageHeightForRects([])).toBe(MIN_PAGE_HEIGHT_PX)
+  })
+
+  it('stays at the minimum while the content is short', () => {
+    expect(pageHeightForRects([HEADING_RECT])).toBe(MIN_PAGE_HEIGHT_PX)
+  })
+
+  it('grows past the lowest block plus padding', () => {
+    expect(pageHeightForRects([{ x: 0, y: 1500, width: 100, height: 300 }])).toBe(1960)
+  })
+
+  it('caps at the maximum page height', () => {
+    expect(pageHeightForRects([{ x: 0, y: 7000, width: 100, height: 2000 }])).toBe(MAX_PAGE_HEIGHT_PX)
+  })
+})
+
+describe('pageScaleForViewport', () => {
+  it('renders 1:1 when the viewport has not been measured yet', () => {
+    expect(pageScaleForViewport(0)).toBe(1)
+    expect(pageScaleForViewport(Number.NaN)).toBe(1)
+  })
+
+  it('never enlarges past 1:1 on a wide screen', () => {
+    expect(pageScaleForViewport(2400)).toBe(1)
+  })
+
+  it('shrinks the page to fit a narrow viewport', () => {
+    expect(pageScaleForViewport(800)).toBe(0.613)
+  })
+
+  it('never shrinks past the minimum scale', () => {
+    expect(pageScaleForViewport(100)).toBe(MIN_PAGE_SCALE)
+  })
+
+  it('leaves the page fitting inside the viewport with its margins', () => {
+    const viewportWidth = 900
+    expect(pageScaleForViewport(viewportWidth) * PAGE_WIDTH_PX).toBeLessThanOrEqual(viewportWidth)
+  })
+})

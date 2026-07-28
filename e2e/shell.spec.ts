@@ -5,7 +5,7 @@ const EXPECTED_BLOCK_LABELS = ['Section', 'Heading', 'Text', 'Image', 'Button', 
 const HTTP_ERROR_THRESHOLD = 400
 
 test.describe('app shell', () => {
-  test('renders the header, canvas and inert block palette', async ({ page }) => {
+  test('renders the header, canvas and the six-entry block palette', async ({ page }) => {
     const response = await page.goto('./')
 
     expect(response?.status()).toBe(200)
@@ -21,7 +21,7 @@ test.describe('app shell', () => {
 
     for (const [index, label] of EXPECTED_BLOCK_LABELS.entries()) {
       await expect(palette.getByText(label, { exact: true })).toBeVisible()
-      await expect(paletteButtons.nth(index)).toBeDisabled()
+      await expect(paletteButtons.nth(index)).toBeEnabled()
     }
   })
 
