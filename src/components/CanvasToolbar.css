@@ -16,8 +16,27 @@
 
 .canvas-toolbar__actions {
   display: flex;
+  align-items: center;
   gap: 0.4rem;
   margin-left: auto;
+}
+
+.canvas-toolbar__divider {
+  width: 1px;
+  height: 1.4rem;
+  background: var(--boss-line);
+}
+
+.canvas-toolbar__confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.canvas-toolbar__confirm-prompt {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--boss-danger);
 }
 
 .canvas-toolbar__button {

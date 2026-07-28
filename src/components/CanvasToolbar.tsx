@@ -1,14 +1,18 @@
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 import { useCanvasStore } from '../store/canvasStore.ts'
 
+import { HistoryControls } from './HistoryControls.tsx'
+import { StartOverButton } from './StartOverButton.tsx'
+
 import './CanvasToolbar.css'
 
 const EMPTY_HINT = 'Click a block to select it. Double-click to type.'
 
 /**
- * Selection toolbar above the page: what is selected, and the three actions that
- * are hard to discover from the block itself (stacking order and delete).
- * Delete is also bound to the Delete key — see `useCanvasKeyboard`.
+ * Toolbar above the page, in two groups: page-wide actions (undo, redo, start over)
+ * and the selection actions that are hard to discover from the block itself
+ * (stacking order and delete). Both sets are also bound to keys — see
+ * `useCanvasKeyboard`.
  */
 export function CanvasToolbar() {
   const blocks = useCanvasStore((state) => state.blocks)
@@ -26,6 +30,8 @@ export function CanvasToolbar() {
         {label ? `${label} selected` : EMPTY_HINT}
       </p>
       <div className="canvas-toolbar__actions">
+        <HistoryControls />
+        <span className="canvas-toolbar__divider" aria-hidden="true" />
         <button
           type="button"
           className="canvas-toolbar__button"
@@ -53,6 +59,8 @@ export function CanvasToolbar() {
         >
           Delete
         </button>
+        <span className="canvas-toolbar__divider" aria-hidden="true" />
+        <StartOverButton />
       </div>
     </div>
   )

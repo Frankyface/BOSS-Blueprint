@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { App } from './App.tsx'
+import { startCanvasSession } from './store/canvasSession.ts'
 import { installStoreTestBridge } from './store/testBridge.ts'
 
 import './styles/theme.css'
@@ -14,6 +15,10 @@ if (!rootElement) {
 }
 
 installStoreTestBridge()
+
+// Before the first render, so a restored design paints in one go rather than
+// flashing an empty page — and so React never sees a document that has no history.
+startCanvasSession()
 
 createRoot(rootElement).render(
   <StrictMode>

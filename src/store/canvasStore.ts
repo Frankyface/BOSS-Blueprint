@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { createBlock } from '../canvas/blockFactory.ts'
 import { normaliseBlockText } from '../canvas/blockText.ts'
 import { moveRect, resizeRect } from '../canvas/geometry.ts'
-import type { Block, BlockTypeId, ResizeHandle } from '../canvas/types.ts'
+import type { Block, BlockTypeId, CanvasDocument, ResizeHandle } from '../canvas/types.ts'
 import { toRect } from '../canvas/types.ts'
 import { bringForward, insertBlock, sendBackward } from '../canvas/zorder.ts'
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
@@ -34,6 +34,7 @@ export interface CanvasActions {
   sendBlockBackward: (id: string) => void
   startEditingBlock: (id: string) => void
   stopEditingBlock: () => void
+  replaceDocument: (document: CanvasDocument) => void
   resetCanvas: () => void
 }
 
@@ -170,6 +171,30 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     set((state) => (state.editingBlockId === null ? state : { editingBlockId: null }))
   },
 
+  /**
+   * Swap in a whole document — the one action undo/redo and the autosave restore
+   * both go through.
+   *
+   * Selection is preserved rather than cleared: undoing a move should not also
+   * yank the client's selection away. It IS pruned when the id no longer exists,
+   * because an undo can take back the very block that was selected, and pointing
+   * the toolbar at a block that is not on the page any more would be a ghost.
+   */
+  replaceDocument: (document) => {
+    set((state) => {
+      if (state.blocks === document.blocks) return state
+
+      const exists = (id: string | null) =>
+        id !== null && document.blocks.some((block) => block.id === id)
+
+      return {
+        blocks: document.blocks,
+        selectedBlockId: exists(state.selectedBlockId) ? state.selectedBlockId : null,
+        editingBlockId: exists(state.editingBlockId) ? state.editingBlockId : null,
+      }
+    })
+  },
+
   resetCanvas: () => {
     set({ ...INITIAL_CANVAS_STATE })
   },
@@ -179,4 +204,9 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
 export function getCanvasSnapshot(): CanvasState {
   const { blocks, selectedBlockId, editingBlockId } = useCanvasStore.getState()
   return { blocks, selectedBlockId, editingBlockId }
+}
+
+/** The undoable/persisted slice, split out of the transient selection state. */
+export function getCanvasDocument(): CanvasDocument {
+  return { blocks: useCanvasStore.getState().blocks }
 }

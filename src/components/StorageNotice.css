@@ -1,0 +1,39 @@
+.storage-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--boss-gap);
+  flex: 0 0 auto;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text);
+  background: color-mix(in srgb, var(--boss-accent) 22%, var(--boss-surface));
+  border-bottom: 1px solid var(--boss-accent);
+}
+
+.storage-notice__message {
+  flex: 1 1 auto;
+}
+
+.storage-notice__dismiss {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.6rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.storage-notice__dismiss:hover {
+  border-color: var(--boss-select);
+}
+
+/* A failed save is not a friendly amber heads-up — it means work is at risk. */
+.storage-notice[data-notice-kind='save-failed'] {
+  background: color-mix(in srgb, var(--boss-danger) 14%, var(--boss-surface));
+  border-bottom-color: var(--boss-danger);
+}
