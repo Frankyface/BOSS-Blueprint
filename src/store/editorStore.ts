@@ -24,6 +24,33 @@ export interface StorageNotice {
   readonly message: string
 }
 
+/**
+ * HOW THIS SESSION BEGAN — and therefore which of the three start surfaces is up.
+ *
+ * One value rather than two booleans, because exactly one of them can be true:
+ * you are choosing a starting point, being coached through a blank page, or
+ * getting on with the design. Mutually exclusive by construction beats two flags
+ * that could both be set.
+ *
+ * `editing` is the default so every unit test and every component test renders
+ * the plain editor; the picker only appears when `startCanvasSession` finds
+ * nothing saved.
+ */
+export type StartState =
+  /** No saved design: choose a starter template, or start blank. */
+  | 'picker'
+  /** Chose blank: the dismissible coach card is over the empty page. */
+  | 'coaching'
+  | 'editing'
+
+/** A design read off disk, waiting for the client to confirm the overwrite. */
+export interface PendingImport {
+  readonly document: CanvasDocument
+  readonly fileName: string
+  /** The schema it was written as, when older than this build's. */
+  readonly migratedFrom: number | null
+}
+
 export interface EditorState {
   readonly history: History<CanvasDocument>
   /** Non-blocking banner about SAVING. `null` means nothing to say. */
@@ -34,18 +61,30 @@ export interface EditorState {
    * successful autosave, and an autosave problem can never be hidden by one.
    */
   readonly toast: string | null
+  readonly startState: StartState
+  /**
+   * A valid `.blueprint` that would overwrite work already on screen. Held here
+   * rather than inside the button that read it, because the same confirmation has
+   * to serve BOTH ways in — the toolbar's file picker and a file dropped onto the
+   * editor — and two copies of "are you sure" would eventually disagree.
+   */
+  readonly pendingImport: PendingImport | null
 }
 
 export interface EditorActions {
   setHistory: (history: History<CanvasDocument>) => void
   setNotice: (notice: StorageNotice | null) => void
   setToast: (toast: string | null) => void
+  setStartState: (startState: StartState) => void
+  setPendingImport: (pendingImport: PendingImport | null) => void
 }
 
 export const useEditorStore = create<EditorState & EditorActions>()((set) => ({
   history: createHistory(emptyDocument()),
   notice: null,
   toast: null,
+  startState: 'editing',
+  pendingImport: null,
 
   setHistory: (history) => {
     set((state) => (state.history === history ? state : { history }))
@@ -57,6 +96,14 @@ export const useEditorStore = create<EditorState & EditorActions>()((set) => ({
 
   setToast: (toast) => {
     set((state) => (state.toast === toast ? state : { toast }))
+  },
+
+  setStartState: (startState) => {
+    set((state) => (state.startState === startState ? state : { startState }))
+  },
+
+  setPendingImport: (pendingImport) => {
+    set((state) => (state.pendingImport === pendingImport ? state : { pendingImport }))
   },
 }))
 

@@ -103,6 +103,34 @@ describe('round trip', () => {
     expect(result).toMatchObject({ status: 'ok', document: { siteSettings: original.siteSettings } })
   })
 
+  it('carries the template flag through, and only ever as `true`', () => {
+    const original = documentOf(
+      testBlock({ id: 'seeded', fromTemplate: true }),
+      testBlock({ id: 'edited' }),
+    )
+
+    const result = parseBlueprint(serialiseDocument(original))
+
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+    const [seeded, edited] = result.document.pages[0]?.blocks ?? []
+    expect(seeded?.fromTemplate).toBe(true)
+    // Absent, not `false`: one shape per state, so a reload cannot change the block.
+    expect(edited && 'fromTemplate' in edited).toBe(false)
+  })
+
+  it('normalises an explicit `fromTemplate: false` to no flag at all', () => {
+    const raw = currentPayload([
+      { id: 'page-home', name: 'Home', blocks: [{ ...testBlock(), fromTemplate: false }] },
+    ])
+
+    const result = parseBlueprint(raw)
+
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+    expect(result.document.pages[0]?.blocks[0]).toEqual(testBlock())
+  })
+
   it('survives a second trip through the format unchanged', () => {
     const original = documentOf(testBlock(), testBlock({ id: 'block-2', type: 'button' }))
 
@@ -152,6 +180,17 @@ describe('corrupt payloads', () => {
 
     expect(parseBlueprint(raw)).toMatchObject({ status: 'corrupt' })
   })
+
+  it.each([['a string', 'yes'], ['a number', 1], ['an object', {}]])(
+    'rejects a template flag that is %s rather than coercing it',
+    (_label, fromTemplate) => {
+      const raw = currentPayload([
+        { id: 'page-home', name: 'Home', blocks: [{ ...testBlock(), fromTemplate }] },
+      ])
+
+      expect(parseBlueprint(raw)).toMatchObject({ status: 'corrupt' })
+    },
+  )
 
   it('rejects duplicate page ids', () => {
     const raw = currentPayload([testPage('same', 'Home'), testPage('same', 'Menu')])

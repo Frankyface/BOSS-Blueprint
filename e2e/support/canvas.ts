@@ -39,6 +39,8 @@ export interface StoredBlock {
   originalFilename?: string
   fit?: 'cover' | 'contain'
   description?: string
+  /** Seeded by a starter template and untouched since. Absent means false. */
+  fromTemplate?: boolean
 }
 
 export interface StoredPoint {
@@ -141,11 +143,40 @@ async function waitForStoreBridge(page: Page): Promise<void> {
     .toBe('function')
 }
 
-export async function openCanvas(page: Page): Promise<void> {
+/**
+ * THE START SURFACES, out of the way.
+ *
+ * A visit with nothing saved now opens on the starting-point picker, and choosing
+ * Blank leaves a coach card over the empty page (`feature-templates.md`). Neither
+ * changes the document — Blank is the page you are already standing on — so every
+ * spec that is about something else clears them here and carries on exactly as
+ * before. `e2e/templates.spec.ts` is the one that keeps them (`keepStart: true`).
+ */
+export async function dismissStartSurfaces(page: Page): Promise<void> {
+  const picker = page.getByTestId('template-picker')
+  if (await picker.isVisible()) {
+    await page.getByTestId('template-card-blank').click()
+    await expect(picker).toBeHidden()
+  }
+
+  const coach = page.getByTestId('blank-start-coach')
+  if (await coach.isVisible()) {
+    await page.getByTestId('blank-start-coach-dismiss').click()
+    await expect(coach).toBeHidden()
+  }
+}
+
+export interface OpenCanvasOptions {
+  /** Leave the picker and coach card up — for the specs that are about them. */
+  readonly keepStart?: boolean
+}
+
+export async function openCanvas(page: Page, options: OpenCanvasOptions = {}): Promise<void> {
   const response = await page.goto('./')
   expect(response?.status()).toBe(200)
   await expect(page.getByTestId('canvas-page')).toBeVisible()
   await waitForStoreBridge(page)
+  if (!options.keepStart) await dismissStartSurfaces(page)
 }
 
 export function blocks(page: Page): Locator {
@@ -339,10 +370,11 @@ export async function waitForAutosave(page: Page): Promise<void> {
 }
 
 /** Reload the page the way a client would, and wait for the app to come back up. */
-export async function reloadCanvas(page: Page): Promise<void> {
+export async function reloadCanvas(page: Page, options: OpenCanvasOptions = {}): Promise<void> {
   await page.reload()
   await expect(page.getByTestId('canvas-page')).toBeVisible()
   await waitForStoreBridge(page)
+  if (!options.keepStart) await dismissStartSurfaces(page)
 }
 
 export async function undoOnce(page: Page): Promise<void> {

@@ -92,6 +92,19 @@ export interface Block {
   readonly height: number
   /** Client-typed copy. Empty string means "still showing the type's placeholder". */
   readonly text: string
+  /**
+   * Seeded by a starter template and NOT touched by the client since
+   * (`docs/decisions.md` 2026-07-28, "Template guardrails").
+   *
+   * ABSENT MEANS FALSE, and the field is only ever written as `true` — the store
+   * removes the key on the block's first edit rather than writing `false`, so a
+   * block has exactly one shape per state and a saved-then-reloaded block is
+   * identical to the one that was on screen. Purely additive: a payload written
+   * before templates existed parses to blocks with no flag, which is the truth.
+   *
+   * Stage 3 reads it to tell Cam which words are still our example copy.
+   */
+  readonly fromTemplate?: boolean
   /** Copy blocks (heading, text) only. */
   readonly copyMode?: CopyMode
   /** Copy blocks in `generate` mode: the prompt the client wrote for Claude. */

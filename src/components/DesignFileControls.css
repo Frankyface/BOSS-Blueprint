@@ -1,0 +1,53 @@
+.design-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Pushed to the right-hand end of the header bar, past the tagline. */
+  flex: 0 0 auto;
+}
+
+.design-file__button {
+  padding: 0.4rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text-invert);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--boss-text-invert) 45%, transparent);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.design-file__button:hover,
+.design-file__button:focus-visible {
+  border-color: var(--boss-accent);
+  color: var(--boss-accent);
+}
+
+.design-file__button--primary {
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border-color: var(--boss-accent);
+}
+
+.design-file__button--primary:hover,
+.design-file__button--primary:focus-visible {
+  color: var(--boss-ink);
+  background: color-mix(in srgb, var(--boss-accent) 82%, var(--boss-surface));
+}
+
+/*
+ * Off-screen rather than `display: none`: a hidden input cannot be opened by a
+ * click in every engine, and Playwright's `setInputFiles` needs a real element.
+ * The same trick `ImageSlot` uses for its file input.
+ */
+.design-file__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}

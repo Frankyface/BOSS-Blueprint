@@ -72,6 +72,77 @@ export function withTypeDefaults(block: Block): Block {
   return block
 }
 
+/* --- The template flag ---------------------------------------------------- */
+
+/**
+ * WHICH TYPES MAY CARRY `fromTemplate` (`docs/export-format.md` §2.6, v2.3).
+ *
+ * A section band is a coloured strip: it has no text, no label and no
+ * description, so there is nothing about it the client could "touch" and the flag
+ * could never clear. A flagged section would therefore make the submit-time
+ * untouched-filler warning (V23) permanent for every design that started from a
+ * template, however thoroughly the client rewrote it. The spec's answer is a
+ * producer-side rule — this one — plus a defensive strip at export.
+ */
+const TEMPLATE_FLAG_TYPES: ReadonlySet<BlockTypeId> = new Set<BlockTypeId>([
+  'heading',
+  'text',
+  'button',
+  'nav-bar',
+  'image',
+])
+
+export function canCarryTemplateFlag(type: BlockTypeId): boolean {
+  return TEMPLATE_FLAG_TYPES.has(type)
+}
+
+/** Still showing a starter template's example words, untouched by the client. */
+export function isFromTemplate(block: Block): boolean {
+  return block.fromTemplate === true && canCarryTemplateFlag(block.type)
+}
+
+/**
+ * "The client has made this block their own."
+ *
+ * The key is REMOVED rather than set to `false`, so the flag has exactly two
+ * shapes — present-and-true, or absent — and a block that is saved and reloaded
+ * comes back identical to the one on screen. (`parseBlock` normalises an explicit
+ * `false` from a hand-edited file the same way.) Absent is what a hand-added block
+ * has always looked like, so an edited template block becomes indistinguishable
+ * from one the client placed themselves, which is exactly what it now is.
+ */
+export function withTemplateFlagCleared(block: Block): Block {
+  if (block.fromTemplate === undefined) return block
+
+  const { fromTemplate, ...rest } = block
+  void fromTemplate
+  return rest
+}
+
+/**
+ * THE CLEARING RULE, in one place: **content edits clear the flag; moving and
+ * resizing do not** (`docs/export-format.md` §2.6 — "the client never touched its
+ * content … moving/resizing doesn't clear it, editing content does").
+ *
+ * Worth stating why the contract draws the line there rather than at "any change
+ * at all". The flag answers one question for Stage 3: *are these still OUR
+ * example words?* Dragging our heading four grid squares to the left does not
+ * make "Martina's Trattoria" the client's business name — it is still filler, and
+ * a brief that stopped saying so because the box moved would be lying to the
+ * builder. Retyping it is what makes it theirs.
+ *
+ * Everything that is not the box's position and size counts as content: the words,
+ * the copy mode and its prompt, a button's target, a menu's items, a photo, its
+ * fit and its description. Z-ORDER cannot reach here at all — reordering the array
+ * never produces a new block object.
+ */
+export function withTemplateFlagClearedOnEdit(previous: Block, next: Block): Block {
+  if (!isFromTemplate(next)) return next
+  if (blockContentEqual(previous, next)) return next
+
+  return withTemplateFlagCleared(next)
+}
+
 /** True when this block is a placeholder Claude has to fill in at build time. */
 export function isGenerateBlock(block: Block): boolean {
   return isCopyBlock(block) && copyModeOf(block) === 'generate'
@@ -229,20 +300,17 @@ function navItemsEqual(a: readonly NavItem[], b: readonly NavItem[]): boolean {
 }
 
 /**
- * Do these two blocks describe the same thing?
+ * EVERYTHING ABOUT A BLOCK EXCEPT THE BOX IT SITS IN.
  *
- * The store returns the ORIGINAL array when an update changed nothing, so a no-op
- * gesture never churns React or lands on the undo stack. That promise is only as
- * good as this comparison, so it covers every field of every type.
+ * Split out of `blocksEqual` because the template flag needs exactly this
+ * question — "did the client change anything other than where it is?" — and a
+ * second, hand-maintained list of content fields would be the thing that silently
+ * fell out of step the next time a field was added.
  */
-export function blocksEqual(a: Block, b: Block): boolean {
+function blockContentEqual(a: Block, b: Block): boolean {
   return (
     a.id === b.id &&
     a.type === b.type &&
-    a.x === b.x &&
-    a.y === b.y &&
-    a.width === b.width &&
-    a.height === b.height &&
     a.text === b.text &&
     copyModeOf(a) === copyModeOf(b) &&
     (a.generateDescription ?? '') === (b.generateDescription ?? '') &&
@@ -253,5 +321,25 @@ export function blocksEqual(a: Block, b: Block): boolean {
     imageFilenameOf(a) === imageFilenameOf(b) &&
     imageFitOf(a) === imageFitOf(b) &&
     imageDescriptionOf(a) === imageDescriptionOf(b)
+  )
+}
+
+/**
+ * Do these two blocks describe the same thing?
+ *
+ * The store returns the ORIGINAL array when an update changed nothing, so a no-op
+ * gesture never churns React or lands on the undo stack. That promise is only as
+ * good as this comparison, so it covers every field of every type — including
+ * `fromTemplate` (batch-1 review LOW-2: a comparison that cannot see a field
+ * cannot protect it, and this one guards the flag that survives a no-op edit).
+ */
+export function blocksEqual(a: Block, b: Block): boolean {
+  return (
+    a.x === b.x &&
+    a.y === b.y &&
+    a.width === b.width &&
+    a.height === b.height &&
+    isFromTemplate(a) === isFromTemplate(b) &&
+    blockContentEqual(a, b)
   )
 }

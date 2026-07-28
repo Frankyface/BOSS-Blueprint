@@ -36,8 +36,16 @@
   color: #b9c3d6;
 }
 
-@media (max-width: 40rem) {
+/*
+ * The tagline is the flexible one, so the design-file buttons keep their size and
+ * the tagline gives up its space first on a narrow window.
+ */
+@media (max-width: 60rem) {
   .app-header__tagline {
     display: none;
+  }
+
+  .design-file {
+    margin-left: auto;
   }
 }

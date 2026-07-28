@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   blocksEqual,
+  canCarryTemplateFlag,
   copyModeOf,
   isCopyBlock,
+  isFromTemplate,
   isGenerateBlock,
   isLinked,
   linkOf,
@@ -16,6 +18,9 @@ import {
   withNavItemLabel,
   withNavItemLink,
   withNavItemRemoved,
+  withImageDescription,
+  withTemplateFlagCleared,
+  withTemplateFlagClearedOnEdit,
   withTypeDefaults,
 } from './blockEdits.ts'
 import { externalLink, NO_LINK, pageLink } from './links.ts'
@@ -263,5 +268,122 @@ describe('blocksEqual', () => {
     expect(blocksEqual(one, block('nav-bar'))).toBe(false)
     expect(blocksEqual(one, withNavItemLink(one, itemId, pageLink('page-home')))).toBe(false)
     expect(blocksEqual(one, { ...one })).toBe(true)
+  })
+
+  it('sees a difference in the template flag (review LOW-2)', () => {
+    const seeded = block('heading', { fromTemplate: true })
+
+    expect(blocksEqual(seeded, block('heading'))).toBe(false)
+    expect(blocksEqual(seeded, { ...seeded })).toBe(true)
+  })
+
+  it('reads an absent flag and an explicit false as the same block', () => {
+    expect(blocksEqual(block('heading'), { ...block('heading'), fromTemplate: false })).toBe(true)
+  })
+})
+
+describe('the template flag', () => {
+  it('is only true when it is really there', () => {
+    expect(isFromTemplate(block('heading', { fromTemplate: true }))).toBe(true)
+    expect(isFromTemplate(block('heading'))).toBe(false)
+    expect(isFromTemplate({ ...block('heading'), fromTemplate: false })).toBe(false)
+  })
+
+  /**
+   * `docs/export-format.md` §2.6 (v2.3): only content-bearing types carry it. A
+   * band has no text, label or description, so a flag on one could never clear —
+   * and the submit-time filler warning would be permanent for every template start.
+   */
+  it.each([
+    ['heading', true],
+    ['text', true],
+    ['button', true],
+    ['nav-bar', true],
+    ['image', true],
+    ['section', false],
+  ] as const)('may be carried by a %s: %o', (type, allowed) => {
+    expect(canCarryTemplateFlag(type)).toBe(allowed)
+    expect(isFromTemplate({ ...block(type), fromTemplate: true })).toBe(allowed)
+  })
+
+  it('clears by REMOVING the key, so an edited block has a hand-placed block\'s shape', () => {
+    const cleared = withTemplateFlagCleared(block('heading', { fromTemplate: true }))
+
+    expect(isFromTemplate(cleared)).toBe(false)
+    expect('fromTemplate' in cleared).toBe(false)
+    expect(cleared).toEqual(block('heading'))
+  })
+
+  it('hands back the very same block when there is no flag to clear', () => {
+    const plain = block('text')
+
+    expect(withTemplateFlagCleared(plain)).toBe(plain)
+  })
+
+  it('keeps every other field intact', () => {
+    const seeded = block('image', { fromTemplate: true, description: 'Your dining room' })
+
+    expect(withTemplateFlagCleared(seeded)).toMatchObject({
+      id: seeded.id,
+      type: 'image',
+      description: 'Your dining room',
+    })
+  })
+})
+
+describe('withTemplateFlagClearedOnEdit', () => {
+  const seeded = (type: BlockTypeId = 'heading'): Block =>
+    block(type, { fromTemplate: true })
+
+  it.each([
+    ['the words', { text: 'The Copper Pot' }],
+    ['the copy mode', { copyMode: 'generate' as const }],
+    ['the prompt', { generateDescription: 'Say who we are' }],
+    ['the length hint', { lengthHint: '2 sentences' }],
+  ])('clears the flag when the client changes %s', (_label, overrides) => {
+    const before = seeded()
+
+    const after = withTemplateFlagClearedOnEdit(before, { ...before, ...overrides })
+
+    expect(isFromTemplate(after)).toBe(false)
+  })
+
+  it.each([
+    ['moved', { x: 120, y: 320 }],
+    ['resized', { width: 400, height: 96 }],
+  ])('KEEPS the flag when the block is only %s (export-format §2.6)', (_label, overrides) => {
+    const before = seeded()
+
+    const after = withTemplateFlagClearedOnEdit(before, { ...before, ...overrides })
+
+    expect(isFromTemplate(after)).toBe(true)
+    expect(after).toMatchObject(overrides)
+  })
+
+  it('clears the flag on a photo, its fit, its description and a button target', () => {
+    const image = seeded('image')
+    const button = seeded('button')
+
+    expect(
+      isFromTemplate(
+        withTemplateFlagClearedOnEdit(image, { ...image, imageData: 'data:image/png;base64,AA' }),
+      ),
+    ).toBe(false)
+    expect(
+      isFromTemplate(withTemplateFlagClearedOnEdit(image, { ...image, fit: 'contain' })),
+    ).toBe(false)
+    expect(
+      isFromTemplate(withTemplateFlagClearedOnEdit(image, withImageDescription(image, 'Ours'))),
+    ).toBe(false)
+    expect(
+      isFromTemplate(withTemplateFlagClearedOnEdit(button, withLink(button, pageLink('page-x')))),
+    ).toBe(false)
+  })
+
+  it('leaves an unflagged block alone, identically', () => {
+    const plain = block('heading')
+    const edited = { ...plain, text: 'Hi' }
+
+    expect(withTemplateFlagClearedOnEdit(plain, edited)).toBe(edited)
   })
 })

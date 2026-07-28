@@ -12,6 +12,8 @@
  * e2e/app-layout.spec.ts.
  */
 .app-shell {
+  /* The containing block for the start-template picker, which covers the editor. */
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -30,6 +32,8 @@
  * width and pushes the details panel off the right of the window.
  */
 .app-shell__stage {
+  /* The blank-start coach card floats over the canvas, inside this column. */
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;

@@ -1,0 +1,286 @@
+/*
+ * The two start surfaces: the template picker and the blank-page coach card.
+ *
+ * Both are plain absolutely-positioned DOM over the editor — no portal, no focus
+ * trap library, no scroll lock. The picker covers the shell because the choice IS
+ * the screen at that moment; the coach card floats over the canvas because the
+ * client is meant to reach past it for the palette while they read it.
+ */
+
+.start-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--boss-gap);
+  overflow: auto;
+  background: color-mix(in srgb, var(--boss-ink) 72%, transparent);
+}
+
+.start-overlay__sheet {
+  width: 100%;
+  max-width: 44rem;
+  margin: auto;
+  padding: 1.5rem 1.75rem 1.75rem;
+  background: var(--boss-surface);
+  border-radius: var(--boss-radius);
+  border-top: 4px solid var(--boss-accent);
+  box-shadow: 0 1.5rem 3rem color-mix(in srgb, var(--boss-ink) 35%, transparent);
+}
+
+/*
+ * Wide enough that the four cards sit in ONE row at the desktop sizes this tool
+ * targets — 4 × 17rem + 3 gaps + the sheet's own padding. Narrower windows wrap to
+ * two rows and the overlay scrolls, which is why it is `overflow: auto`.
+ */
+.start-overlay__sheet--wide {
+  max-width: 78rem;
+}
+
+.start-overlay__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.start-overlay__lead {
+  max-width: 46rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--boss-text-muted);
+}
+
+/*
+ * `auto-fit` + `minmax` rather than a fixed column count: at 1920 the four cards
+ * sit in one row, and the layout still holds together when the details panel and
+ * palette squeeze the shell on a laptop.
+ */
+.template-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: var(--boss-gap);
+  margin-top: 1.25rem;
+}
+
+.template-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.75rem;
+  font: inherit;
+  text-align: left;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.template-card:hover,
+.template-card:focus-visible {
+  border-color: var(--boss-select);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--boss-select) 25%, transparent);
+}
+
+.template-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.template-card__line {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--boss-text-muted);
+}
+
+.template-card__meta {
+  margin-top: auto;
+  padding-top: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--boss-text-muted);
+}
+
+.template-picker__blank {
+  display: flex;
+  align-items: center;
+  gap: var(--boss-gap);
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed var(--boss-line-strong);
+}
+
+.template-card--blank {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 14rem;
+  border-style: dashed;
+  border-color: var(--boss-line-strong);
+}
+
+.template-picker__blank-hint {
+  font-size: 0.8rem;
+  color: var(--boss-text-muted);
+}
+
+/* --- the miniature ------------------------------------------------------- */
+
+.template-thumb {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--boss-line);
+  border-radius: calc(var(--boss-radius) / 2);
+  background: var(--boss-surface);
+}
+
+.template-thumb__page {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  background: var(--boss-surface);
+}
+
+.template-thumb__block {
+  display: block;
+  position: absolute;
+  background: var(--boss-band);
+  border: 2px solid var(--boss-line);
+}
+
+/*
+ * Each type gets a shape a client can recognise at 1/4 scale: the menu strip is
+ * dark, pictures are hatched, words are grey bars, the call to action is the
+ * accent pill. The section band stays near-invisible — it is the backdrop the
+ * others sit on, and outlining it would read as a fifth box.
+ */
+.template-thumb__block[data-block-type='section'] {
+  background: color-mix(in srgb, var(--boss-band) 60%, var(--boss-surface));
+  border-color: transparent;
+}
+
+.template-thumb__block[data-block-type='nav-bar'] {
+  background: var(--boss-ink);
+  border-color: var(--boss-ink);
+}
+
+.template-thumb__block[data-block-type='image'] {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--boss-band),
+    var(--boss-band) 10px,
+    color-mix(in srgb, var(--boss-line) 70%, var(--boss-band)) 10px,
+    color-mix(in srgb, var(--boss-line) 70%, var(--boss-band)) 20px
+  );
+  border-color: var(--boss-line-strong);
+}
+
+.template-thumb__block[data-block-type='heading'] {
+  background: color-mix(in srgb, var(--boss-text) 55%, var(--boss-surface));
+  border-color: transparent;
+}
+
+.template-thumb__block[data-block-type='text'] {
+  background: color-mix(in srgb, var(--boss-text-muted) 32%, var(--boss-surface));
+  border-color: transparent;
+}
+
+.template-thumb__block[data-block-type='button'] {
+  background: var(--boss-accent);
+  border-color: var(--boss-accent);
+  border-radius: 999px;
+}
+
+/* --- the blank-start coach card ------------------------------------------ */
+
+.start-coach {
+  position: absolute;
+  top: 1.5rem;
+  left: 50%;
+  z-index: 30;
+  width: min(30rem, calc(100% - 3rem));
+  transform: translateX(-50%);
+  padding: 1.1rem 1.25rem;
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line);
+  border-left: 4px solid var(--boss-accent);
+  border-radius: var(--boss-radius);
+  box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--boss-ink) 22%, transparent);
+}
+
+.start-coach__title {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.start-coach__lead {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--boss-text-muted);
+}
+
+.start-coach__steps {
+  margin: 0.6rem 0 0;
+  padding-left: 1.25rem;
+  list-style: decimal;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.start-coach__reassurance {
+  margin-top: 0.7rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--boss-text-muted);
+}
+
+.start-coach__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--boss-gap);
+  margin-top: 0.9rem;
+}
+
+.start-coach__link {
+  flex: 1 1 auto;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--boss-select);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.start-coach__link:hover {
+  text-decoration: underline;
+}
+
+.start-coach__dismiss {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.start-coach__dismiss:hover {
+  border-color: var(--boss-select);
+}

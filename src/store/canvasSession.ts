@@ -3,7 +3,13 @@ import type { CanvasDocument } from '../canvas/types.ts'
 
 import { createAutosave } from './autosave.ts'
 import type { Autosave } from './autosave.ts'
-import { documentOf, getCanvasDocument, useCanvasStore } from './canvasStore.ts'
+import type { CanvasState } from './canvasState.ts'
+import {
+  documentOf,
+  getCanvasDocument,
+  selectHasContent,
+  useCanvasStore,
+} from './canvasStore.ts'
 import { clearStoredDocument, getBrowserStorage, loadDocument, saveDocument } from './canvasStorage.ts'
 import type { LoadOutcome, SaveOutcome, StorageLike } from './canvasStorage.ts'
 import { useEditorStore } from './editorStore.ts'
@@ -176,6 +182,21 @@ function installFlushOnHide(autosave: Autosave<CanvasDocument>): () => void {
   }
 }
 
+/**
+ * The blank-start coach card is help for an empty page, so the first thing the
+ * client puts on the page retires it — for good, not just while that block is
+ * there. Latched HERE, in the one subscriber that already sees every document
+ * change, rather than in the card: a component would need an effect to notice, and
+ * an effect that writes to a store paints the stale card first.
+ */
+function retireCoachOnFirstContent(state: CanvasState): void {
+  const { startState, setStartState } = useEditorStore.getState()
+  if (startState !== 'coaching') return
+  if (!selectHasContent(state)) return
+
+  setStartState('editing')
+}
+
 function applyHistory(next: History<CanvasDocument>): void {
   isReplaying = true
   try {
@@ -202,6 +223,24 @@ export function startCanvasSession(options: CanvasSessionOptions = {}): () => vo
     canvas.replaceDocument(outcome.document)
   }
 
+  /**
+   * THE FIRST-VISIT RULE, in one line: no design to restore means the client has
+   * not started one, so offer them a starting point.
+   *
+   * Deliberately derived from storage rather than remembered in a flag of its own.
+   * A second persisted "has chosen" key would be a second thing that can be out of
+   * step with the design itself — and the honest answer to "should we offer a
+   * starting point?" is exactly "is there any work here to come back to?". It
+   * follows that a client who picks Blank, places nothing and reloads is offered
+   * the picker again, which is right: they have nothing to lose and no page to
+   * come back to.
+   *
+   * `recovered` and `unavailable` land here too: a quarantined payload leaves them
+   * on a fresh page, which is a start, and the notice explaining it stays on screen
+   * behind the picker.
+   */
+  editor.setStartState(outcome.status === 'loaded' ? 'editing' : 'picker')
+  editor.setPendingImport(null)
   editor.setNotice(noticeForLoad(outcome))
 
   // A restored design is the starting point, not something to undo back past.
@@ -219,6 +258,8 @@ export function startCanvasSession(options: CanvasSessionOptions = {}): () => vo
     // document untouched, and so does any action the store treated as a no-op —
     // none of those are undo steps and none of them change what should be on disk.
     if (state.pages === previous.pages && state.siteSettings === previous.siteSettings) return
+
+    retireCoachOnFirstContent(state)
 
     const document: CanvasDocument = documentOf(state)
 
@@ -266,6 +307,35 @@ export function redo(): void {
 }
 
 /**
+ * MAKE THIS WHOLE DOCUMENT THE DESIGN — the one door a starter template and an
+ * opened `.blueprint` file both come through.
+ *
+ * It is `startOver` in reverse, and shares its two rules. The swap is flagged as a
+ * REPLAY so it does not land on the undo stack it is about to replace: a design
+ * that has just been opened is the starting point, not a step to undo back past
+ * (Ctrl+Z after opening a file must not silently restore the design it replaced).
+ * And the history is rebuilt around the document the store actually holds, not an
+ * equal-looking copy, so the next edit records a real step rather than a phantom.
+ *
+ * Autosave still runs — the subscriber schedules on every document change,
+ * replaying or not — so the opened design survives a reload without a second
+ * persistence path.
+ */
+export function openDesign(document: CanvasDocument): void {
+  isReplaying = true
+  try {
+    useCanvasStore.getState().replaceDocument(document)
+    useEditorStore.getState().setHistory(createHistory(getCanvasDocument()))
+  } finally {
+    isReplaying = false
+  }
+
+  const editor = useEditorStore.getState()
+  editor.setStartState('editing')
+  editor.setPendingImport(null)
+}
+
+/**
  * Kinds that describe the DESIGN, and so stop being true the moment it is cleared:
  * the page is no longer large, the failed save no longer matters, and the
  * quarantined file has just been deleted along with everything else.
@@ -285,6 +355,11 @@ const NOTICE_KINDS_RESOLVED_BY_START_OVER: ReadonlySet<StorageNoticeKind> = new 
  * flagged as a replay so it does not land on the stack we are about to throw away,
  * and the queued autosave is cancelled before the keys are removed so a timer that
  * was already ticking cannot write the old design back afterwards.
+ *
+ * It is ALSO the "new design" path: clearing puts the client back exactly where a
+ * first visit finds them, so the starting-point picker is offered again. That is
+ * why there is no separate "new design" button — one action, one meaning, and no
+ * second way to arrive at an empty page.
  */
 export function startOver(): void {
   isReplaying = true
@@ -298,6 +373,8 @@ export function startOver(): void {
   }
 
   useEditorStore.getState().setToast(null)
+  useEditorStore.getState().setPendingImport(null)
+  useEditorStore.getState().setStartState('picker')
 
   session?.autosave.cancel()
   clearStoredDocument(session?.storage ?? null)

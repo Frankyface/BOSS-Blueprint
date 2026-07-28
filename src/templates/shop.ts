@@ -1,0 +1,353 @@
+import { PAGE_WIDTH_PX } from '../canvas/constants.ts'
+
+import {
+  BAND_PAD_TOP,
+  COL_FULL,
+  COL_HALF_LEFT,
+  COL_HALF_RIGHT,
+  COL_THIRD_1,
+  COL_THIRD_2,
+  COL_THIRD_3,
+  MARGIN_X,
+  NAV_HEIGHT,
+  band,
+  navBar,
+} from './layout.ts'
+import type { NavEntry, StarterTemplate } from './layout.ts'
+
+/* ═══════════════════════════ 4 · SHOP ═══════════════════════════
+ * Teaches: the product card — a picture with a name and price underneath, copied across a
+ * row — and where the "buy" part of a real shop will be wired in later.
+ */
+
+const SHOP_NAV: readonly NavEntry[] = [
+  ['Home', 'home'],
+  ['Shop', 'shop'],
+  ['Find Us', 'contact'],
+]
+
+/** Shop · Home. */
+const SH_HERO_Y = NAV_HEIGHT // 72
+const SH_FEATURED_Y = SH_HERO_Y + 424 // 496
+
+/** Shop · Shop. */
+const SS_HEADER_Y = NAV_HEIGHT // 72
+const SS_GRID_Y = SS_HEADER_Y + 224 // 296
+
+/** Shop · Find Us. */
+const SC_HEADER_Y = NAV_HEIGHT // 72
+const SC_STORE_Y = SC_HEADER_Y + 200 // 272
+const SC_SHIP_Y = SC_STORE_Y + 440 // 712
+
+export const SHOP_TEMPLATE: StarterTemplate = {
+  id: 'shop',
+  pickerTitle: 'Shop',
+  pickerLine: 'Product pictures with names and prices, plus your opening hours.',
+  siteSettings: {
+    businessName: '',
+    tagline: 'Small-batch goods, made on the South Shore.',
+    about: '',
+    vibe: 'warm',
+    styleNotes: '',
+    colors: [],
+  },
+  pages: [
+    {
+      id: 'home',
+      name: 'Home',
+      blocks: [
+        navBar('shop-home-nav', SHOP_NAV),
+        band('shop-home-hero-band', SH_HERO_Y, 424),
+        band('shop-home-featured-band', SH_FEATURED_Y, 560),
+        {
+          id: 'shop-home-hero-photo',
+          type: 'image',
+          x: 0,
+          y: SH_HERO_Y,
+          width: PAGE_WIDTH_PX,
+          height: 424,
+          text: '',
+          fit: 'cover',
+          description:
+            'A wide shot of your products together, or of the shop itself. Leave some plain space on the left so the words below sit on top of it comfortably.',
+          fromTemplate: true,
+        },
+        {
+          // DELIBERATE OVERLAP: heading + button sit ON the hero photo (same lesson as
+          // the Restaurant home page).
+          id: 'shop-home-hero-title',
+          x: MARGIN_X,
+          y: SH_HERO_Y + 160,
+          width: 664,
+          height: 80,
+          type: 'heading',
+          text: 'Northwind Goods',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-home-hero-cta',
+          x: MARGIN_X,
+          y: SH_HERO_Y + 272,
+          width: 280,
+          height: 56,
+          type: 'button',
+          text: 'Shop the collection',
+          link: { kind: 'page', pageId: 'shop' },
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-home-featured-title',
+          ...COL_HALF_LEFT,
+          type: 'heading',
+          y: SH_FEATURED_Y + BAND_PAD_TOP,
+          height: 56,
+          text: "This month's picks",
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-home-feat-1',
+          ...COL_THIRD_1,
+          type: 'image',
+          y: SH_FEATURED_Y + 128,
+          height: 280,
+          text: '',
+          fit: 'cover',
+          description: 'Your best seller, shot on a plain background in daylight.',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-home-feat-2',
+          ...COL_THIRD_2,
+          type: 'image',
+          y: SH_FEATURED_Y + 128,
+          height: 280,
+          text: '',
+          fit: 'cover',
+          description: 'Something new, or seasonal.',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-home-feat-3',
+          ...COL_THIRD_3,
+          type: 'image',
+          y: SH_FEATURED_Y + 128,
+          height: 280,
+          text: '',
+          fit: 'cover',
+          description: 'The one people always ask about.',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-home-promise',
+          ...COL_FULL,
+          type: 'text',
+          y: SH_FEATURED_Y + 432,
+          height: 72,
+          text: '',
+          copyMode: 'generate',
+          generateDescription:
+            'One warm line about what makes our stuff different — made by hand in small batches on the South Shore, no synthetic fragrance, free local delivery over $75.',
+          lengthHint: '1–2 sentences',
+          fromTemplate: true,
+        },
+      ],
+    },
+    {
+      id: 'shop',
+      name: 'Shop',
+      blocks: [
+        navBar('shop-shop-nav', SHOP_NAV),
+        band('shop-shop-header-band', SS_HEADER_Y, 224),
+        band('shop-shop-grid-band', SS_GRID_Y, 600),
+        {
+          id: 'shop-shop-title',
+          x: MARGIN_X,
+          y: SS_HEADER_Y + BAND_PAD_TOP,
+          width: 400,
+          height: 64,
+          type: 'heading',
+          text: 'Shop',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-shop-intro',
+          x: MARGIN_X,
+          y: SS_HEADER_Y + 136,
+          width: 664,
+          height: 72,
+          type: 'text',
+          text: 'Everything is made in small batches, so what you see here is what we have.',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-shop-img-1',
+          ...COL_THIRD_1,
+          type: 'image',
+          y: SS_GRID_Y + BAND_PAD_TOP,
+          height: 296,
+          text: '',
+          fit: 'cover',
+          description:
+            "One product, plain background, shot straight on. Keep every product photo the same distance and background — that's what makes a shop page look tidy.",
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-shop-img-2',
+          ...COL_THIRD_2,
+          type: 'image',
+          y: SS_GRID_Y + BAND_PAD_TOP,
+          height: 296,
+          text: '',
+          fit: 'cover',
+          description: 'Second product, framed exactly like the first.',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-shop-img-3',
+          ...COL_THIRD_3,
+          type: 'image',
+          y: SS_GRID_Y + BAND_PAD_TOP,
+          height: 296,
+          text: '',
+          fit: 'cover',
+          description: 'Third product. Copy this picture-and-caption pair for every item you sell.',
+          fromTemplate: true,
+        },
+        {
+          // The image + caption pair is the unit to copy — worth saying in the picker copy.
+          id: 'shop-shop-cap-1',
+          ...COL_THIRD_1,
+          type: 'text',
+          y: SS_GRID_Y + 360,
+          height: 72,
+          text: 'Cedar & Sea Salt candle\n$28',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-shop-cap-2',
+          ...COL_THIRD_2,
+          type: 'text',
+          y: SS_GRID_Y + 360,
+          height: 72,
+          text: 'Linen tea towel, two-pack\n$34',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-shop-cap-3',
+          ...COL_THIRD_3,
+          type: 'text',
+          y: SS_GRID_Y + 360,
+          height: 72,
+          text: 'Stoneware mug\n$42',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-shop-cta',
+          x: MARGIN_X,
+          y: SS_GRID_Y + 464,
+          width: 304,
+          height: 56,
+          type: 'button',
+          text: 'Questions? Talk to us',
+          link: { kind: 'page', pageId: 'contact' },
+          fromTemplate: true,
+        },
+      ],
+    },
+    {
+      id: 'contact',
+      name: 'Find Us',
+      blocks: [
+        navBar('shop-contact-nav', SHOP_NAV),
+        band('shop-contact-header-band', SC_HEADER_Y, 200),
+        band('shop-contact-store-band', SC_STORE_Y, 440),
+        band('shop-contact-ship-band', SC_SHIP_Y, 320),
+        {
+          id: 'shop-contact-title',
+          ...COL_HALF_LEFT,
+          type: 'heading',
+          y: SC_HEADER_Y + BAND_PAD_TOP,
+          height: 64,
+          text: 'Find us',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-contact-store-title',
+          ...COL_HALF_LEFT,
+          type: 'heading',
+          y: SC_STORE_Y + BAND_PAD_TOP,
+          height: 56,
+          text: 'In the shop',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-contact-store-photo',
+          ...COL_HALF_RIGHT,
+          type: 'image',
+          y: SC_STORE_Y + BAND_PAD_TOP,
+          height: 344,
+          text: '',
+          fit: 'cover',
+          description:
+            'Your storefront from the sidewalk, sign visible. This is how people find you on foot.',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-contact-store-body',
+          ...COL_HALF_LEFT,
+          type: 'text',
+          y: SC_STORE_Y + 112,
+          height: 280,
+          text: '22 Montague Street\nLunenburg, NS  B0J 2C0\n(902) 555-0119\n\nThursday – Saturday  10am – 5pm\nSunday  11am – 4pm\n\nWant a map on this page? Say so and BOSS will drop one in.',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-contact-ship-title',
+          x: MARGIN_X,
+          y: SC_SHIP_Y + BAND_PAD_TOP,
+          width: 560,
+          height: 56,
+          type: 'heading',
+          text: 'Online orders & shipping',
+          copyMode: 'real',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-contact-ship-body',
+          x: MARGIN_X,
+          y: SC_SHIP_Y + 112,
+          width: 560,
+          height: 144,
+          type: 'text',
+          text: '',
+          copyMode: 'generate',
+          generateDescription:
+            'Two plain sentences about shipping — we ship Canada-wide, $12 flat rate, free over $75, and orders go out within two business days.',
+          lengthHint: '2 sentences',
+          fromTemplate: true,
+        },
+        {
+          id: 'shop-contact-ship-cta',
+          x: 704,
+          y: SC_SHIP_Y + 112,
+          width: 264,
+          height: 56,
+          type: 'button',
+          text: 'Back to the shop',
+          link: { kind: 'page', pageId: 'shop' },
+          fromTemplate: true,
+        },
+      ],
+    },
+  ],
+}

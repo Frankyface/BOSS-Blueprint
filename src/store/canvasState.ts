@@ -1,4 +1,4 @@
-import { blocksEqual } from '../canvas/blockEdits.ts'
+import { blocksEqual, withTemplateFlagClearedOnEdit } from '../canvas/blockEdits.ts'
 import {
   documentsEqual,
   emptyDocument,
@@ -159,6 +159,16 @@ export function selectSelectedBlock(state: CanvasState): Block | null {
  * Replace one block on the current page immutably. Returns the ORIGINAL state when
  * the id is unknown or the update changed nothing, so no-op gestures don't churn
  * React or the undo stack.
+ *
+ * THIS IS ALSO WHERE `fromTemplate` IS CLEARED, and deliberately the only place.
+ * Every per-block action in the store — text, geometry, copy mode, link, nav
+ * items, photo, fit, description — is `updateCurrentBlock` over this function, so
+ * "the client edited this block's content" has exactly one definition instead of
+ * fifteen that could drift apart. The rule itself, and why the line is drawn
+ * where it is, lives with `withTemplateFlagClearedOnEdit`.
+ *
+ * Z-order never reaches here: `bringForward`/`sendBackward` reorder the array
+ * without producing a new block object. Nor does adding or deleting one.
  */
 export function withUpdatedBlock(
   blocks: readonly Block[],
@@ -175,7 +185,7 @@ export function withUpdatedBlock(
   if (blocksEqual(current, next)) return blocks
 
   const updated = blocks.slice()
-  updated[index] = next
+  updated[index] = withTemplateFlagClearedOnEdit(current, next)
   return updated
 }
 

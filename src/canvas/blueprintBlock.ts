@@ -1,4 +1,4 @@
-import { DEFAULT_COPY_MODE, isCopyBlockType } from './blockEdits.ts'
+import { canCarryTemplateFlag, DEFAULT_COPY_MODE, isCopyBlockType } from './blockEdits.ts'
 import { DEFAULT_IMAGE_FIT, isImageDataUrl, isImageFit } from './imageAssets.ts'
 import { NO_LINK, parseLink } from './links.ts'
 import { NAV_ITEMS_SCHEMA_MAX, navItemsFromText, parseNavItem, withNavItems } from './navItems.ts'
@@ -58,6 +58,27 @@ function parseOptionalText(value: unknown): string | null {
 function parseImageData(value: unknown): string | null {
   if (value === undefined || value === null || value === '') return ''
   return isImageDataUrl(value) ? value : null
+}
+
+/**
+ * The starter-template flag. Absent, `null` and `false` all mean the same thing —
+ * this block is the client's — and all normalise to the key being ABSENT, so a
+ * block has one shape per state whichever route it arrived by. Anything other
+ * than a boolean is corruption: it would decide what Stage 3's brief says about
+ * whose words these are, so it is not a field to coerce.
+ *
+ * A flag on a `section` is dropped rather than kept (`docs/export-format.md` §2.6,
+ * v2.3: producers set it only on content-bearing types). Dropping it here — the
+ * app's own input boundary — means the invariant holds for every block in the
+ * store, not just the ones our fixtures made, so a hand-edited file cannot leave a
+ * design permanently tripping the untouched-filler warning. Not corruption: a
+ * flagged band is a meaningless field, not an unreadable one.
+ */
+function parseTemplateFlag(value: unknown, type: BlockTypeId): boolean | null {
+  if (value === undefined || value === null || value === false) return false
+  if (value !== true) return null
+
+  return canCarryTemplateFlag(type)
 }
 
 function parseNavItems(value: unknown): readonly NavItem[] | null {
@@ -133,7 +154,11 @@ export function parseBlock(value: unknown): Block | null {
   if (!isFiniteNumber(height) || height <= 0) return null
   if (typeof text !== 'string') return null
 
-  return withTypeFields({ id, type, x, y, width, height, text }, value)
+  const fromTemplate = parseTemplateFlag(value.fromTemplate, type)
+  if (fromTemplate === null) return null
+
+  const base: Block = { id, type, x, y, width, height, text }
+  return withTypeFields(fromTemplate ? { ...base, fromTemplate } : base, value)
 }
 
 /** A whole page's worth. `null` on the first block that fails. */

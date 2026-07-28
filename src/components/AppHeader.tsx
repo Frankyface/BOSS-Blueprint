@@ -1,3 +1,5 @@
+import { DesignFileControls } from './DesignFileControls.tsx'
+
 import './AppHeader.css'
 
 const APP_NAME = 'BOSS Blueprint'
@@ -12,6 +14,8 @@ export function AppHeader() {
       </span>
       <h1 className="app-header__title">{APP_NAME}</h1>
       <p className="app-header__tagline">{APP_TAGLINE}</p>
+      {/* Whole-design actions, deliberately away from the per-block toolbar. */}
+      <DesignFileControls />
     </header>
   )
 }

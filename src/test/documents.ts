@@ -37,7 +37,7 @@ export function testBlock(overrides: Partial<Block> = {}): Block {
     ...overrides,
   }
 
-  const base: BlockBaseFields = {
+  const common: BlockBaseFields = {
     id: merged.id,
     type: merged.type,
     x: merged.x,
@@ -46,6 +46,11 @@ export function testBlock(overrides: Partial<Block> = {}): Block {
     height: merged.height,
     text: merged.text,
   }
+
+  // Present-and-true or absent, never `false` — the one shape the parser and the
+  // store both produce (`src/canvas/blockEdits.ts`).
+  const base: Block =
+    merged.fromTemplate === true ? { ...common, fromTemplate: true } : common
 
   if (base.type === 'heading' || base.type === 'text') {
     return {
