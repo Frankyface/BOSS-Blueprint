@@ -1,0 +1,10 @@
+{
+  "name": "brief-generator-proto",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone prototype of BOSS Blueprint's generateBrief() — Appendix A equality test B against docs/export-format.md §7.1/§7.2",
+  "scripts": {
+    "test": "node tools/run-equality-test.ts"
+  }
+}

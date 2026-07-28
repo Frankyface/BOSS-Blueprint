@@ -1,0 +1,29 @@
+{
+  "name": "boss-blueprint-roundtrip-gate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone round-trip PACKAGE GATE for BOSS Blueprint — roundtrip-protocol §2 steps 1-3, replaying export-format v2.2 §5 V1-V26 against a real export zip.",
+  "type": "module",
+  "main": "gate.mjs",
+  "bin": {
+    "blueprint-gate": "gate.mjs"
+  },
+  "scripts": {
+    "gate": "node gate.mjs",
+    "selftest": "node selftest/run.mjs",
+    "selftest:keep": "node selftest/run.mjs --keep",
+    "extract-schema": "node extract-schema.mjs"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "jpeg-js": "^0.4.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
