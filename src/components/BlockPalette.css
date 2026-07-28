@@ -38,6 +38,15 @@
   border-radius: var(--boss-radius);
 }
 
+.block-palette__button {
+  cursor: pointer;
+}
+
+.block-palette__button:hover {
+  border-color: var(--boss-select);
+  box-shadow: inset 3px 0 0 var(--boss-accent);
+}
+
 .block-palette__button:disabled {
   opacity: 0.55;
   cursor: not-allowed;

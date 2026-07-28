@@ -1,0 +1,174 @@
+/*
+ * Blocks are plain absolutely-positioned DOM inside the 1200px page.
+ * Sizes are in raw px because the page is a fixed-width design surface —
+ * the whole page is transform-scaled, so rem would fight the zoom.
+ */
+
+.canvas-block {
+  position: absolute;
+  display: flex;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.canvas-block:active {
+  cursor: grabbing;
+}
+
+.canvas-block[data-selected='true'] {
+  outline: 2px solid var(--boss-select);
+  outline-offset: 1px;
+}
+
+.canvas-block[data-editing='true'] {
+  cursor: text;
+}
+
+.block-content {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.block-content[data-placeholder='true'] {
+  color: var(--boss-text-muted);
+}
+
+/* --- Section: a full-width background band ------------------------------- */
+.block-content--section {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  background: var(--boss-band);
+  border: 1px solid var(--boss-line);
+}
+
+.block-content__tag {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/* --- Heading -------------------------------------------------------------- */
+.block-content--heading {
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--boss-text);
+}
+
+/* --- Text box ------------------------------------------------------------- */
+.block-content--text {
+  align-items: flex-start;
+  padding: 8px;
+  font-size: 18px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: var(--boss-text);
+}
+
+/* --- Image slot ----------------------------------------------------------- */
+.block-content--image {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--boss-band);
+  border: 2px dashed var(--boss-line-strong);
+  border-radius: 4px;
+}
+
+.block-content__glyph {
+  /* Emoji families first so the mountain glyph renders as an icon, not a triangle. */
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', var(--boss-font);
+  font-size: 44px;
+  line-height: 1;
+}
+
+.block-content__caption {
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* --- Button pill ---------------------------------------------------------- */
+.block-content--button {
+  align-items: center;
+  justify-content: center;
+}
+
+.block-content__pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--boss-accent);
+  color: var(--boss-ink);
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* --- Nav bar -------------------------------------------------------------- */
+.block-content--nav {
+  align-items: center;
+  justify-content: flex-end;
+  gap: 28px;
+  padding: 0 24px;
+  background: var(--boss-ink);
+  color: var(--boss-text-invert);
+}
+
+.block-content__nav-item {
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --- Inline text editor (textarea/input, never contentEditable) ----------- */
+.block-editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  font: inherit;
+  font-family: var(--boss-font);
+  font-size: 18px;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 2px solid var(--boss-select);
+  border-radius: 2px;
+  resize: none;
+}
+
+/* --- Resize handles ------------------------------------------------------- */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--boss-surface);
+  border: 2px solid var(--boss-select);
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  touch-action: none;
+}
+
+.resize-handle--nw { top: 0; left: 0; cursor: nwse-resize; }
+.resize-handle--n { top: 0; left: 50%; cursor: ns-resize; }
+.resize-handle--ne { top: 0; left: 100%; cursor: nesw-resize; }
+.resize-handle--e { top: 50%; left: 100%; cursor: ew-resize; }
+.resize-handle--se { top: 100%; left: 100%; cursor: nwse-resize; }
+.resize-handle--s { top: 100%; left: 50%; cursor: ns-resize; }
+.resize-handle--sw { top: 100%; left: 0; cursor: nesw-resize; }
+.resize-handle--w { top: 50%; left: 0; cursor: ew-resize; }

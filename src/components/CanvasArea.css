@@ -1,9 +1,9 @@
 .canvas-area {
   flex: 1 1 auto;
-  display: grid;
-  place-items: center;
-  padding: 2rem;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
   /* Blueprint grid: ruled layers first, flat colour underneath. */
   background-color: var(--boss-canvas-bg);
   background-image:
@@ -11,30 +11,38 @@
     repeating-linear-gradient(90deg, transparent 0 2.4rem, rgba(11, 18, 32, 0.06) 2.4rem 2.45rem);
 }
 
-.canvas-area__page {
+.canvas-area__viewport {
+  flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  width: min(60rem, 100%);
-  min-height: min(38rem, 70vh);
-  padding: 2rem;
-  text-align: center;
+  align-items: flex-start;
+  padding: var(--boss-page-margin);
+  overflow: auto;
+}
+
+/* Sized to the *scaled* page so the scrollbars match what you can see. */
+.canvas-area__scaler {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.canvas-page {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: top left;
   background: var(--boss-surface);
-  border: 2px dashed var(--boss-line-strong);
-  border-radius: var(--boss-radius);
+  box-shadow:
+    0 1px 2px rgba(11, 18, 32, 0.18),
+    0 18px 40px rgba(11, 18, 32, 0.14);
 }
 
-.canvas-area__headline {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--boss-text);
-}
-
-.canvas-area__body {
-  max-width: 32rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
+.canvas-page__empty {
+  position: absolute;
+  top: 6rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 1.25rem;
   color: var(--boss-text-muted);
+  pointer-events: none;
 }

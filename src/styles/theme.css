@@ -11,11 +11,18 @@
   --boss-text: #16202f;
   --boss-text-muted: #5c6880;
   --boss-text-invert: #f7f9fc;
+  /* Selection blue for canvas chrome (outline, handles, focused editor). */
+  --boss-select: #2f6df6;
+  --boss-danger: #c0392b;
+  /* Neutral fill for Section bands and Image slots. */
+  --boss-band: #f2f5fa;
 
   --boss-header-height: 4rem;
   --boss-palette-width: 15rem;
   --boss-radius: 0.5rem;
   --boss-gap: 1rem;
+  /* Must equal PAGE_MARGIN_PX in src/canvas/constants.ts (32px). */
+  --boss-page-margin: 2rem;
 
   --boss-font: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
 

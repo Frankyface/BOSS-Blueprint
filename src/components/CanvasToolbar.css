@@ -1,0 +1,48 @@
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--boss-gap);
+  flex: 0 0 auto;
+  padding: 0.5rem 0.9rem;
+  background: var(--boss-surface);
+  border-bottom: 1px solid var(--boss-line);
+}
+
+.canvas-toolbar__status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text-muted);
+}
+
+.canvas-toolbar__actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.canvas-toolbar__button {
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text);
+  background: var(--boss-canvas-bg);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.canvas-toolbar__button:hover:not(:disabled) {
+  background: var(--boss-surface);
+  border-color: var(--boss-select);
+}
+
+.canvas-toolbar__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.canvas-toolbar__button--danger:hover:not(:disabled) {
+  color: var(--boss-danger);
+  border-color: var(--boss-danger);
+}
