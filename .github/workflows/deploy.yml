@@ -5,10 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Least privilege at the top; the Pages write + OIDC token the deploy needs are
+# granted on the deploy job alone, so the job that runs third-party npm code and
+# browser binaries can never mint a Pages deployment token.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # One Pages deploy at a time; never cancel a run that is mid-deploy.
 concurrency:
@@ -22,6 +23,11 @@ jobs:
   build:
     name: Lint, test, build, E2E
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Read-only: `configure-pages` reads the already-enabled Pages settings.
+      pages: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -38,8 +44,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests with coverage
+        run: npm run test:coverage
 
       # Production-mode build that additionally carries the window store seam
       # Playwright asserts on (see src/store/testBridge.ts). Same base path, same
@@ -47,8 +53,30 @@ jobs:
       - name: Build (E2E, with test hooks)
         run: npm run build:e2e
 
+      # Browser binaries are ~400 MB and change only when @playwright/test does,
+      # so the cache key is the exact resolved version out of package-lock.json.
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: |
+          version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium firefox webkit
+
+      # The cache only holds the browsers themselves; the apt libraries they link
+      # against live outside it and must be installed on a cache hit too.
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium firefox webkit
 
       - name: E2E tests (production build under the Pages base path)
         run: npx playwright test
@@ -77,6 +105,11 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

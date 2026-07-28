@@ -13,14 +13,34 @@ const IGNORED_PATHS = [
   'blob-report/**',
 ]
 
+/**
+ * TypeScript is linted with TYPE INFORMATION (`recommendedTypeChecked`): the rules
+ * that actually catch bugs here — floating promises, unsafe `any` flowing out of
+ * `JSON.parse`, misused `unknown` — all need the type checker. The three project
+ * tsconfigs between them cover every `.ts`/`.tsx` file in the repo (app, build
+ * config, E2E), so no file falls outside a program. `eslint.config.js` itself is
+ * plain JS and stays on the untyped ruleset.
+ */
 export default tseslint.config(
   { ignores: IGNORED_PATHS },
   {
-    files: ['**/*.{js,ts,tsx}'],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ['**/*.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2023,
+      globals: { ...globals.node },
+    },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       ecmaVersion: 2023,
       globals: { ...globals.browser, ...globals.node },
+      parserOptions: {
+        project: ['./tsconfig.app.json', './tsconfig.node.json', './tsconfig.e2e.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
   },
   {

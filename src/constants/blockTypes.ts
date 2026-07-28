@@ -33,7 +33,14 @@ export interface BlockTypeDefinition {
   readonly placeholderText: string
 }
 
-export const BLOCK_TYPES: readonly BlockTypeDefinition[] = [
+/**
+ * `as const satisfies` rather than a plain `: readonly BlockTypeDefinition[]`
+ * annotation: the annotation alone would widen every literal back to `string` and
+ * make the trailing `as const` dead weight. This way each entry is still checked
+ * against the interface, and the table keeps its literal types — which is what lets
+ * `BLOCK_TYPES.map((d) => d.id)` produce `BlockTypeId` instead of `string`.
+ */
+export const BLOCK_TYPES = [
   {
     id: 'section',
     label: 'Section',
@@ -95,7 +102,7 @@ export const BLOCK_TYPES: readonly BlockTypeDefinition[] = [
     textMode: 'single-line',
     placeholderText: 'Home, About, Services, Contact',
   },
-] as const
+] as const satisfies readonly BlockTypeDefinition[]
 
 export const BLOCK_TYPE_COUNT = BLOCK_TYPES.length
 
