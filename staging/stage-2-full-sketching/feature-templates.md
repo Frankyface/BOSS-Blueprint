@@ -1,5 +1,5 @@
 # Feature: Starter Templates
-_Stage: stage-2-full-sketching · Status: awaiting verification_
+_Stage: stage-2-full-sketching · Status: verified done_
 
 ## Goal
 First-open experience: pick Restaurant, Trades/Services, Portfolio, or Shop — a pre-built
@@ -7,13 +7,13 @@ multi-page skeleton with typical sections to rearrange and overwrite — or star
 Templates cure blank-canvas paralysis and teach the blocks by example.
 
 ## Success Criteria
-- [ ] First visit (no saved design) shows a template picker: 4 templates with preview
+- [x] First visit (no saved design) shows a template picker: 4 templates with preview
       thumbnails + Blank
-- [ ] Each template loads a sensible 3-page skeleton (e.g. Restaurant: Home hero + about +
+- [x] Each template loads a sensible 3-page skeleton (e.g. Restaurant: Home hero + about +
       gallery, Menu, Contact) built ONLY from real block types, nav pre-wired, with
       instructive placeholder copy ("Your dish photos here")
-- [ ] Everything template-created is fully editable/deletable — it's just pre-placed state
-- [ ] Returning visitors with a saved design skip the picker (a "new design" path re-offers it)
+- [x] Everything template-created is fully editable/deletable — it's just pre-placed state
+- [x] Returning visitors with a saved design skip the picker (a "new design" path re-offers it)
 
 ## How We'll Verify
 Unit: each template fixture validates against the store schema. E2E: pick each template,
@@ -66,6 +66,42 @@ Built and measured locally; independent verification still owed.
 
 _Not yet verified:_ deployed-site behaviour (CI/live check follows the push) and independent
 review.
+
+**Independent review (2026-07-28):** re-ran everything from a clean `npm ci` in a detached
+worktree pinned at 57fb042. `npm run lint` clean · `npm test` **805 passed / 40 files** ·
+`npm run test:coverage` exit 0 with `src/canvas/**` **99.73%** lines / **99.55%** functions and
+`src/store/**` **96.87%** / **97.34%** (gates 80/80), project 80.89% lines · `npm run build`
+294.85 kB / 90.99 kB gzip · `npx playwright test` twice: **402/402** (5.1m) and 401/402 — the
+one failure is a WebKit load flake in the pre-existing `multipage-nav.spec.ts:387`
+(`switchToPage` timeout), **5/5 green re-run in isolation**, and CI's `retries: 2` covers it.
+
+Independent probes beyond the suite (own spec, 39 tests × 3 engines, all green; deleted after):
+all four templates read out of the live store — **138 blocks, 31 sections, 107 flagged content,
+zero flagged sections anywhere**; a **real south-east resize gesture keeps the flag** in all
+three engines (the suite only tested moving); move-then-edit keeps then clears; a seeded nav
+item rename clears it. Picker-from-storage confirmed both ways: Blank + place nothing + reload
+**re-offers the picker**, Blank + one block + reload does not. Node probe against the read-only
+`design-assets/templates/starterTemplates.ts`: the landed data is **byte-identical block for
+block** modulo the two recorded transforms (slug dropped, band flag dropped);
+`parseBlueprint(serialiseDocument(documentFromTemplate(t)))` is `deepStrictEqual` for all four;
+a hand-edited payload with 9 flagged sections has **every flag dropped at parse**; explicit
+`false` normalises to absent; a non-boolean is corruption. The `fromTemplate?: never` guard is
+real — writing a flagged band is **TS2322 at compile time**. The ported fixture spec is the
+genuine validator (15 checks × 4 + 2 = 62), strengthened rather than weakened on the flag rule.
+
+CI run 30397571360 green at 57fb042 (lint, coverage, build, E2E, deploy). Live site **HTTP 200**;
+the deployed bundle is **byte-identical** to the local production build (sha256
+`5ec9e63d26bec2faa18b2b4741ebe77190088093705eaa1911c7f1c39d46b3e2`), carries all four picker
+cards, the miniatures and the fixture copy, and correctly does **not** carry `__blueprintStore`.
+
+Recorded deviations judged and ACCEPTED: geometry-keeps-flag (follows §2.6's own words and the
+reasoning is right), semantic page ids (§4.8 remaps at package time), slug dropped
+(RECONCILIATION §5 authorised it), picker-from-storage (consequence is correct and recorded),
+whole-shell drag-drop. Findings: no CRITICAL, no HIGH. LOW — `layout.ts` says "30 band blocks",
+actual is 31; the page-id ruling and the picker consequence are in this file but not in
+`docs/decisions.md`; the flag unit spec omits `setBlockImageFit` / `setBlockImageDescription` /
+`addNavItem` / `removeNavItem` / `setNavItemLink` (all funnel through one `withUpdatedBlock`).
+**VERIFIED DONE.**
 
 ## Open Questions
 - Template content quality is a design task — draft in code as data fixtures, iterate on

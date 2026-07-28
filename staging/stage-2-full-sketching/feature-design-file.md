@@ -1,16 +1,16 @@
 # Feature: Design File (download / import)
-_Stage: stage-2-full-sketching · Status: awaiting verification_
+_Stage: stage-2-full-sketching · Status: verified done_
 
 ## Goal
 Because there's no backend, the `.blueprint` file is the client's portable save: download the
 whole design as one file, re-import it later or on another machine to continue.
 
 ## Success Criteria
-- [ ] "Download design" produces `<business-name>.blueprint` (JSON, schemaVersion'd, images
+- [x] "Download design" produces `<business-name>.blueprint` (JSON, schemaVersion'd, images
       embedded) via the same serializer as autosave
-- [ ] "Open design" imports a `.blueprint` file and restores the design exactly (deep-equal),
+- [x] "Open design" imports a `.blueprint` file and restores the design exactly (deep-equal),
       after a confirm if it would overwrite current work
-- [ ] Invalid/corrupt/wrong-version files are rejected with a friendly error and current work
+- [x] Invalid/corrupt/wrong-version files are rejected with a friendly error and current work
       untouched (validate at the boundary)
 
 ## How We'll Verify
@@ -73,6 +73,39 @@ download/drag-drop tests carry `test.slow()` (90s budget). Everything else is �
 
 _Not yet verified:_ deployed-site behaviour (CI/live check follows the push) and independent
 review.
+
+**Independent review (2026-07-28):** re-ran everything from a clean `npm ci` in a detached
+worktree pinned at 57fb042. `npm run lint` clean · `npm test` **805 passed / 40 files** ·
+`npm run test:coverage` exit 0, `src/canvas/**` **99.73%** / **99.55%**, `src/store/**`
+**96.87%** / **97.34%** (gates 80/80) · `npm run build` 294.85 kB / 90.99 kB gzip ·
+`npx playwright test` twice: **402/402** and 401/402 (the one failure is a WebKit load flake in
+the pre-existing `multipage-nav.spec.ts:387`; 5/5 green in isolation, CI retries cover it).
+
+Independent probes beyond the suite (own spec, 3 engines, all green; deleted after) closed the
+gaps the repo's own spec left: a **dropped** file gets the **same overwrite confirmation** as a
+picked one, and cancelling leaves `pages` identical **by object reference** (asserted on live
+object identity, not deep equality); a full round trip through **drag-drop** with a real
+uploaded photo, two pages and settings comes back **deep-equal** with the photo drawn; dropping
+a non-`.blueprint` file **does not navigate the tab away** and leaves the design untouched.
+Boundary order validate → read → parse → (ask) → apply confirmed by reading
+`designFileSession.ts`: the extension/size guards run before any read, `parseBlueprint` is the
+only validator, and nothing touches the store until the final step.
+
+CI run 30397571360 green at 57fb042. Live site **HTTP 200**; the deployed bundle is
+**byte-identical** to the local production build (sha256 `5ec9e63d…c39d46b3e2`).
+
+Findings: no CRITICAL, no HIGH. **MEDIUM — `designFileSlug` does not strip diacritics.**
+`Café Noël` → `cafe-noe-l.blueprint` (reproduced in Node and in all three browsers): NFKD
+decomposes and the combining mark then falls into the `[^a-z0-9]+ → '-'` rule instead of being
+removed. `docs/export-format.md` §4.1 step 1 says "NFKD, **strip diacritics**, lowercase", and
+the Notes above claim "accents folded" / "named the way their package will be" — neither holds.
+The unit case `['Café Ubuntu','cafe-ubuntu']` passes only by coincidence (a word-final accent
+merges with the following space into one run), so it does not protect the rule. Fix (one line +
+an interior-accent test case) assigned to the UX-hardening batch — it must land before Stage 3
+implements §4.1 or the file name and package slug will diverge. LOW — the 60-char cap and the
+`my-site` fallback differ from §4.1's 36 and `business`; `my-site` is the better client-facing
+choice, but the "named the way their package will be" claim overstates conformance. No success
+criterion depends on either. **VERIFIED DONE.**
 
 ## Open Questions
 - none yet — revisit when starting.

@@ -14,8 +14,8 @@ _Moderately specified on purpose — details firm up as Stage 1 lands (progressi
 - [x] feature-copy-blocks.md — real text vs "generate later" placeholder with description
 - [x] feature-image-upload.md — upload into image slots, client-side compression
 - [x] feature-site-settings.md — business name, tagline, vibe/style + color preferences
-- [ ] feature-templates.md — Restaurant, Trades/Services, Portfolio, Shop starters + blank
-- [ ] feature-design-file.md — download/import the `.blueprint` file
+- [x] feature-templates.md — Restaurant, Trades/Services, Portfolio, Shop starters + blank
+- [x] feature-design-file.md — download/import the `.blueprint` file
 
 ## Definition of Done (testable checklist)
 - [ ] E2E: starting from the Restaurant template, build a 3-page site (Home, Menu, Contact)
