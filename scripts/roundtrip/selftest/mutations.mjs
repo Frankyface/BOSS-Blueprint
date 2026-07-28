@@ -410,4 +410,158 @@ export const MUTATIONS = [
         order.push(...scrambled);
       }),
   },
+
+  // ---- v2.4 sync: new and re-scoped rules --------------------------------
+  {
+    name: 'key-order-swapped',
+    what: 'a block serialized type-before-id (still valid JSON, still 2-space form)',
+    expect: 'V27',
+    expectStatus: 'WARN',
+    apply: (p) =>
+      withSite(p, (site) => {
+        const b = site.pages[0].blocks[3];
+        site.pages[0].blocks[3] = {
+          type: b.type,
+          id: b.id,
+          z: b.z,
+          frame: b.frame,
+          copyMode: b.copyMode,
+          text: b.text,
+          generateDescription: b.generateDescription,
+          lengthHint: b.lengthHint,
+        };
+      }),
+  },
+  {
+    name: 'key-order-frame-swapped',
+    what: 'a frame serialized {y, x, w, h} instead of {x, y, w, h}',
+    expect: 'V27',
+    expectStatus: 'WARN',
+    apply: (p) =>
+      withSite(p, (site) => {
+        const f = site.pages[1].blocks[2].frame;
+        site.pages[1].blocks[2].frame = { y: f.y, x: f.x, w: f.w, h: f.h };
+      }),
+  },
+  {
+    name: 'section-from-template',
+    what: 'a section block ships carrying fromTemplate (§2.6 says it never should)',
+    expect: 'V23f',
+    apply: (p) =>
+      withSite(p, (site) => {
+        const section = site.pages[0].blocks[0];
+        site.pages[0].blocks[0] = {
+          id: section.id,
+          type: section.type,
+          z: section.z,
+          frame: section.frame,
+          fromTemplate: true,
+          background: section.background,
+        };
+      }),
+  },
+  {
+    name: 'annotation-targets-section',
+    what: 'an annotation stroke targets the section band behind it (§4.5 v2.4 forbids)',
+    expect: 'C04',
+    expectStatus: 'WARN',
+    apply: (p) =>
+      withSite(p, (site) => {
+        site.pages[0].penStrokes[1].targetBlockId = 'blk_0001'; // the section
+      }),
+  },
+  {
+    name: 'imagesketch-tiny-exempt',
+    what: 'the imageSketch stroke shrunk to a 4×4 box — V22 must STAY SILENT (v2.4 exemption)',
+    expect: 'V22',
+    expectStatus: 'PASS',
+    apply: (p) =>
+      withSite(p, (site) => {
+        // Keep it inside blk_0007's frame (760,144,360,400) so the role stays imageSketch,
+        // and drop the annotation stroke so only the imageSketch cluster remains.
+        site.pages[0].penStrokes = [
+          {
+            id: 'stk_0001',
+            points: [
+              [800, 200],
+              [804, 204],
+            ],
+            color: '#D94F30',
+            width: 4,
+            role: 'imageSketch',
+            targetBlockId: 'blk_0007',
+          },
+        ];
+      }),
+  },
+  {
+    name: 'escaping-v24-roundtrip',
+    what: 'client text with \\ " | * and a leading "1." quoted with correct v2.4 escaping — V7 must PASS',
+    expect: 'V07',
+    expectStatus: 'PASS',
+    apply: (p) => reEscapeBlk0009(p, ADVERSARIAL_TEXT, escapeV24(ADVERSARIAL_TEXT)),
+  },
+  {
+    name: 'escaping-v22-legacy',
+    what: 'the same text quoted with the OLD v2.2 escaping (no \\ or " escaped) — V7 must FAIL',
+    expect: 'V07',
+    apply: (p) => reEscapeBlk0009(p, ADVERSARIAL_TEXT, escapeV22Legacy(ADVERSARIAL_TEXT)),
+  },
+  {
+    name: 'inventory-page-plural',
+    what: 'the inventory count line reads "2 page" instead of "2 pages" [N11]',
+    expect: 'V07',
+    apply: (p) =>
+      withFiles(p, (files) => {
+        const brief = files.get('brief.md').toString('utf8').replace('2 pages. **Page 1', '2 page. **Page 1');
+        files.set('brief.md', Buffer.from(brief, 'utf8'));
+      }),
+  },
+  {
+    name: 'navbar-reference-text',
+    what: 'brief quotes a nav-bar reference text that no longer matches its item labels',
+    expect: 'V07',
+    apply: (p) =>
+      withFiles(p, (files) => {
+        // §4.4 reference text for a navBar is its item labels joined ", ". Introduce one
+        // that matches no navBar in site.json.
+        const brief = files
+          .get('brief.md')
+          .toString('utf8')
+          .replace('«Come say hi»', '«Home, Contact, Menu»');
+        files.set('brief.md', Buffer.from(brief, 'utf8'));
+      }),
+  },
 ];
+
+/** Text exercising every v2.4 rule-7 escape class at once. */
+const ADVERSARIAL_TEXT = '1. He said "back\\slash" | *bold* `code` «quoted»';
+
+/** §3.3 rule 7 as of v2.4 — `\` first, then « » | * " `, leading marker escapes the period. */
+function escapeV24(s) {
+  const escaped = s.replace(/[\\«»|*"`]/g, (c) => `\\${c}`);
+  if (/^[#\->]/.test(escaped)) return `\\${escaped}`;
+  return escaped.replace(/^(\d+)\./, '$1\\.');
+}
+
+/** The pre-v2.3 escape set: no `\`, no `"`, and the marker escaped as `\1.`. */
+function escapeV22Legacy(s) {
+  const escaped = s.replace(/[«»|*`]/g, (c) => `\\${c}`);
+  return escaped.replace(/^(\d+\.)/, '\\$1');
+}
+
+/** Swap blk_0009's text in site.json AND its «…» quote in the brief, independently escaped. */
+function reEscapeBlk0009(parts, rawText, quotedForm) {
+  const next = withSite(parts, (site) => {
+    findBlock(site, 'blk_0009').text = rawText;
+  });
+  const brief = next.files
+    .get('brief.md')
+    .toString('utf8')
+    .replace(
+      '«Bluebird started in our home kitchen in 2019. Today we bake from a little shop on Agricola Street, same starter, same stubborn attention to crumb.»',
+      `«${quotedForm}»`,
+    );
+  next.files.set('brief.md', Buffer.from(brief, 'utf8'));
+  return next;
+}

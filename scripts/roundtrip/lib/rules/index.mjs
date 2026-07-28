@@ -20,6 +20,7 @@ import {
   v19BlankRealText,
   v20StrandedDescription,
   v26LabelsAndNav,
+  v27KeyOrder,
 } from './structure.mjs';
 import {
   v11ExternalUrls,
@@ -28,9 +29,11 @@ import {
   v18OffPage,
   v22Legibility,
   v23TemplateFiller,
+  v23SectionFlagStripped,
   v24IdentityRemap,
   v25RightOverflow,
   slugDerivationCheck,
+  penTargetCheck,
 } from './links-frames.mjs';
 import { v4AssetBijection, v6PageRenders, v10ZipSize, v16Extension, v21ManifestMatchesFile } from './assets-png.mjs';
 import { v7BriefCrossChecks, n13OverflowMarker } from './brief.mjs';
@@ -40,7 +43,7 @@ import { v7BriefCrossChecks, n13OverflowMarker } from './brief.mjs';
  * @param {object} opts { schema, options, internalIds }
  * @returns {ReadonlyArray<object>}
  */
-export function runAllChecks(pkg, { schema, options, internalIds }) {
+export function runAllChecks(pkg, { schema, options, internalIds, canonical }) {
   const ctx = { strictConventions: options.strictConventions };
   const site = pkg.site;
   const results = [];
@@ -77,15 +80,18 @@ export function runAllChecks(pkg, { schema, options, internalIds }) {
   results.push(runOrSkip('V21', site, () => v21ManifestMatchesFile(pkg, ctx)));
   results.push(runOrSkip('V22', site, () => v22Legibility(site, ctx)));
   results.push(runOrSkip('V23', site, () => v23TemplateFiller(site, ctx)));
+  results.push(runOrSkip('V23f', site, () => v23SectionFlagStripped(site, ctx)));
   results.push(
     runOrSkip('V24', site, () => v24IdentityRemap(site, pkg.briefText?.text ?? null, internalIds, ctx)),
   );
   results.push(runOrSkip('V25', site, () => v25RightOverflow(site, ctx)));
   results.push(runOrSkip('V26', site, () => v26LabelsAndNav(site, ctx)));
+  results.push(runOrSkip('V27', site, () => v27KeyOrder(site, canonical, ctx)));
   results.push(runOrSkip('N13', site, () => n13OverflowMarker(pkg, ctx)));
   results.push(
     runOrSkip('C03', site, () => slugDerivationCheck(site, expectedPageSlugs(pagesOf(site)), ctx)),
   );
+  results.push(runOrSkip('C04', site, () => penTargetCheck(site, ctx)));
 
   // ---- Protocol §2 step 4 — expected-manifest diff (Stage 4) ---------------
   results.push(manifestStep(options));

@@ -95,8 +95,14 @@ async function main() {
 
     const { exitCode, report } = runGate(zipPath, specPath, extra);
     const wantStatus = mutation.expectStatus ?? 'FAIL';
-    const named = wantStatus === 'FAIL' ? report.failed : report.warned;
-    const caught = named.includes(mutation.expect);
+    // 'PASS' is a NEGATIVE expectation: the named check must stay clean (neither FAIL
+    // nor WARN) — used to prove an exemption really exempts, not merely that a rule fires.
+    const named =
+      wantStatus === 'FAIL' ? report.failed : wantStatus === 'WARN' ? report.warned : [];
+    const caught =
+      wantStatus === 'PASS'
+        ? !report.failed.includes(mutation.expect) && !report.warned.includes(mutation.expect)
+        : named.includes(mutation.expect);
     const exitOk = wantStatus === 'FAIL' ? exitCode !== 0 : exitCode === 0;
     const alsoWarnOk = mutation.alsoWarn ? report.warned.includes(mutation.alsoWarn) : true;
     const ok = caught && exitOk && alsoWarnOk;

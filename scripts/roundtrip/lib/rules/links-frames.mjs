@@ -1,6 +1,7 @@
 /**
  * export-format.md §5 rules over links, frames, pen strokes and export identity:
- * V11, V15, V17, V18, V22, V23, V24, V25.
+ * V11, V15, V17, V18, V22, V23, V23f, V24, V25, plus the §4.1 slug and §4.5 pen-target
+ * convention checks (C03, C04).
  */
 
 import { check } from '../report.mjs';
@@ -153,13 +154,23 @@ export function overflowingBlocks(site) {
   return out;
 }
 
-/** V22 — annotation cluster likely illegible: bbox < 40x20px, or < 12 points in the cluster. */
+/**
+ * V22 (v2.4 scope) — an **annotation** cluster likely illegible: bbox < 40x20px, or
+ * fewer than 12 total points. `imageSketch` clusters are EXEMPT: "a tiny drawing inside
+ * an image slot is a legitimate sketch, and its meaning never depends on handwriting
+ * legibility".
+ */
 export function v22Legibility(site, ctx) {
   const problems = [];
-  let clusters = 0;
+  let annotationClusters = 0;
+  let exempt = 0;
   for (const page of pagesOf(site)) {
     for (const cluster of clusterStrokes(strokesOf(page))) {
-      clusters += 1;
+      if (cluster.role !== 'annotation') {
+        exempt += 1;
+        continue;
+      }
+      annotationClusters += 1;
       const { bbox, points } = cluster;
       const tiny = bbox.w < 40 || bbox.h < 20;
       const sparse = points < 12;
@@ -168,35 +179,102 @@ export function v22Legibility(site, ctx) {
           .filter(Boolean)
           .join(', ');
         problems.push(
-          `page ${page.id}: ${cluster.role} cluster of ${cluster.strokes.length} stroke(s) likely illegible (${why})`,
+          `page ${page.id}: annotation cluster of ${cluster.strokes.length} stroke(s) likely illegible (${why})`,
         );
       }
     }
   }
   return check({
     id: 'V22',
-    title: 'no pen cluster is too small or too sparse to read',
-    ref: 'export-format §5 V22 / §4.5',
+    title: 'no annotation cluster is too small or too sparse to read (imageSketch exempt)',
+    ref: 'export-format §5 V22 (v2.4 scope) / §4.5 / [N7]',
     cls: 'WARN',
     problems,
-    detail: `${clusters} cluster(s)`,
+    detail: `${annotationClusters} annotation cluster(s), ${exempt} imageSketch cluster(s) exempt`,
     ...ctx,
   });
 }
 
-/** V23 — untouched template filler reaching the export. */
+/**
+ * §4.5 (v2.4) pen-target sanity: `section` blocks are excluded from annotation
+ * targeting entirely, and an `imageSketch` stroke must target an `imageSlot`.
+ * No V-number owns this, so it reports as a convention check.
+ */
+export function penTargetCheck(site, ctx) {
+  const problems = [];
+  for (const page of pagesOf(site)) {
+    const byId = new Map(blocksOf(page).map((b) => [b?.id, b]));
+    for (const stroke of strokesOf(page)) {
+      const target = byId.get(stroke?.targetBlockId);
+      if (stroke?.role === 'imageSketch') {
+        if (!target) continue; // V2 already reports an unresolvable target
+        if (target.type !== 'imageSlot') {
+          problems.push(
+            `page ${page.id} stroke ${stroke.id}: role "imageSketch" targets ${target.id} (${target.type}), not an imageSlot`,
+          );
+        }
+        continue;
+      }
+      if (stroke?.role === 'annotation' && target?.type === 'section') {
+        problems.push(
+          `page ${page.id} stroke ${stroke.id}: annotation targets section ${target.id} — ` +
+            '§4.5 (v2.4) excludes sections from annotation targeting entirely',
+        );
+      }
+    }
+  }
+  return check({
+    id: 'C04',
+    title: 'pen targets obey §4.5: annotations never target a section; imageSketch targets an imageSlot',
+    ref: 'export-format §4.5 (v2.4)',
+    cls: 'CONV',
+    problems,
+    ...ctx,
+  });
+}
+
+/**
+ * V23 (v2.4 scope) — untouched template filler reaching the export, counting
+ * **non-section** blocks only. A flagged `section` is a different finding (V23f).
+ */
 export function v23TemplateFiller(site, ctx) {
   const problems = [];
   for (const { block, page } of eachBlock(site)) {
-    if (block?.fromTemplate === true) {
+    if (block?.fromTemplate === true && block.type !== 'section') {
       problems.push(`page ${page.id} block ${block.id} (${block.type}): fromTemplate: true — untouched template filler`);
     }
   }
   return check({
     id: 'V23',
-    title: 'no block still carries fromTemplate: true',
-    ref: 'export-format §5 V23',
+    title: 'no content-bearing block still carries fromTemplate: true',
+    ref: 'export-format §5 V23 (v2.4 scope) / §2.6',
     cls: 'WARN',
+    problems,
+    ...ctx,
+  });
+}
+
+/**
+ * V23's FIX branch — §2.6 (v2.3) scope rule: producers never set `fromTemplate` on a
+ * `section`, and V23 "defensively ignores (FIX-class strips) the flag on any section
+ * block that carries it anyway". A shipped package has already been through that strip,
+ * so a surviving flag is a producer defect.
+ */
+export function v23SectionFlagStripped(site, ctx) {
+  const problems = [];
+  for (const { block, page } of eachBlock(site)) {
+    if (block?.type === 'section' && block.fromTemplate !== undefined) {
+      problems.push(
+        `page ${page.id} block ${block.id}: section carries fromTemplate: ${block.fromTemplate} — ` +
+          "V23's FIX should have stripped it (§2.6 scope rule)",
+      );
+    }
+  }
+  return check({
+    id: 'V23f',
+    title: 'FIX invariant: no section block ships carrying fromTemplate',
+    ref: 'export-format §5 V23 (FIX branch) / §2.6 (v2.3)',
+    cls: 'FIX',
     problems,
     ...ctx,
   });

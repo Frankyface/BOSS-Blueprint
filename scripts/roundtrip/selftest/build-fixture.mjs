@@ -25,10 +25,17 @@ export async function buildFixtureParts(specPath) {
   const { text: siteText, json: site } = extractExampleSiteJson(specText);
   const briefText = extractExampleBrief(specText);
 
-  // §7.1's fenced block is formatted for READING (multiple keys per line). §1's file
-  // convention is 2-space pretty-print, so the fixture emits the contract's form.
-  // Key order is preserved by JSON.parse/stringify, so §7.1 still dictates it.
+  // v2.4 regenerated §7.1 with the canonical serializer, so the fenced block IS the
+  // emitted form. Asserting that here is Appendix A **equality test D**
+  // (`serialize(parse(§7.1)) === §7.1`) — and it is what lets the fixture ship §7.1
+  // byte-for-byte instead of re-serializing it.
   const emittedSiteText = `${JSON.stringify(site, null, 2)}\n`;
+  if (emittedSiteText !== siteText) {
+    throw new Error(
+      'Appendix A test D FAILED: §7.1 is not canonical-serializer output — ' +
+        `spec block ${siteText.length} chars, serialize(parse(§7.1)) ${emittedSiteText.length} chars`,
+    );
+  }
 
   const files = new Map();
   const order = ['site.json', 'brief.md'];
