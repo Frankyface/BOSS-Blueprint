@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react'
 
-import { imageDataOf, imageDescriptionOf, imageFitOf } from '../canvas/blockEdits.ts'
+import { imageDataOf } from '../canvas/blockEdits.ts'
 import { IMAGE_ACCEPT_ATTRIBUTE } from '../canvas/imageAssets.ts'
 import { compressImage, ImageIngestError } from '../canvas/imageCompression.ts'
 import { browserImagePorts } from '../platform/browserImagePorts.ts'
@@ -9,8 +9,8 @@ import type { Block } from '../canvas/types.ts'
 import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
 import { useEditorStore } from '../store/editorStore.ts'
 
-const IMAGE_GLYPH = '⛰'
-const EMPTY_CAPTION = 'Image'
+import { ImageSlotFace } from './ImageSlotFace.tsx'
+
 const ADD_LABEL = 'Add photo'
 const REPLACE_LABEL = 'Replace'
 const BUSY_LABEL = 'Working…'
@@ -34,6 +34,9 @@ function firstFileOf(list: FileList | null | undefined): File | null {
  * AN IMAGE SLOT on the page: the picture if there is one, and the way to put one
  * there if there isn't.
  *
+ * THE FACE lives in `ImageSlotFace` and is shared with the Stage 3 export root,
+ * which mounts it with none of this file's wiring; everything here is the way in.
+ *
  * Three ways in, because a client will try all three: the button, a double-click
  * anywhere on the slot (handled by `BlockView` — an image block has no inline text
  * editor for a double-click to collide with), and dropping a file onto it.
@@ -51,8 +54,6 @@ export function ImageSlot({ block }: ImageSlotProps) {
   const [isDropTarget, setIsDropTarget] = useState(false)
 
   const imageData = imageDataOf(block)
-  const description = imageDescriptionOf(block)
-  const fit = imageFitOf(block)
 
   /**
    * Clear OUR last complaint on a successful upload, and nothing else.
@@ -145,41 +146,17 @@ export function ImageSlot({ block }: ImageSlotProps) {
   const hasPhoto = imageData.length > 0
 
   return (
-    <div
-      className={`block-content block-content--image${hasPhoto ? ' block-content--image-filled' : ''}`}
-      data-testid="image-slot"
-      data-placeholder={hasPhoto ? 'false' : 'true'}
-      data-has-image={hasPhoto ? 'true' : 'false'}
-      data-fit={fit}
-      data-drop-target={isDropTarget ? 'true' : 'false'}
-      onDragOver={handleDragOver}
-      onDragLeave={() => {
-        setIsDropTarget(false)
+    <ImageSlotFace
+      block={block}
+      isDropTarget={isDropTarget}
+      containerProps={{
+        onDragOver: handleDragOver,
+        onDragLeave: () => {
+          setIsDropTarget(false)
+        },
+        onDrop: handleDrop,
       }}
-      onDrop={handleDrop}
     >
-      {hasPhoto ? (
-        <img
-          className="block-content__photo"
-          data-testid="image-slot-photo"
-          src={imageData}
-          // The client's description is meta-commentary, not alt text (§2.7): the
-          // export writes real alt text FROM it at build time. Decorative here.
-          alt=""
-          style={{ objectFit: fit }}
-          draggable={false}
-        />
-      ) : (
-        <>
-          <span className="block-content__glyph" aria-hidden="true">
-            {IMAGE_GLYPH}
-          </span>
-          <span className="block-content__caption" data-testid="image-slot-caption">
-            {description.length > 0 ? description : EMPTY_CAPTION}
-          </span>
-        </>
-      )}
-
       <button
         type="button"
         className="block-content__upload"
@@ -199,6 +176,6 @@ export function ImageSlot({ block }: ImageSlotProps) {
         accept={IMAGE_ACCEPT_ATTRIBUTE}
         onChange={handleInputChange}
       />
-    </div>
+    </ImageSlotFace>
   )
 }
