@@ -11,8 +11,6 @@ const IGNORED_PATHS = [
   'playwright-report/**',
   'test-results/**',
   'blob-report/**',
-  // Stray vendor bundle at the repo root; not part of the app source.
-  'konva.min.js',
 ]
 
 export default tseslint.config(

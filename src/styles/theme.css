@@ -1,0 +1,55 @@
+/* BOSS Blueprint design tokens + base reset. Dark, bold, blueprint-ish. */
+
+:root {
+  --boss-ink: #0b1220;
+  --boss-ink-soft: #16202f;
+  --boss-line: #d7dde8;
+  --boss-line-strong: #b3bccd;
+  --boss-surface: #ffffff;
+  --boss-canvas-bg: #eef1f6;
+  --boss-accent: #f4b23e;
+  --boss-text: #16202f;
+  --boss-text-muted: #5c6880;
+  --boss-text-invert: #f7f9fc;
+
+  --boss-header-height: 4rem;
+  --boss-palette-width: 15rem;
+  --boss-radius: 0.5rem;
+  --boss-gap: 1rem;
+
+  --boss-font: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+
+  color-scheme: light;
+  font-family: var(--boss-font);
+  color: var(--boss-text);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--boss-canvas-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+p,
+ul {
+  margin: 0;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}

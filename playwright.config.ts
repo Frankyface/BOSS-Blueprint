@@ -4,6 +4,8 @@ import { PREVIEW_BASE_URL } from './site.config.ts'
 
 const isCi = Boolean(process.env.CI)
 const SERVER_START_TIMEOUT_MS = 120_000
+const CI_RETRIES = 2
+const CI_WORKERS = 1
 
 /**
  * E2E always runs against the *production* build served by `vite preview`,
@@ -14,8 +16,9 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: isCi,
-  retries: isCi ? 2 : 0,
-  workers: isCi ? 1 : undefined,
+  retries: isCi ? CI_RETRIES : 0,
+  // Local runs use Playwright's default worker count; CI stays serial for stability.
+  ...(isCi ? { workers: CI_WORKERS } : {}),
   reporter: isCi ? [['github'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: PREVIEW_BASE_URL,
