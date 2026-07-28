@@ -109,8 +109,9 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
      42-char name truncates to ≤36 at a `-` boundary and still admits `-2` under the schema's
      40-char cap; `"---" → page-N`.
    - `src/export/pageHeight.test.ts` — `maxBottom` from a block, from a stroke point below every
-     block, the 800 floor on a near-empty page, and the multiple-of-8 rounding; asserts the §7.1
-     numbers exactly: Home `1060 → 1144`, Contact `640 → 800`.
+     block, the **1600 floor** (v2.2 unified heights) on a near-empty page, and the ceil-to-8
+     rounding; asserts the §7.1 numbers exactly: Home and Contact both floor-clamp to `1600`
+     (Home bottom 1060 → 1224 → clamped; Contact bottom 640 → 800 → clamped).
    - `src/export/assets.test.ts` — first-use numbering when the second page reuses the first
      page's photo (stays `img_001`, one staged file, both slots pointing at it);
      extension-from-MIME for all three types; `bytes` equals the decoded base64 length;
