@@ -4,6 +4,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Block } from '../canvas/types.ts'
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 import { useCanvasStore } from '../store/canvasStore.ts'
+import { clearTextEditSeed, pendingTextEditSeed } from '../store/textEditing.ts'
 
 const ENTER_KEY = 'Enter'
 const ESCAPE_KEY = 'Escape'
@@ -26,7 +27,13 @@ export function BlockTextEditor({ block }: BlockTextEditorProps) {
   const definition = getBlockTypeDefinition(block.type)
   const isMultiLine = definition.textMode === 'multi-line'
 
-  const [draft, setDraft] = useState(block.text)
+  /**
+   * TYPE-TO-EDIT: when a keystroke opened this editor, that character IS the edit
+   * so far, and it replaces what was there — the same thing double-clicking and
+   * typing does, since opening by double-click selects the old text first.
+   */
+  const [seed] = useState(pendingTextEditSeed)
+  const [draft, setDraft] = useState(seed ?? block.text)
   const elementRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
   const isCommittedRef = useRef(false)
 
@@ -34,11 +41,18 @@ export function BlockTextEditor({ block }: BlockTextEditorProps) {
   const stopEditingBlock = useCanvasStore((state) => state.stopEditingBlock)
 
   useEffect(() => {
+    clearTextEditSeed()
+
     const element = elementRef.current
     if (!element) return
     element.focus()
-    element.select()
-  }, [])
+
+    // Seeded: the client is mid-word, so the caret goes after their character.
+    // Otherwise the whole placeholder is selected, ready to be typed over.
+    if (seed === null) element.select()
+    else element.setSelectionRange(element.value.length, element.value.length)
+    // `seed` is mount-constant state, so this runs exactly once per editor.
+  }, [seed])
 
   const commit = () => {
     if (isCommittedRef.current) return

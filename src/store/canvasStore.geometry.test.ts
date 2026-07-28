@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { resetBlockIdSequence } from '../canvas/blockFactory.ts'
-import { MIN_ON_PAGE_PX, PAGE_WIDTH_PX } from '../canvas/constants.ts'
+import { PAGE_WIDTH_PX } from '../canvas/constants.ts'
 import type { Block } from '../canvas/types.ts'
 import { BLOCK_TYPES, getBlockTypeDefinition } from '../constants/blockTypes.ts'
 
@@ -36,16 +36,17 @@ describe('moveBlockBy', () => {
     expect(blockById(id)).toMatchObject({ x: x + 40, y: y + 24 })
   })
 
-  it('never lets a block leave the page entirely', () => {
+  it('never lets a block leave the page, on any side', () => {
     const id = store().addBlock('button')
 
     store().moveBlockBy(id, -9000, -9000)
     const offLeft = blockById(id)
-    expect(offLeft.x + offLeft.width).toBeGreaterThanOrEqual(MIN_ON_PAGE_PX)
+    expect(offLeft.x).toBe(0)
     expect(offLeft.y).toBe(0)
 
     store().moveBlockBy(id, 9000, 0)
-    expect(blockById(id).x).toBeLessThanOrEqual(PAGE_WIDTH_PX - MIN_ON_PAGE_PX)
+    const offRight = blockById(id)
+    expect(offRight.x + offRight.width).toBe(PAGE_WIDTH_PX)
   })
 
   it('leaves the size and text alone', () => {

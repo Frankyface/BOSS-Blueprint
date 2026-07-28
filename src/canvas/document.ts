@@ -48,6 +48,17 @@ export function strokesOfPage(
   return pageById(document.pages, pageId)?.penStrokes ?? NO_STROKES
 }
 
+/**
+ * Which page holds this block, anywhere on the site — `null` when nothing does.
+ *
+ * "Not on the page you are looking at" and "not in the design at all" are two
+ * different pieces of news for the client (see `ImageSlot`), and only a whole-site
+ * search can tell them apart.
+ */
+export function pageOfBlock(document: CanvasDocument, blockId: string): Page | null {
+  return document.pages.find((page) => page.blocks.some((block) => block.id === blockId)) ?? null
+}
+
 export function pageNames(document: CanvasDocument): readonly string[] {
   return document.pages.map((page) => page.name)
 }

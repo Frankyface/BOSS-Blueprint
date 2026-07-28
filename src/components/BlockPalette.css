@@ -47,6 +47,30 @@
   box-shadow: inset 3px 0 0 var(--boss-accent);
 }
 
+/*
+ * A PRESSED STATE, because the first thing a client tries is dragging (UX audit
+ * M1). Palette items are click-to-add, and a drag that produced no visual response
+ * whatsoever read as "this tool is broken" — the audit's client tried twice and
+ * got nothing, not even a pressed look, before finding the click. This does not
+ * make dragging work; it makes the press visible, so the affordance is legible
+ * from the moment the mouse goes down. (Drag-to-drop-at-a-point is a real feature,
+ * not a polish: it needs a live drop preview mapped through the page's
+ * fit-to-window scale. Left to the Stage 4 onboarding work, which also owns where
+ * the "click a block to drop it" line lives — audit N1.)
+ */
+.block-palette__button:active:not(:disabled) {
+  border-color: var(--boss-select);
+  background: var(--boss-band);
+  box-shadow: inset 3px 0 0 var(--boss-accent);
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block-palette__button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 .block-palette__button:disabled {
   opacity: 0.55;
   cursor: not-allowed;

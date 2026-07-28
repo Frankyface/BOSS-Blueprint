@@ -25,8 +25,29 @@ describe('designFileSlug', () => {
     ['  Spaced   Out  ', 'spaced-out'],
     ['Café Ubuntu', 'cafe-ubuntu'],
     ['ALL CAPS LTD.', 'all-caps-ltd'],
+    // ACCENTS INSIDE A WORD (batch-3 review). `Café Ubuntu` passed even while the
+    // combining mark was being turned into a hyphen, because the accent was the
+    // last letter of its word and the hyphen landed where the space already was.
+    // These cases can only pass if the mark is actually thrown away.
+    ['Café Noël', 'cafe-noel'],
+    ['Ångström & Sons, Ltd.', 'angstrom-sons-ltd'],
+    ['Piñata Niño', 'pinata-nino'],
+    ['Crème Brûlée Café', 'creme-brulee-cafe'],
   ])('turns %o into %o', (businessName, expected) => {
     expect(designFileSlug(businessName)).toBe(expected)
+  })
+
+  /**
+   * The same name typed with a precomposed é and with e + combining acute are the
+   * same business, and must be the same file — NFKD is what makes that true, and
+   * stripping the mark is what keeps it readable.
+   */
+  it('gives one slug however the accent was typed', () => {
+    const precomposed = 'Caf\u00e9 Noel' // one code point
+    const decomposed = 'Cafe\u0301 Noel' // e + combining acute
+
+    expect(designFileSlug(precomposed)).toBe('cafe-noel')
+    expect(designFileSlug(decomposed)).toBe(designFileSlug(precomposed))
   })
 
   it('falls back rather than producing a file with no name', () => {

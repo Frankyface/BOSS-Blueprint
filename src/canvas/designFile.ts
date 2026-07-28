@@ -44,10 +44,20 @@ const BYTES_PER_MB = 1_000_000
  * a letter or digit becomes a hyphen, no leading/trailing hyphens. A name with no
  * usable characters at all (or no name yet — templates deliberately ship it empty)
  * falls back rather than producing a file called `.blueprint`.
+ *
+ * FOLDING ACCENTS IS TWO STEPS, and the second one was missing (batch-3 review).
+ * `normalize('NFKD')` only SPLITS "é" into "e" + a combining acute; something then
+ * has to throw the mark away. Without that line the mark fell through to the
+ * "anything that is not a letter or digit becomes a hyphen" rule, so `Café Noël`
+ * came out as `cafe-noe-l` — a hyphen in the middle of a word, from an accent the
+ * client cannot see in their own file name. It went unnoticed because the only
+ * accented test case ended in the accented letter (`Café Ubuntu` → the stray
+ * hyphen landed where a hyphen belonged anyway).
  */
 export function designFileSlug(businessName: string): string {
   const slug = businessName
     .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')

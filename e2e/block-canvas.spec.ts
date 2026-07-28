@@ -3,11 +3,14 @@ import { expect, test } from '@playwright/test'
 import {
   addBlock,
   attachPageScreenshot,
+  blockById,
   blockOfType,
   blocks,
+  dragBy,
   idOfType,
   openCanvas,
   pageScale,
+  readBlock,
   readDocument,
   readStoreWriteCount,
   seedBlocks,
@@ -132,6 +135,43 @@ test.describe('block canvas', () => {
     expect(Object.keys(image ?? {}).sort()).toEqual(
       [...BASE_BLOCK_KEYS, 'imageData', 'originalFilename', 'fit', 'description'].sort(),
     )
+  })
+
+  /**
+   * OFF-CANVAS PARKING (UX audit MAJOR-2). A fast drag to the left used to leave a
+   * 200px button at x = -176: a 24px strip on the page, the rest under the palette,
+   * its centre off the page — unclickable for the client AND for Playwright, which
+   * is how the audit found it. The page edge now stops a block like the edge of a
+   * slide, and this test is the "can she get it back?" question, asked literally.
+   */
+  test('a violent drag in any direction leaves the block clickable', async ({ page }) => {
+    await addBlock(page, 'button')
+    const id = await idOfType(page, 'button')
+    const button = blockById(page, id)
+
+    const flings: readonly (readonly [number, number])[] = [
+      [-4000, 0],
+      [4000, 0],
+      [-4000, -4000],
+      [4000, 400],
+    ]
+
+    for (const [deltaX, deltaY] of flings) {
+      await dragBy(page, button, deltaX, deltaY, 2)
+
+      const landed = await readBlock(page, id)
+      expect(landed.x, `x after a ${String(deltaX)}px fling`).toBeGreaterThanOrEqual(0)
+      expect(landed.y, `y after a ${String(deltaY)}px fling`).toBeGreaterThanOrEqual(0)
+      expect(landed.x + landed.width).toBeLessThanOrEqual(DESIGN_WIDTH_PX)
+
+      // The real test: click it the way a client would — in the middle.
+      await page.getByTestId('canvas-viewport').click({ position: { x: 4, y: 4 } })
+      await expect(button).toHaveAttribute('data-selected', 'false')
+      await button.click()
+      await expect(button).toHaveAttribute('data-selected', 'true')
+    }
+
+    await attachPageScreenshot(page, 'after-violent-drags')
   })
 
   test('shrinks the page to fit a narrow window (fit-to-window zoom)', async ({ page }) => {

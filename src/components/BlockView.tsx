@@ -5,7 +5,7 @@ import { copyModeOf, isCopyBlock, isLinked } from '../canvas/blockEdits.ts'
 import type { Block } from '../canvas/types.ts'
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 import { useBlockGesture } from '../hooks/useBlockGesture.ts'
-import { useCanvasStore } from '../store/canvasStore.ts'
+import { beginTextEdit } from '../store/textEditing.ts'
 
 import { BlockContent } from './BlockContent.tsx'
 import { BlockTextEditor } from './BlockTextEditor.tsx'
@@ -38,7 +38,6 @@ export const BlockView = memo(function BlockView({
   getScale,
 }: BlockViewProps) {
   const elementRef = useRef<HTMLDivElement | null>(null)
-  const startEditingBlock = useCanvasStore((state) => state.startEditingBlock)
   const definition = getBlockTypeDefinition(block.type)
 
   const { onPointerDown, onHandlePointerDown, onPointerMove, onPointerUp } = useBlockGesture({
@@ -74,7 +73,8 @@ export const BlockView = memo(function BlockView({
     }
 
     if (definition.textMode === 'none') return
-    startEditingBlock(block.id)
+    // No seed: a double-click opens on the block's own words, all selected.
+    beginTextEdit(block.id)
   }
 
   return (

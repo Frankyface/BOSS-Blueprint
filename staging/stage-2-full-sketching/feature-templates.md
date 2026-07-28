@@ -103,6 +103,40 @@ actual is 31; the page-id ruling and the picker consequence are in this file but
 `addNavItem` / `removeNavItem` / `setNavItemLink` (all funnel through one `withUpdatedBlock`).
 **VERIFIED DONE.**
 
+**UX hardening (2026-07-28):**
+Status unchanged. One BLOCKER from the live-deploy UX audit, one review LOW, and this feature's
+half of the Stage 2 capstone.
+- **BLOCKER — the picker was a wall for a returning client.** The start overlay covers the whole
+  editor, and its scrim intercepts the header's "Open design" button (the auditor verified it
+  with `elementFromPoint` and a real click). The picker only appears when nothing is saved —
+  which is exactly the state someone is in on a new machine, in a new browser, or after clearing
+  their history: holding the `.blueprint` they were told to keep safe, with no way to open it
+  short of picking a starter template they do not want and then overwriting it.
+  **Decision: the picker carries the file route itself** rather than the header being exempted
+  from the scrim. A z-index carve-out would leave the client hunting for a small button in a
+  dark bar behind a modal they have not answered, and "aria-modal with a live control outside
+  it" is a lie to a screen reader; putting _"Been here before? → Open a design file…"_ inside
+  the sheet answers the question where it is asked. Same `requestDesignImport` flow, so the
+  refusal messages, the migration path and the "nothing to overwrite, so no confirmation" rule
+  all come for free. Dropping the file on the picker already worked (the whole shell is the drop
+  target) and is now pinned by a test so it cannot quietly stop.
+- **LOW — `src/templates/layout.ts` said "30 band blocks"; it is 31** (9 + 7 + 7 + 8, counted).
+  Comment corrected.
+- **LOW — the template-flag unit spec now names every content action.**
+  `canvasStore.template.test.ts` gained a table for `setBlockImageFit`,
+  `setBlockImageDescription`, `addNavItem`, `removeNavItem` and `setNavItemLink`, each asserting
+  the flag is set before and cleared after. They do all funnel through one `withUpdatedBlock` —
+  which is exactly the kind of claim that stops being true without anyone noticing.
+- **Stage 2 capstone (`e2e/stage2-capstone.spec.ts`), this feature's half:** the capstone design
+  STARTS from the restaurant template and builds on top of it, so a single flow now proves a
+  template start survives the client's own additions, a reload and a file round trip with the
+  seeded and hand-placed blocks intact. Green ×3 engines (chromium 4.1s, firefox 9.5s,
+  webkit 27.7s — inside the `test.slow()` headroom).
+- Evidence: `npm run test:coverage` exit 0, **43 files / 934 tests**; E2E `design-file.spec.ts`
+  "opening a design from the starting-point picker" (2 tests × 3 engines — the picker's own file
+  input, and a file dropped onto the picker; both assert the design opens with no template
+  chosen and no confirmation prompt).
+
 ## Open Questions
 - Template content quality is a design task — draft in code as data fixtures, iterate on
   screenshots.

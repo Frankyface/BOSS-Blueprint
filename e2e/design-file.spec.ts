@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises'
-
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
@@ -14,7 +12,7 @@ import {
   reloadCanvas,
   waitForAutosave,
 } from './support/canvas.ts'
-import type { StoredDocument } from './support/canvas.ts'
+import { designOf, downloadDesign, openDesignFile } from './support/designFile.ts'
 import { makePhotoFixture, photoIn, uploadInto } from './support/media.ts'
 import { addPage, fillPanelField, openPanel, switchToPage } from './support/site.ts'
 
@@ -32,36 +30,6 @@ import { addPage, fillPanelField, openPanel, switchToPage } from './support/site
 
 const BUSINESS = 'The Copper Pot'
 const SECOND_PAGE = 'Menu'
-
-interface DownloadedDesign {
-  readonly fileName: string
-  readonly contents: string
-}
-
-async function downloadDesign(page: Page): Promise<DownloadedDesign> {
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByTestId('design-download').click(),
-  ])
-
-  const path = await download.path()
-  return { fileName: download.suggestedFilename(), contents: await readFile(path, 'utf8') }
-}
-
-/** Hand a file to the header's Open control, exactly as the file picker does. */
-async function openDesignFile(page: Page, name: string, contents: string): Promise<void> {
-  await page.getByTestId('design-file-input').setInputFiles({
-    name,
-    mimeType: 'application/json',
-    buffer: Buffer.from(contents, 'utf8'),
-  })
-}
-
-/** Only the parts a design file carries — currentPage and selection are not in it. */
-const designOf = (document: StoredDocument) => ({
-  pages: document.pages,
-  siteSettings: document.siteSettings,
-})
 
 /** A small but complete design: settings, two pages, several block types, a photo. */
 async function buildDesign(page: Page): Promise<void> {
@@ -234,6 +202,83 @@ test.describe('opening a design file', () => {
 
     await expect(blocks(page)).toHaveCount(1)
     expect((await readDocument(page)).blocks[0]).toMatchObject({ text: 'Dropped in' })
+  })
+})
+
+/**
+ * THE RETURNING CLIENT ON A FRESH BROWSER (UX audit BLOCKER).
+ *
+ * With nothing saved, the starting-point picker covers the whole editor — including
+ * the header's "Open design" button, which its scrim intercepts. That is exactly the
+ * state someone is in on a new machine, in a new browser, or after clearing their
+ * history: holding the `.blueprint` they were told to keep safe, and unable to reach
+ * the control that opens it. The picker now carries the file route itself.
+ */
+test.describe('opening a design from the starting-point picker', () => {
+  /**
+   * Wipe the browser the way a new machine is: no design, so the picker returns.
+   * The pending autosave is waited out FIRST — a debounce still ticking would write
+   * the design back in after the clear and skip the picker we came here to test.
+   */
+  async function arriveFresh(page: Page): Promise<void> {
+    await waitForAutosave(page)
+    await page.evaluate(() => {
+      window.localStorage.clear()
+    })
+    await page.reload()
+    await expect(page.getByTestId('template-picker')).toBeVisible()
+  }
+
+  test('the file route is on the picker, and opens the design with no template involved', async ({
+    page,
+  }) => {
+    test.slow()
+
+    // Yesterday: a design, downloaded and kept.
+    await openCanvas(page)
+    await addBlock(page, 'heading')
+    await editBlockText(page, blockOfType(page, 'heading'), 'Taqueria Rosa')
+    const file = await downloadDesign(page)
+
+    // Today: a different browser, holding only the file.
+    await arriveFresh(page)
+
+    await page.getByTestId('picker-design-file-input').setInputFiles({
+      name: file.fileName,
+      mimeType: 'application/json',
+      buffer: Buffer.from(file.contents, 'utf8'),
+    })
+
+    // Straight in — no template chosen, nothing to confirm, nothing overwritten.
+    await expect(page.getByTestId('template-picker')).toBeHidden()
+    await expect(page.getByTestId('design-toast')).toContainText('Opened')
+    await expect(blocks(page)).toHaveCount(1)
+    expect((await readDocument(page)).blocks[0]).toMatchObject({ text: 'Taqueria Rosa' })
+    await expect(page.getByTestId('design-import-confirm')).toBeHidden()
+  })
+
+  test('and a file dropped onto the picker works just as well', async ({ page }) => {
+    test.slow()
+
+    await openCanvas(page)
+    await addBlock(page, 'heading')
+    await editBlockText(page, blockOfType(page, 'heading'), 'Dropped on the picker')
+    const file = await downloadDesign(page)
+
+    await arriveFresh(page)
+
+    const dataTransfer = await page.evaluateHandle(
+      ({ name, contents }) => {
+        const transfer = new DataTransfer()
+        transfer.items.add(new File([contents], name, { type: 'application/json' }))
+        return transfer
+      },
+      { name: file.fileName, contents: file.contents },
+    )
+    await page.getByTestId('template-picker').dispatchEvent('drop', { dataTransfer })
+
+    await expect(page.getByTestId('template-picker')).toBeHidden()
+    expect((await readDocument(page)).blocks[0]).toMatchObject({ text: 'Dropped on the picker' })
   })
 })
 

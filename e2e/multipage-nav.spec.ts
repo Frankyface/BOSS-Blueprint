@@ -255,6 +255,70 @@ test.describe('linking', () => {
     await expect(page.getByTestId('nav-add-item')).toBeDisabled()
   })
 
+  /**
+   * AUTO-LINKING BY NAME (UX audit POLISH-3). The audit's client typed "Home" and
+   * "Menu" into her menu, beside pages called Home and Menu, and both items still
+   * read "Not linked yet" — the nav map then reported a site where nothing led
+   * anywhere. A label that IS a page name now wires itself up.
+   */
+  test.describe('menu items wired up by their own name', () => {
+    test('wires the labels typed into the block, and only those', async ({ page }) => {
+      test.slow()
+
+      await addPage(page, 'Menu')
+      await switchToPage(page, 'Home')
+      await addBlock(page, 'nav-bar')
+      const navId = await idOfType(page, 'nav-bar')
+
+      await editBlockText(page, blockById(page, navId), 'Home, menu, Specials')
+
+      const items = (await readBlock(page, navId)).items ?? []
+      expect(items.map((item) => item.label)).toEqual(['Home', 'menu', 'Specials'])
+      expect(items.map((item) => item.link.kind)).toEqual(['page', 'page', 'none'])
+
+      // The nav map is where the client SEES it, so that is where it is asserted.
+      await openPanel(page, 'map')
+      expect(await readNavMap(page)).toEqual([
+        'Home: Home -> Home',
+        'Home: menu -> Menu',
+        'Home: Specials -> Not linked yet',
+      ])
+    })
+
+    test('wires an item renamed onto a page name in the panel', async ({ page }) => {
+      test.slow()
+
+      await addPage(page, 'Menu')
+      await switchToPage(page, 'Home')
+      const navId = await addNavBarWithItems(page, ['Menu'])
+
+      const item = (await readBlock(page, navId)).items?.[0]
+      expect(item?.link).toEqual({ kind: 'page', pageId: (await readDocument(page)).pages[1]?.id })
+      await expect(page.getByTestId('nav-item-0-link-target')).toHaveValue(/.+/)
+    })
+
+    test('never takes back a link the client chose', async ({ page }) => {
+      test.slow()
+
+      const menuId = await addPage(page, 'Menu')
+      await switchToPage(page, 'Home')
+      const navId = await addNavBarWithItems(page, ['Specials'])
+
+      // The client wires "Specials" to Home themselves…
+      await linkToPage(page, 'nav-item-0', 'Home')
+      const homeId = (await readDocument(page)).pages[0]?.id
+
+      // …then renames it to something that WOULD have matched a page.
+      await page.getByTestId('nav-item-0-label').fill('Menu')
+      await page.getByTestId('nav-item-0-label').press('Enter')
+
+      const item = (await readBlock(page, navId)).items?.[0]
+      expect(item?.label).toBe('Menu')
+      expect(item?.link).toEqual({ kind: 'page', pageId: homeId })
+      expect(homeId).not.toBe(menuId)
+    })
+  })
+
   test('typing a menu straight into the block keeps the items in step', async ({ page }) => {
     await addBlock(page, 'nav-bar')
     const navId = await idOfType(page, 'nav-bar')

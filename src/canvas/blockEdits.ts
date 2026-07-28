@@ -1,6 +1,13 @@
 import { DEFAULT_IMAGE_FIT } from './imageAssets.ts'
 import { linksEqual, NO_LINK } from './links.ts'
-import { createNavItem, navItemsFromText, normaliseNavLabel, withNavItems } from './navItems.ts'
+import {
+  createNavItem,
+  linkForLabel,
+  navItemsFromText,
+  normaliseNavLabel,
+  withNavItems,
+} from './navItems.ts'
+import type { PageRef } from './navItems.ts'
 import type { Block, BlockLink, BlockTypeId, CopyMode, ImageFit, NavItem } from './types.ts'
 
 /**
@@ -244,9 +251,14 @@ export function isLinked(block: Block): boolean {
   return false
 }
 
-export function withNavItemAdded(block: Block, label: string): Block {
+/** `pages` is what the new item's label is matched against — see `linkForLabel`. */
+export function withNavItemAdded(
+  block: Block,
+  label: string,
+  pages: readonly PageRef[] = [],
+): Block {
   if (block.type !== 'nav-bar') return block
-  return withNavItems(block, [...navItemsOf(block), createNavItem(label)])
+  return withNavItems(block, [...navItemsOf(block), createNavItem(label, pages)])
 }
 
 export function withNavItemRemoved(block: Block, itemId: string): Block {
@@ -276,12 +288,26 @@ function withMappedNavItem(block: Block, itemId: string, update: (item: NavItem)
  *
  * The label is normalised by `normaliseNavLabel`, which also strips the comma
  * that would otherwise re-split the menu on the next inline text commit.
+ *
+ * Renaming an item to the name of a page ALSO wires it up — but only while it is
+ * still unwired. A link the client has chosen (or one set by an earlier match) is
+ * never quietly repointed by a typo in the label: what they said out loud in the
+ * dropdown outranks what we can infer from a word.
  */
-export function withNavItemLabel(block: Block, itemId: string, label: string): Block {
+export function withNavItemLabel(
+  block: Block,
+  itemId: string,
+  label: string,
+  pages: readonly PageRef[] = [],
+): Block {
   const normalised = normaliseNavLabel(label)
   if (normalised.length === 0) return block
 
-  return withMappedNavItem(block, itemId, (item) => ({ ...item, label: normalised }))
+  return withMappedNavItem(block, itemId, (item) => ({
+    ...item,
+    label: normalised,
+    link: item.link.kind === 'none' ? linkForLabel(normalised, pages) : item.link,
+  }))
 }
 
 export function withNavItemLink(block: Block, itemId: string, link: BlockLink): Block {

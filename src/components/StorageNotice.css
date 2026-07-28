@@ -33,6 +33,29 @@
 }
 
 /*
+ * The rescue. Styled as the PRIMARY action of the strip — when saving has stopped,
+ * downloading is the thing to do and dismissing is not.
+ */
+.storage-notice__rescue {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.7rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border: 1px solid var(--boss-accent);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.storage-notice__rescue:hover,
+.storage-notice__rescue:focus-visible {
+  background: color-mix(in srgb, var(--boss-accent) 82%, var(--boss-surface));
+}
+
+/*
  * A message about the DESIGN rather than about saving — blue, so a client can tell
  * "we tidied up after that page" from "your work is not being saved" at a glance.
  */

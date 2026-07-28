@@ -18,6 +18,9 @@ const blockById = (id: string): Block => {
   return found
 }
 
+/** Every design starts with one page called Home; this is its id. */
+const homePageId = (): string => store().pages[0]?.id ?? ''
+
 beforeEach(() => {
   store().resetCanvas()
   resetBlockIdSequence()
@@ -131,6 +134,66 @@ describe('button links', () => {
     store().setBlockLink(id, pageLink('page-home'))
 
     expect(blocks()).toBe(before)
+  })
+})
+
+/**
+ * AUTO-LINKING, THROUGH THE STORE (UX audit POLISH-3) — the layer that knows what
+ * pages exist and hands them to the pure rule. Every way a label reaches the
+ * document is covered here, because the client can take any of the three.
+ */
+describe('nav items wired up by name', () => {
+  /** A second page, so there is something to match besides Home. */
+  const addMenuPage = (): string => store().addPage('Menu')
+
+  it('wires an item added from the panel', () => {
+    const menuId = addMenuPage()
+    store().setCurrentPage(homePageId())
+    const id = store().addBlock('nav-bar')
+
+    store().addNavItem(id, 'Menu')
+
+    expect(navItemsOf(blockById(id))[0]?.link).toEqual({ kind: 'page', pageId: menuId })
+  })
+
+  it('wires the items typed straight into the block', () => {
+    const menuId = addMenuPage()
+    store().setCurrentPage(homePageId())
+    const id = store().addBlock('nav-bar')
+
+    store().setBlockText(id, 'Home, Menu, Specials')
+
+    expect(navItemsOf(blockById(id)).map((item) => item.link)).toEqual([
+      { kind: 'page', pageId: homePageId() },
+      { kind: 'page', pageId: menuId },
+      { kind: 'none' },
+    ])
+  })
+
+  it('wires an item renamed onto a page name in the panel', () => {
+    const menuId = addMenuPage()
+    store().setCurrentPage(homePageId())
+    const id = store().addBlock('nav-bar')
+    store().addNavItem(id, 'New link')
+    const itemId = navItemsOf(blockById(id))[0]?.id ?? ''
+
+    store().setNavItemLabel(id, itemId, 'Menu')
+
+    expect(navItemsOf(blockById(id))[0]?.link).toEqual({ kind: 'page', pageId: menuId })
+  })
+
+  it('never takes back a link the client chose', () => {
+    const menuId = addMenuPage()
+    store().setCurrentPage(homePageId())
+    const id = store().addBlock('nav-bar')
+    store().addNavItem(id, 'New link')
+    const itemId = navItemsOf(blockById(id))[0]?.id ?? ''
+    store().setNavItemLink(id, itemId, pageLink(homePageId()))
+
+    store().setNavItemLabel(id, itemId, 'Menu')
+
+    expect(navItemsOf(blockById(id))[0]?.link).toEqual({ kind: 'page', pageId: homePageId() })
+    expect(menuId).not.toBe(homePageId())
   })
 })
 

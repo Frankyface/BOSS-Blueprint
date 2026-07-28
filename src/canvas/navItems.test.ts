@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { pageLink } from './links.ts'
 import {
   createNavItem,
+  linkForLabel,
   NAV_ITEMS_SCHEMA_MAX,
   NAV_ITEMS_UI_MAX,
   navItemLabels,
@@ -43,6 +44,65 @@ describe('createNavItem', () => {
     const ids = Array.from({ length: 5 }, () => createNavItem('Menu').id)
 
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+/**
+ * AUTO-LINKING BY NAME (UX audit POLISH-3). A client who types "Home, Menu" into
+ * the nav bar has told us where those items go in the only words they have; the
+ * app used to answer with two items reading "Not linked yet" beside two pages of
+ * exactly those names.
+ */
+describe('linkForLabel', () => {
+  const pages = [
+    { id: 'page-home', name: 'Home' },
+    { id: 'page-menu', name: 'Menu' },
+    { id: 'page-find', name: 'Find us' },
+  ]
+
+  it.each([
+    ['Home', 'page-home'],
+    ['home', 'page-home'],
+    ['MENU', 'page-menu'],
+    ['  menu  ', 'page-menu'],
+    ['Find us', 'page-find'],
+    ['find US', 'page-find'],
+  ])('wires %j to the page of that name', (label, pageId) => {
+    expect(linkForLabel(label, pages)).toEqual(pageLink(pageId))
+  })
+
+  it.each(['Our menu', 'Home page', 'Contact', 'Find', '', '   '])(
+    'leaves %j unlinked rather than guessing',
+    (label) => {
+      expect(linkForLabel(label, pages)).toEqual({ kind: 'none' })
+    },
+  )
+
+  it('matches through an invisible character in either the label or the page name', () => {
+    const withZeroWidth = 'Ho' + '\u200B' + 'me'
+
+    expect(linkForLabel(withZeroWidth, pages)).toEqual(pageLink('page-home'))
+    expect(linkForLabel('Home', [{ id: 'page-x', name: withZeroWidth }])).toEqual(
+      pageLink('page-x'),
+    )
+  })
+
+  it('is unlinked when there are no pages to match against', () => {
+    expect(linkForLabel('Home')).toEqual({ kind: 'none' })
+  })
+})
+
+describe('createNavItem with pages', () => {
+  it('comes out of the box pointing at the page of the same name', () => {
+    const item = createNavItem('Menu', [{ id: 'page-menu', name: 'Menu' }])
+
+    expect(item.link).toEqual(pageLink('page-menu'))
+  })
+
+  it('stays unlinked when nothing matches', () => {
+    expect(createNavItem('Specials', [{ id: 'page-menu', name: 'Menu' }]).link).toEqual({
+      kind: 'none',
+    })
   })
 })
 
@@ -112,6 +172,34 @@ describe('navItemsFromText', () => {
   it('gives an empty menu for empty text', () => {
     expect(navItemsFromText('')).toEqual([])
   })
+
+  /** The audit's own path: typing the menu straight into the block. */
+  it('wires up the labels that name a page, and only those', () => {
+    const pages = [
+      { id: 'page-home', name: 'Home' },
+      { id: 'page-menu', name: 'Menu' },
+    ]
+
+    const items = navItemsFromText('Home, Menu, Specials', [], pages)
+
+    expect(items.map((item) => item.link)).toEqual([
+      pageLink('page-home'),
+      pageLink('page-menu'),
+      { kind: 'none' },
+    ])
+  })
+
+  it('never re-points an item that already existed, however it was wired', () => {
+    const existing: NavItem[] = [
+      { id: 'nav-home', label: 'Home', link: { kind: 'external', url: 'https://boss.test' } },
+    ]
+    const pages = [{ id: 'page-home', name: 'Home' }]
+
+    const items = navItemsFromText('Home, Menu', existing, pages)
+
+    expect(items[0]).toEqual(existing[0])
+    expect(items[1]?.link).toEqual({ kind: 'none' })
+  })
 })
 
 describe('parseNavItem', () => {
@@ -164,6 +252,13 @@ describe('parseNavItem', () => {
 describe('normaliseNavLabel', () => {
   it.each([
     ['Home', 'Home'],
+    // ZERO-WIDTH CHARACTERS, which a label pasted from a website or a Word document
+    // carries invisibly: they survive trim, take up no room, and quietly stop the
+    // label matching either a page name or its own earlier self (review follow-up).
+    ['Ho\u200Bme', 'Home'],
+    ['\uFEFFHome\u200D', 'Home'],
+    ['Our\u2060 Menu', 'Our Menu'],
+    ['\u200B\u200C\u200D', ''],
     ['  Home  ', 'Home'],
     ['Our   Menu', 'Our Menu'],
     ['Bread, Cakes', 'Bread Cakes'],

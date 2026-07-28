@@ -8,10 +8,13 @@ import {
   blocks,
   dragBy,
   dragHandle,
+  editBlockText,
   expectGeometry,
   idOfType,
   openCanvas,
+  readBlock,
   readDocument,
+  undoOnce,
 } from './support/canvas.ts'
 
 /** Defaults recorded in feature-block-canvas.md — the arithmetic below depends on them. */
@@ -228,6 +231,102 @@ test.describe('block editing', () => {
       back!.id,
       front!.id,
     ])
+  })
+
+  /**
+   * TYPE-TO-EDIT (UX audit MAJOR-3). The audit's client clicked her heading and
+   * typed her restaurant's name: the keystrokes fell through to the browser, the
+   * space bar scrolled the canvas 434px behind a scrollbar that renders 0px wide,
+   * and the page she had been working on looked empty.
+   */
+  test.describe('typing at a selected block', () => {
+    test('opens the editor and keeps every character, spaces included', async ({ page }) => {
+      await addBlock(page, 'heading')
+      const id = await idOfType(page, 'heading')
+      const heading = blockById(page, id)
+      await heading.click()
+
+      const viewport = page.getByTestId('canvas-viewport')
+      const scrollBefore = await viewport.evaluate((element) => element.scrollTop)
+
+      await page.keyboard.type('Taqueria Rosa')
+
+      const editor = page.getByTestId('block-text-editor')
+      await expect(editor).toBeVisible()
+      await expect(editor).toHaveValue('Taqueria Rosa')
+
+      // THE SPACE BAR DID NOT SCROLL THE CANVAS — the whole point of the fix.
+      expect(await viewport.evaluate((element) => element.scrollTop)).toBe(scrollBefore)
+
+      await editor.press('Enter')
+      await expect(heading).toContainText('Taqueria Rosa')
+      expect((await readBlock(page, id)).text).toBe('Taqueria Rosa')
+    })
+
+    test('is ONE undo step, opening keystroke and all', async ({ page }) => {
+      await addBlock(page, 'heading')
+      const id = await idOfType(page, 'heading')
+      await blockById(page, id).click()
+
+      await page.keyboard.type('Taqueria Rosa')
+      await page.getByTestId('block-text-editor').press('Enter')
+      expect((await readBlock(page, id)).text).toBe('Taqueria Rosa')
+
+      await undoOnce(page)
+
+      // Back to an empty heading — not to "Taqueria Ros", and not to no block.
+      expect((await readBlock(page, id)).text).toBe('')
+      await expect(blocks(page)).toHaveCount(1)
+    })
+
+    test('Backspace mid-thought edits the words instead of deleting the block', async ({
+      page,
+    }) => {
+      await addBlock(page, 'heading')
+      const id = await idOfType(page, 'heading')
+      await blockById(page, id).click()
+
+      await page.keyboard.type('Taq')
+      await page.keyboard.press('Backspace')
+
+      const editor = page.getByTestId('block-text-editor')
+      await expect(editor).toHaveValue('Ta')
+      // The block is still there: the old behaviour destroyed it on that keystroke.
+      await expect(blocks(page)).toHaveCount(1)
+    })
+
+    test('leaves a block with no words alone, but still swallows the space bar', async ({
+      page,
+    }) => {
+      await addBlock(page, 'image')
+      const image = blockOfType(page, 'image')
+      await image.click()
+
+      const viewport = page.getByTestId('canvas-viewport')
+      const scrollBefore = await viewport.evaluate((element) => element.scrollTop)
+
+      await page.keyboard.press('Space')
+      await page.keyboard.type('photo')
+
+      await expect(page.getByTestId('block-text-editor')).toHaveCount(0)
+      expect(await viewport.evaluate((element) => element.scrollTop)).toBe(scrollBefore)
+      await expect(blocks(page)).toHaveCount(1)
+    })
+
+    test('replaces the words that were there, exactly as double-click-and-type does', async ({
+      page,
+    }) => {
+      await addBlock(page, 'heading')
+      const id = await idOfType(page, 'heading')
+      const heading = blockById(page, id)
+      await editBlockText(page, heading, 'Old headline')
+
+      await heading.click()
+      await page.keyboard.type('New')
+      await page.getByTestId('block-text-editor').press('Enter')
+
+      expect((await readBlock(page, id)).text).toBe('New')
+    })
   })
 
   test('the Delete key removes the selected block', async ({ page }) => {

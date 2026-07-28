@@ -1,3 +1,4 @@
+import { hexForColorName } from './colorNames.ts'
 import type { SiteSettings, VibeId } from './types.ts'
 
 /**
@@ -27,20 +28,53 @@ export const SITE_COLOR_LIMIT = 3
 /** The export schema's own colour rule (`"pattern": "^#[0-9a-fA-F]{6}$"`). */
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 
-export const HEX_COLOR_HINT = 'Colours look like #2f6f4f — a # and six digits or letters a–f'
+/** The three-digit shorthand every browser accepts: `#abc` means `#aabbcc`. */
+const SHORT_HEX_PATTERN = /^#[0-9a-fA-F]{3}$/
+
+export const COLOR_HINT =
+  'Try a colour name like "dark green", or a code like #2f6f4f'
 
 export function emptySiteSettings(): SiteSettings {
   return { businessName: '', tagline: '', about: '', vibe: null, styleNotes: '', colors: [] }
 }
 
-export function isHexColor(value: string): boolean {
-  return HEX_COLOR_PATTERN.test(value.trim())
-}
-
-/** Stored lower-case so two spellings of the same colour never read as two colours. */
+/**
+ * Stored lower-case so two spellings of the same colour never read as two colours.
+ *
+ * STRICT ON PURPOSE — this is the FILE boundary (a stored design, an opened
+ * `.blueprint`), where the export contract's six-digit hex is the whole of the
+ * agreement and anything else means the payload cannot be trusted. What a person
+ * may TYPE is a different, wider question; that is `parseColorInput`.
+ */
 export function normaliseHexColor(value: string): string | null {
   const trimmed = value.trim().toLowerCase()
   return HEX_COLOR_PATTERN.test(trimmed) ? trimmed : null
+}
+
+/**
+ * WHAT A CLIENT MAY TYPE INTO A COLOUR FIELD, normalised to the one thing the
+ * document stores: six-digit lower-case hex.
+ *
+ * Three forms in, one form out (UX audit POLISH-4): a CSS colour name ("red",
+ * "DARKGREEN", "dark green"), the three-digit hex shorthand (`#abc`), or the full
+ * six-digit code. `null` means "that is not a colour we recognise", which the field
+ * says out loud rather than storing a guess.
+ *
+ * Nothing downstream changes: the store, the autosave, the `.blueprint` file and
+ * the export all still see hex and only hex.
+ */
+export function parseColorInput(value: string): string | null {
+  const trimmed = value.trim().toLowerCase()
+  if (trimmed.length === 0) return null
+
+  if (HEX_COLOR_PATTERN.test(trimmed)) return trimmed
+
+  if (SHORT_HEX_PATTERN.test(trimmed)) {
+    const digits = trimmed.slice(1)
+    return `#${[...digits].map((digit) => `${digit}${digit}`).join('')}`
+  }
+
+  return hexForColorName(trimmed)
 }
 
 export function isVibeId(value: unknown): value is VibeId {
@@ -60,13 +94,16 @@ export function applySettingsPatch(
   return { ...settings, ...patch }
 }
 
-/** Replace the colour in `index`, or append when the slot is one past the end. */
+/**
+ * Replace the colour in `index`, or append when the slot is one past the end.
+ * Takes anything a client can type (`parseColorInput`) and stores hex.
+ */
 export function withColorAt(
   settings: SiteSettings,
   index: number,
   color: string,
 ): SiteSettings {
-  const normalised = normaliseHexColor(color)
+  const normalised = parseColorInput(color)
   if (normalised === null) return settings
   if (index < 0 || index > settings.colors.length || index >= SITE_COLOR_LIMIT) return settings
 

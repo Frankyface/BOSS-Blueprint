@@ -49,6 +49,21 @@ export interface CanvasSessionOptions {
   readonly autosaveDelayMs?: number
 }
 
+/**
+ * WHAT TO SAY WHEN STORAGE IS RUNNING OUT — and, more importantly, WHAT TO DO.
+ *
+ * Both messages lead with "download your design" (UX audit MAJOR). The old ones
+ * advised "start over" and "delete a few blocks": the first is the single most
+ * destructive control in the app, the second throws away the client's work — and
+ * neither mentioned the button that actually rescues everything. Downloading is
+ * unaffected by a full localStorage (the audit's own probe recovered a 6.4MB design
+ * that way), so it is the first thing to reach for and the only thing that loses
+ * nothing. Freeing room comes second, and is phrased as a way to carry on HERE.
+ *
+ * The storage notice renders a Download button beside these for the same reason —
+ * a sentence telling a worried client to go and find a control elsewhere is a
+ * sentence they will read twice and act on once.
+ */
 function noticeForSave(outcome: SaveOutcome): StorageNotice | null {
   switch (outcome.status) {
     case 'saved':
@@ -57,18 +72,24 @@ function noticeForSave(outcome: SaveOutcome): StorageNotice | null {
       return {
         kind: 'near-quota',
         message:
-          'This design is getting large for browser storage. Your work is still being saved, ' +
-          'but consider starting a fresh page soon.',
+          'This design is nearly as large as your browser will hold. It is still being saved — ' +
+          'but download your design now to keep everything safe.',
       }
     case 'quota-exceeded':
       return {
         kind: 'save-failed',
         message:
-          'Your browser ran out of space, so the latest changes could NOT be saved. ' +
-          'Delete a few blocks or start over to free some room.',
+          'Your browser has run out of room, so your latest changes are NOT being saved. ' +
+          'Download your design now to keep everything safe, then remove a photo or two to ' +
+          'carry on here.',
       }
     case 'unavailable':
-      return { kind: 'unavailable', message: `Your work is not being saved: ${outcome.reason}` }
+      return {
+        kind: 'unavailable',
+        message:
+          `Your work is not being saved: ${outcome.reason} ` +
+          'Download your design to keep it safe.',
+      }
   }
 }
 
@@ -165,9 +186,19 @@ function installFlushOnHide(autosave: Autosave<CanvasDocument>): () => void {
   // ORDER IS THE POINT: commit first, flush second. The blur writes to the store,
   // the subscriber schedules the autosave synchronously, and the flush then has the
   // client's last sentence in hand rather than the document as it was before it.
+  //
+  // `finally`, because the whole purpose of this handler is that the design reaches
+  // storage. `commitOpenDrafts` calls a blur handler we do not own — any field in
+  // the app, now or later — and a throw in one of them must not take the autosave
+  // down with it. Worst case the client loses the sentence the broken field was
+  // holding; without the `finally` they would lose the entire session's work
+  // (review follow-up).
   const flush = (): void => {
-    commitOpenDrafts()
-    autosave.flush()
+    try {
+      commitOpenDrafts()
+    } finally {
+      autosave.flush()
+    }
   }
   const flushWhenHidden = (): void => {
     if (document.visibilityState === 'hidden') flush()

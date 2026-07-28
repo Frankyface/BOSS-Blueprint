@@ -210,6 +210,32 @@ zero-width-space label stores as a length-1, visually blank entry.
 
 **Status: VERIFIED DONE.**
 
+**UX hardening (2026-07-28):**
+Status unchanged. Two changes here, one of them a new recorded behaviour (written into Notes
+& Decisions below).
+- **POLISH-3, auto-link on an exact name match.** The audit's client typed "Home" and "Menu"
+  into her menu, beside pages called Home and Menu, and both items still read "Not linked yet";
+  the nav map then correctly reported a site where nothing led anywhere. A label that IS a page
+  name (case-insensitive, otherwise exact) now wires itself to that page — at item creation and
+  at label commit, through one pure function, `linkForLabel(label, pages)` in `navItems.ts`. It
+  fires only when the item is UNLINKED: a link the client chose (or an earlier match) is never
+  repointed by a rename. No match still means `none`, which the nav map says out loud.
+- **LOW, zero-width characters.** `normaliseNavLabel` strips U+200B–U+200D, U+2060 and U+FEFF
+  before trimming. A label pasted from a website or a Word document carries these
+  invisibly: they survive `trim`, take up no room on screen, and made "Home" ≠ "Home" — which
+  broke both the new auto-link and the existing label-matching that preserves wiring across an
+  inline edit. A label that is nothing but zero-width characters is now empty, and refused.
+- Evidence — unit: `navItems.test.ts` (+18: the `linkForLabel` match/no-match tables, matching
+  through an invisible character, `createNavItem` with pages, `navItemsFromText` wiring only the
+  NEW labels, and 4 zero-width rows in the `normaliseNavLabel` table); `blockEdits.test.ts`
+  (+6: add/rename wiring, and a table proving three kinds of existing link are never repointed);
+  `canvasStore.copy.test.ts` (+4: all three routes a label can reach the document by — the
+  panel's Add, the inline text commit, and a rename — plus "never takes back a link the client
+  chose").
+- Evidence — E2E: `multipage-nav.spec.ts` "menu items wired up by their own name" (3 tests × 3
+  engines), asserting the store AND the nav map the client actually reads
+  (`Home: menu -> Menu`, `Home: Specials -> Not linked yet`).
+
 ## Open Questions
 - ~~Nav bar items: fixed set the client renames, or free add/remove?~~ **Decided at build:** free
   add/remove, capped at 7 in the UI (see Notes).
@@ -262,6 +288,15 @@ zero-width-space label stores as a length-1, visually blank entry.
   text form has exactly one delimiter and the alternative — an escaping scheme in a field a client
   types menus into — buys nothing for a character no menu label needs. The round trip is pinned by
   a regression test rather than left as a claim.
+- **A MENU LABEL THAT IS A PAGE NAME WIRES ITSELF UP** (added 2026-07-28, UX audit POLISH-3).
+  `linkForLabel(label, pages)` matches case-insensitively but otherwise exactly — "Menu" finds
+  the page called Menu, "Our menu" finds nothing and stays `none` rather than guessing. It runs
+  where a label is BORN or COMMITTED (`createNavItem`, `navItemsFromText` for labels that are new
+  to the block, `withNavItemAdded`, `withNavItemLabel`) and only while the item's link is `none`:
+  an explicit choice, or a page link set by an earlier match, is never repointed by a later
+  rename. There is deliberately no provenance flag distinguishing "auto" from "chosen" — one
+  more field to persist, migrate and keep honest, to protect a case ("I renamed the item and
+  expected the link to follow") the client can fix in the dropdown in one click.
 - **Nav item caps: UI 7, stored/schema 10** — exactly the split `docs/export-format.md` §2.7
   describes ("the schema is the outer bound, the UI the inner"). The Add button disables at 7;
   labels typed straight into the block past 10 are dropped, because a menu that cannot be exported

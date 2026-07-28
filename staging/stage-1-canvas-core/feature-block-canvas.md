@@ -83,6 +83,42 @@ own `npm ci` — 240 packages, 0 vulnerabilities), not the implementer's tree.
 - Ruling: **VERIFIED DONE.** (One HIGH finding raised against the app-shell layout — recorded
   in feature-block-editing.md's log; does not falsify any criterion of this feature.)
 
+**UX hardening (2026-07-28):**
+Two interaction fixes landed here from the persona UX audit (Rosa, 54, taqueria owner). The
+feature stays `verified done`; every criterion still holds, and two recorded RULES changed —
+both rewritten in Notes & Decisions above.
+- **MAJOR-2, off-canvas parking.** `clampPosition` now keeps a whole block on the page instead
+  of a 24px sliver. Unit: `geometry.test.ts` grew the audit's exact case (a 200×56 button at
+  x=−176 lands at x=0), an all-four-directions fling loop over `moveRect`, an oversized-block
+  case, and the bottom edge (`y + height ≤ 8000`, previously `y ≤ 8000 − 24`).
+  `canvasStore.geometry.test.ts` asserts the same through the store. E2E
+  (`block-canvas.spec.ts` "a violent drag in any direction leaves the block clickable"):
+  four 4000px flings, each followed by a real centre-click that must re-select the block —
+  the very thing Playwright could not do before the fix.
+- **MAJOR-7, inverted zoom.** `pageScaleForViewport` takes a zoom factor; `usePageScale` reads
+  it from `devicePixelRatio` against the ratio latched at first measurement. Unit: a `browser
+  zoom` block in `geometry.test.ts` (1.25/1.5/2× hold the fit scale steady, zooming out too,
+  factor 1 is the old behaviour, hostile factors ignored, and the page never shrinks below its
+  unzoomed scale as the client zooms in). Not E2E-tested: Playwright cannot change a browser's
+  own zoom level, so the maths is unit-pinned and the real-window path is covered by the
+  existing narrow-viewport fit test.
+- New unit spec `src/hooks/useBlockGesture.test.tsx` (8 tests) pins the gesture fast path in
+  jsdom: 0 store notifications through pointerdown + two moves, exactly 1 on release, the
+  preview matching the commit at the page edge, and the scale divisor.
+- `src/hooks/**` joined the coverage gate (80% lines/functions) — see feature-site-settings.md.
+- **M1, the palette drag that did nothing — partially addressed, deliberately.** The audit's
+  client's first instinct was to DRAG "Heading" onto the page; nothing happened, with no ghost,
+  no drop target and not even a pressed state, and she tried twice before finding the click.
+  Palette items now have an `:active` pressed state (with a `prefers-reduced-motion` opt-out),
+  so the press is visible from the moment the mouse goes down and the affordance is legible.
+  Drag-to-drop-at-a-point was NOT built: it needs a live drop preview mapped through the page's
+  fit-to-window scale, which is a feature rather than a polish, and it belongs with the Stage 4
+  onboarding work that also owns where the "click a block to drop it" line lives (audit N1).
+  Recorded here so the decision is not mistaken for an oversight.
+- Full green at this checkpoint: `npm run lint` exit 0 · `npm run test:coverage` exit 0,
+  **43 files / 934 tests**, hooks 96.64% lines / 92.85% functions · `npm run build` exit 0 ·
+  `npm run e2e` **462 passed** (154 × 3 engines), twice.
+
 ## Open Questions
 - ~~Exact default sizes/positions per block type~~ — decided, see Notes.
 - ~~Should Section blocks auto-stack?~~ — yes, see Notes.
@@ -114,6 +150,25 @@ own `npm ci` — 240 packages, 0 vulnerabilities), not the implementer's tree.
   Paint order is simply array order in the document (index 0 = furthest back) — no z-index
   field to drift, and the whole document stays a flat serialisable array.
 - Page height is derived, not stored: `max(1600, lowest block bottom + 160)` capped at 8000px.
+- **THE PAGE EDGE STOPS A BLOCK, ON ALL FOUR SIDES** (changed 2026-07-28 by the UX audit,
+  MAJOR-2). `clampPosition` used to allow a block to hang off the left or right edge as long
+  as a 24px sliver stayed on the page; the audit parked a 200px button at x=−176, where the
+  sliver is under the palette and the block's own centre is off-page — unclickable for the
+  client and for Playwright. It now keeps the WHOLE block inside the page:
+  `x ∈ [0, pageWidth − width]`, `y ∈ [0, 8000 − height]`, pinning to (0,0) for anything
+  bigger than the page. Two further reasons beyond reachability: the Stage 3 PNG renders
+  exactly the 1200px page, so an overhang is silently cropped out of the client's brief; and
+  `resizeRect` has always kept a block fully on the page, so moving was the odd one out.
+  `MIN_ON_PAGE_PX` is gone with the old rule. An overhanging block is still *representable*
+  (a hand-edited `.blueprint` can carry one) — `resizeRect`'s handling of that case is kept
+  and tested.
+- **Fit-to-window zoom is fitted to the WINDOW, not to the browser's zoom level** (changed
+  2026-07-28, UX audit MAJOR-7). Ctrl+= shrinks the viewport measured in CSS pixels, so
+  auto-fit re-fitted the page to the smaller number and zooming IN made the sketch smaller
+  (measured 0.69 → 0.45 → 0.29 at 100/125/150%). `pageScaleForViewport(width, zoomFactor)`
+  now takes how far the display's pixel ratio has moved since the app loaded and undoes it,
+  so the fit scale holds and the page grows and shrinks physically along with everything else
+  on screen. A real window resize leaves the factor at 1 and behaves exactly as before.
 - New blocks are created with `text: ''` and the placeholder is rendered from the type table.
   Empty string therefore means "the client has not written anything here yet", which Stage 3
   needs in order to tell real copy from filler.

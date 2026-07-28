@@ -103,6 +103,78 @@ test.describe('app layout', () => {
     await attachPageScreenshot(page, 'scrolled-canvas')
   })
 
+  /**
+   * THE CHROME AT A NARROW DESKTOP (UX audit MINOR/M6).
+   *
+   * At 1024x768 the page strip's action group was 485px wide inside a 480px strip
+   * because it refused to shrink, so "Delete page" ran under the details panel and
+   * was painted over by it. Both action groups now shrink and wrap.
+   *
+   * 1024 is the Stage 4 desktop-guard threshold: below it the app says so out
+   * loud, above it every control must be reachable with a mouse.
+   */
+  test.describe('narrow desktop windows', () => {
+    const NARROW_SIZES = [
+      { width: 1280, height: 800 },
+      { width: 1100, height: 800 },
+      { width: 1024, height: 768 },
+    ] as const
+
+    /** Every control in the chrome, by the test id a client would reach for. */
+    const CHROME_CONTROLS = [
+      'toolbar-undo',
+      'toolbar-redo',
+      'toolbar-send-backward',
+      'toolbar-bring-forward',
+      'toolbar-delete',
+      'toolbar-start-over',
+      'page-add',
+      'page-rename',
+      'page-duplicate',
+      'page-move-left',
+      'page-move-right',
+      'page-delete',
+    ] as const
+
+    for (const size of NARROW_SIZES) {
+      test(`every toolbar control is reachable at ${String(size.width)}x${String(size.height)}`, async ({
+        page,
+      }) => {
+        await page.setViewportSize(size)
+        await addBlock(page, 'heading')
+
+        const panelBox = await page.getByTestId('side-panel').boundingBox()
+        expect(panelBox).not.toBeNull()
+
+        for (const testId of CHROME_CONTROLS) {
+          const control = page.getByTestId(testId)
+          await expect(control, `${testId} should be on screen`).toBeVisible()
+
+          const box = await control.boundingBox()
+          expect(box, `${testId} should be laid out`).not.toBeNull()
+          if (!box || !panelBox) continue
+
+          // Wholly inside the window…
+          expect(box.x, `${testId} starts off the left of the window`).toBeGreaterThanOrEqual(0)
+          expect(box.x + box.width, `${testId} runs off the right`).toBeLessThanOrEqual(size.width)
+          expect(box.y + box.height, `${testId} runs off the bottom`).toBeLessThanOrEqual(
+            size.height,
+          )
+          // …and clear of the details panel, which paints over anything that runs
+          // under it.
+          expect(box.x + box.width, `${testId} runs under the details panel`).toBeLessThanOrEqual(
+            panelBox.x + 1,
+          )
+        }
+
+        // Reachable is more than "laid out": Playwright's click does a hit test.
+        await page.getByTestId('toolbar-send-backward').click()
+        await page.getByTestId('page-add').click()
+        await expect(page.getByTestId('page-add-name')).toBeVisible()
+      })
+    }
+  })
+
   test('the chrome stays put through repeated scrolling in both directions', async ({ page }) => {
     for (const type of REPRO_BLOCKS) {
       await addBlock(page, type)

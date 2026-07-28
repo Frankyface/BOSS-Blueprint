@@ -2,19 +2,12 @@ import { useRef } from 'react'
 import type { ChangeEvent } from 'react'
 
 import { DESIGN_FILE_ACCEPT, DESIGN_FILE_EXTENSION } from '../canvas/designFile.ts'
-import {
-  downloadCurrentDesign,
-  requestDesignImport,
-} from '../store/designFileSession.ts'
-import { useEditorStore } from '../store/editorStore.ts'
+import { downloadDesignAndAnnounce, requestDesignImport } from '../store/designFileSession.ts'
 
 import './DesignFileControls.css'
 
 const OPEN_LABEL = 'Open design'
 const DOWNLOAD_LABEL = 'Download design'
-const SAVED_MESSAGE = (fileName: string): string =>
-  `Saved “${fileName}” to your downloads. Keep it somewhere safe — opening it here brings ` +
-  'this design back, on any computer.'
 
 /**
  * THE DESIGN FILE, in the header — the client's only way to move work between
@@ -33,10 +26,9 @@ const SAVED_MESSAGE = (fileName: string): string =>
  */
 export function DesignFileControls() {
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const setToast = useEditorStore((state) => state.setToast)
 
   const handleDownload = () => {
-    setToast(SAVED_MESSAGE(downloadCurrentDesign()))
+    downloadDesignAndAnnounce()
   }
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {

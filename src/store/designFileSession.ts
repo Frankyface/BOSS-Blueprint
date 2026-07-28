@@ -47,6 +47,26 @@ export function downloadCurrentDesign(save: SaveTextFile = downloadTextFile): st
   return fileName
 }
 
+export const designSavedMessage = (fileName: string): string =>
+  `Saved “${fileName}” to your downloads. Keep it somewhere safe — opening it here brings ` +
+  'this design back, on any computer.'
+
+/**
+ * Download the design AND say so — the one call every "save it to your computer"
+ * control makes.
+ *
+ * There are two of them now: the header button, and the rescue button on the
+ * storage notice (a browser that has run out of room is exactly when downloading
+ * stops being a convenience and becomes the thing that saves the client's work).
+ * Two copies of "download, then toast the file name" would eventually disagree
+ * about what was said.
+ */
+export function downloadDesignAndAnnounce(save: SaveTextFile = downloadTextFile): string {
+  const fileName = downloadCurrentDesign(save)
+  useEditorStore.getState().setToast(designSavedMessage(fileName))
+  return fileName
+}
+
 function complain(message: string): void {
   useEditorStore.getState().setToast(message)
 }

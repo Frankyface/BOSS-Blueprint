@@ -191,6 +191,49 @@ scratch (`npm ci`, 0 vulnerabilities). No repo file was modified.
   `npm run build` of this commit.
 - **Verdict: VERIFIED DONE.**
 
+**UX hardening (2026-07-28):**
+The persona UX audit's single most damaging moment lived in this feature, and the fix landed
+here. Status unchanged (`verified done`); one recorded rule — what a printable key does with a
+block selected — is new, and is written into Notes & Decisions below.
+- **MAJOR-3, keystroke fallthrough.** With a block selected and no editor open, keystrokes fell
+  through to the browser: the space bar in "Taqueria Rosa" scrolled the canvas 434px behind a
+  scrollbar that renders 0px wide, so the client's page looked empty and her work looked
+  deleted. A printable character now opens the inline editor on any block that has words and
+  carries that character in as the start of the edit (PowerPoint/Keynote/Figma behaviour);
+  blocks with no text do nothing, but the space bar is swallowed for them too, because the
+  scroll is the harm. `beginTextEdit` (`src/store/textEditing.ts`) is now the one door into
+  editing — double-click and type-to-edit both go through it.
+- **MAJOR-4, Backspace mid-thought.** Delete/Backspace still delete the selected block, and
+  still only while no editor is open — but the dangerous case is now covered by the fix above:
+  typing a letter opens the editor, so the Backspace after it edits the text instead of
+  destroying the block. Asserted in both the unit and the E2E spec.
+- **ONE UNDO STEP.** The seeding keystroke goes into the editor's LOCAL draft, never the store;
+  the draft reaches the store once, on Enter or blur. E2E asserts a single undo returns the
+  heading to empty (not to "Taqueria Ros", not to no block).
+- **MINOR/M6, chrome clipping below 1280px.** `.page-strip__actions` and
+  `.canvas-toolbar__actions` were `flex: 0 0 auto`, so a wrapped line stayed as wide as its
+  content: measured at 1024×768, the page-strip actions were 485px inside a 480px strip and
+  "Delete page" ran 17px under the details panel, which paints over it. Both groups are now
+  `flex: 0 1 auto` + `min-width: 0` and wrap internally.
+- Evidence — unit: new `src/hooks/useCanvasKeyboard.test.tsx` (25 tests: every text-bearing type
+  seeds, every named/modified key stands down, space swallowed on non-text blocks, the
+  mid-thought Backspace, and keys aimed at another field ignored) and 4 new cases in
+  `BlockTextEditor.test.tsx` (the seed replaces the old words, carries through to one commit,
+  is consumed so the next double-click opens on the block's own words, and is dropped when the
+  block cannot open an editor).
+- Evidence — E2E: `block-editing.spec.ts` "typing at a selected block" (5 tests × 3 engines):
+  types the audit's own sentence and asserts `scrollTop` never moved; one-undo-step; Backspace
+  mid-thought; an image block ignores letters but still swallows Space; typing replaces the
+  existing words. `app-layout.spec.ts` "narrow desktop windows" (3 sizes × 3 engines): every
+  one of the 12 chrome controls is on screen, clear of the details panel, and really clickable
+  at 1280×800, 1100×800 and 1024×768.
+- **Decided and recorded:** the canvas viewport is NOT made unscrollable from the keyboard while
+  something is selected. Space and the arrow keys are how a keyboard client scrolls a 1600px
+  page; taking that away to fix a mis-aimed keystroke trades one trap for a worse one. Only the
+  keys we consume are swallowed, only with a block selected, only with no editor open. (Arrow
+  keys still scroll rather than nudging the block — the accessibility gap in Open Questions is
+  unchanged and still needs Cam's decision.)
+
 ## Open Questions
 - ~~Multi-select (marquee/shift-click)~~ — OUT for Stage 1, see Notes.
 - Keyboard move/resize (arrow-key nudging) is a known accessibility gap — see LOW-2 above.
@@ -211,6 +254,15 @@ scratch (`npm ci`, 0 vulnerabilities). No repo file was modified.
   Enter commits, Escape discards, blur commits, Shift+Enter inserts a newline in Text blocks.
 - **Delete has two routes**, per the spec: the `Delete`/`Backspace` key (window-level, ignored
   while an editor or any input has focus) and a `Delete` button in the canvas toolbar.
+- **TYPE-TO-EDIT** (added 2026-07-28, UX audit MAJOR-3/4). With a block selected and no editor
+  open, a printable character (`event.key.length === 1`, no Ctrl/Cmd/Alt) opens the inline
+  editor on any text-bearing block and becomes the first character of the edit, replacing what
+  was there — the same result as double-clicking (which selects the old text) and typing. On a
+  block with no words it does nothing, EXCEPT that the space bar is still swallowed, because
+  an un-swallowed space scrolls the canvas and reads as "my work disappeared". The keystroke
+  lands in the editor's local draft, so a typed sentence is still exactly one undo step.
+  Entry point: `beginTextEdit(blockId, seed)` in `src/store/textEditing.ts`, which both the
+  keyboard and the double-click go through.
 - **The toolbar is a strip at the top of the canvas**, not a floating badge on the block: it
   stays readable at any fit-to-window zoom, is always in the same place for the client (and for
   Playwright), and has room to name what is selected ("Heading selected"). This only holds because

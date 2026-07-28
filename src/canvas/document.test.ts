@@ -12,6 +12,7 @@ import {
   MIN_PAGE_COUNT,
   movePage,
   pageNames,
+  pageOfBlock,
   renamePage,
   withPageBlocks,
   withSiteSettings,
@@ -85,6 +86,32 @@ describe('withPageBlocks', () => {
   it('reports no blocks for a page that is not there', () => {
     expect(blocksOfPage(emptyDocument(), 'nope')).toEqual([])
     expect(blocksOfPage(emptyDocument(), null)).toEqual([])
+  })
+})
+
+/**
+ * WHICH PAGE HOLDS A BLOCK, site-wide. It exists so an image upload that finishes
+ * after the client has walked to another page can tell them where their image box
+ * actually is, instead of announcing that it is gone (review follow-up).
+ */
+describe('pageOfBlock', () => {
+  const twoPages = (): CanvasDocument => {
+    const base = addPage(emptyDocument(), 'Menu').document
+    return withPageBlocks(base, base.pages[1]?.id ?? '', () => [button('on-menu')])
+  }
+
+  it('finds the page a block lives on, wherever it is', () => {
+    const document = twoPages()
+
+    expect(pageOfBlock(document, 'on-menu')?.name).toBe('Menu')
+  })
+
+  it('is null for a block that is nowhere in the design', () => {
+    expect(pageOfBlock(twoPages(), 'deleted-block')).toBeNull()
+  })
+
+  it('is null in an empty design', () => {
+    expect(pageOfBlock(emptyDocument(), 'anything')).toBeNull()
   })
 })
 

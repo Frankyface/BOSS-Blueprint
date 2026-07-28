@@ -131,6 +131,59 @@
   color: var(--boss-text-muted);
 }
 
+/*
+ * THE WAY BACK IN for a client who already has a design file. The picker covers
+ * the whole editor, header included, so without this row the "Open design" button
+ * is unreachable on exactly the visit that needs it (UX audit BLOCKER).
+ */
+.template-picker__returning {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--boss-gap);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--boss-line);
+}
+
+.template-picker__returning-lead {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--boss-text);
+}
+
+.template-picker__open {
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.template-picker__open:hover,
+.template-picker__open:focus-visible {
+  border-color: var(--boss-select);
+  background: var(--boss-band);
+}
+
+/*
+ * Off-screen rather than `display: none`: a hidden input cannot be opened by a
+ * click in every engine, and Playwright's `setInputFiles` needs a real element.
+ */
+.template-picker__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* --- the miniature ------------------------------------------------------- */
 
 .template-thumb {

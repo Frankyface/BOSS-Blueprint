@@ -123,7 +123,7 @@ export const COL_PORTRAIT = { x: MARGIN_X, width: 440 }
 export const COL_BESIDE_PORTRAIT = { x: 600, width: 520 }
 
 /* ─────────────────────────── block builders ───────────────────────────
- * Two builders only, for the blocks that carry no content: they exist so the 30
+ * Two builders only, for the blocks that carry no content: they exist so the 31
  * band blocks and 12 nav bars cannot drift from each other. Every content block
  * is written out literally in its template file.
  */

@@ -136,7 +136,7 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     set((state) =>
       updateCurrentBlock(state, id, (block) =>
         block.type === 'nav-bar'
-          ? withNavItems(block, navItemsFromText(normalised, block.items ?? []))
+          ? withNavItems(block, navItemsFromText(normalised, block.items ?? [], state.pages))
           : { ...block, text: normalised },
       ),
     )
@@ -228,13 +228,21 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     set((state) => updateCurrentBlock(state, id, (block) => withLink(block, link)))
   },
 
+  /**
+   * The pages are handed down so a menu item whose label IS a page name comes out
+   * of the box pointing at it (`linkForLabel`) — creation and rename both.
+   */
   addNavItem: (blockId, label) => {
-    set((state) => updateCurrentBlock(state, blockId, (block) => withNavItemAdded(block, label)))
+    set((state) =>
+      updateCurrentBlock(state, blockId, (block) => withNavItemAdded(block, label, state.pages)),
+    )
   },
 
   setNavItemLabel: (blockId, itemId, label) => {
     set((state) =>
-      updateCurrentBlock(state, blockId, (block) => withNavItemLabel(block, itemId, label)),
+      updateCurrentBlock(state, blockId, (block) =>
+        withNavItemLabel(block, itemId, label, state.pages),
+      ),
     )
   },
 

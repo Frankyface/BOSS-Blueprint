@@ -50,11 +50,21 @@
   border-color: var(--boss-ink);
 }
 
+/*
+ * `flex: 0 1 auto` + `min-width: 0`, not `flex: 0 0 auto` (UX audit MINOR/M6).
+ *
+ * The row wraps, but a wrapped line whose one item refuses to shrink is still as
+ * wide as its content: at 1024x768 the actions group stayed 485px wide inside a
+ * 480px strip, so "Delete page" ran 17px under the details panel and was painted
+ * over by it. Letting the group shrink hands the overflow to its OWN wrap, which
+ * is what puts the buttons on a second line instead of behind the panel.
+ */
 .page-strip__actions {
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   gap: 0.25rem;
+  min-width: 0;
 }
 
 .page-strip__button {

@@ -3,7 +3,6 @@ import {
   MAX_BLOCK_HEIGHT_PX,
   MAX_PAGE_HEIGHT_PX,
   MAX_PAGE_SCALE,
-  MIN_ON_PAGE_PX,
   MIN_PAGE_HEIGHT_PX,
   MIN_PAGE_SCALE,
   PAGE_BOTTOM_PADDING_PX,
@@ -40,18 +39,35 @@ export function ceilToGrid(value: number, gridSize: number = GRID_SIZE_PX): numb
 }
 
 /**
- * Keep a block reachable: it may hang off the left/right edge of the page, but at
- * least MIN_ON_PAGE_PX of it stays on. The top of the page is a hard edge — a web
- * page has nothing above its first pixel — and the bottom is capped by the max page.
+ * THE PAGE EDGE STOPS A BLOCK, LIKE THE EDGE OF A SLIDE — on all four sides.
+ *
+ * This used to allow a block to hang off the left or right edge as long as a 24px
+ * sliver stayed on the page. The UX audit (MAJOR-2) caught what that costs: one
+ * fast drag left parked a 200px-wide button at x=-176, where the only part still on
+ * the page is a 24px strip at the extreme edge — under the palette's shadow, too
+ * narrow to aim at, and with the block's own centre off the page entirely (neither
+ * Playwright nor a client can click a box by a strip they cannot see). Dragging
+ * right was as unbounded, at x=1176.
+ *
+ * Two more reasons the sliver rule was wrong, beyond reachability:
+ *  · The PNG/site export renders exactly the 1200px page (`docs/export-format.md`
+ *    §4.2). Whatever hangs off the edge is cropped out of the deliverable — so a
+ *    "successful" drag could silently delete the client's words from their brief.
+ *  · `resizeRect` has ALWAYS kept a block fully inside the page (the west handle
+ *    stops at 0, the east edge at `pageWidth`). Moving was the one gesture that
+ *    could put a block somewhere resizing never could.
+ *
+ * The top of the page is a hard edge — a web page has nothing above its first
+ * pixel — and the bottom keeps the whole block inside the tallest page we allow.
+ *
+ * A block wider (or taller) than the page cannot satisfy both bounds; `clamp`
+ * returns the minimum when the range inverts, so it pins to the top-left corner.
  */
 export function clampPosition(rect: BlockRect, pageWidth: number = PAGE_WIDTH_PX): BlockRect {
-  const visibleX = Math.min(MIN_ON_PAGE_PX, rect.width)
-  const visibleY = Math.min(MIN_ON_PAGE_PX, rect.height)
-
   return {
     ...rect,
-    x: clamp(rect.x, visibleX - rect.width, pageWidth - visibleX),
-    y: clamp(rect.y, 0, MAX_PAGE_HEIGHT_PX - visibleY),
+    x: clamp(rect.x, 0, pageWidth - rect.width),
+    y: clamp(rect.y, 0, MAX_PAGE_HEIGHT_PX - rect.height),
   }
 }
 
@@ -165,11 +181,29 @@ export function pageHeightForContent(
  * Fit-to-window zoom: shrink the 1200px page until it fits the canvas viewport,
  * never enlarging past 1:1. A zero width means "not measured yet" (first paint, or
  * jsdom in unit tests) — render at 1:1 rather than collapsing to the minimum.
+ *
+ * ZOOMING IN MUST MAKE THE SKETCH BIGGER (UX audit MAJOR-7). Browser zoom shrinks
+ * the viewport measured in CSS pixels — at 150% a 1440px window reports 960 — so
+ * fitting to that number alone made Ctrl+= shrink the page instead of enlarging it
+ * (measured 0.69 → 0.45 → 0.29 at 100/125/150%). The client asked to see MORE
+ * detail and got less, which is exactly backwards, and it hits hardest the older
+ * eyes most likely to reach for zoom in the first place.
+ *
+ * `zoomFactor` is how far the browser has been zoomed SINCE THE APP LOADED
+ * (`usePageScale` reads it off `devicePixelRatio`). Multiplying the measured width
+ * by it undoes the zoom's effect on this calculation, so the fit scale stays put
+ * and the page grows and shrinks physically with everything else on screen — which
+ * is what "zoom" means everywhere else in the browser. A real window resize leaves
+ * `zoomFactor` at 1 and fit-to-window behaves exactly as it always has.
+ *
+ * The 32px margin is NOT scaled with it: it is chrome, and it stays 32 CSS pixels
+ * at every zoom level, so it is subtracted after the zoom is undone.
  */
-export function pageScaleForViewport(viewportWidth: number): number {
+export function pageScaleForViewport(viewportWidth: number, zoomFactor = 1): number {
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return MAX_PAGE_SCALE
 
-  const available = viewportWidth - PAGE_MARGIN_PX * 2
+  const zoom = Number.isFinite(zoomFactor) && zoomFactor > 0 ? zoomFactor : 1
+  const available = viewportWidth * zoom - PAGE_MARGIN_PX * 2
   const factor = 10 ** PAGE_SCALE_DECIMALS
   const rounded = Math.floor((available / PAGE_WIDTH_PX) * factor) / factor
 

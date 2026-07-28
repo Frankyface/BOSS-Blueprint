@@ -107,6 +107,38 @@ implements §4.1 or the file name and package slug will diverge. LOW — the 60-
 choice, but the "named the way their package will be" claim overstates conformance. No success
 criterion depends on either. **VERIFIED DONE.**
 
+**UX hardening (2026-07-28):**
+Status unchanged. The MEDIUM this file's own review raised is fixed, the file route now reaches
+the client who needs it most, and this feature owns half of the Stage 2 capstone.
+- **MEDIUM — `designFileSlug` folds accents properly now.** `.normalize('NFKD')` only SPLITS "é"
+  into "e" + a combining acute; something has to throw the mark away, and nothing did, so it fell
+  into the "anything that is not a letter or digit becomes a hyphen" rule: `Café Noël` →
+  `cafe-noe-l.blueprint`. One line — `.replace(/[U+0300-U+036F]/g, "")` — restores what
+  `docs/export-format.md` §4.1 step 1 already specified ("NFKD, strip diacritics, lowercase"),
+  which matters before Stage 3 implements §4.1 or the file name and the package slug diverge.
+  The existing `['Café Ubuntu','cafe-ubuntu']` case passed with the bug in place (a word-final
+  accent merged with the following space into one hyphen run), so four INTERIOR-accent cases
+  were added — `Café Noël` → `cafe-noel`, `Ångström & Sons, Ltd.` → `angstrom-sons-ltd`,
+  `Piñata Niño` → `pinata-nino`, `Crème Brûlée Café` → `creme-brulee-cafe` — plus a case proving
+  a precomposed `é` and an `e` + combining acute produce the same slug.
+- **BLOCKER (live UX audit) — the header's "Open design" is unreachable behind the starting-point
+  picker**, which is up precisely when a returning client on a fresh browser needs it. The picker
+  now offers "Open a design file…" through this same `requestDesignImport` flow; the decision and
+  its alternative are recorded in feature-templates.md. Nothing in this feature's own contract
+  changed — one more caller, one more entry point, same validation, same refusals.
+- `downloadCurrentDesign` gained a sibling, `downloadDesignAndAnnounce`, so the header button and
+  the storage notice's new rescue button cannot drift about what they say (feature-autosave.md).
+- **Stage 2 capstone (`e2e/stage2-capstone.spec.ts`), this feature's half:** a design using every
+  element the stage ships — six block kinds, a pen annotation, a real copy block, a
+  generate-later block with its brief, an uploaded photo, a menu wired to all three pages, and
+  the site brief including a colour typed as "dark green" — is downloaded, the browser is emptied
+  with Start over, and the file is opened again. Deep equality on the whole document AND on the
+  DOM geometry of every page, both after a reload and after the file round trip. Green ×3
+  engines. `downloadDesign` / `openDesignFile` / `designOf` moved to `e2e/support/designFile.ts`
+  so the capstone and this feature's spec share one copy.
+- Evidence: `npm run test:coverage` exit 0, **43 files / 934 tests** (`src/canvas` 99.73% lines);
+  `npm run e2e` **462 passed** (154 × 3 engines), twice.
+
 ## Open Questions
 - none yet — revisit when starting.
   → Still none. The format questions were all settled in batch 1; this feature added a file

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 import {
-  HEX_COLOR_HINT,
-  isHexColor,
+  COLOR_HINT,
+  parseColorInput,
   SITE_COLOR_LIMIT,
   VIBE_HINTS,
   VIBE_OPTIONS,
@@ -45,6 +45,11 @@ function ColorSlot({ index, color }: ColorSlotProps) {
     setError(null)
   }
 
+  /**
+   * A name, a short hex or a full hex all commit as the same six-digit code
+   * (`parseColorInput`) — and the field is put straight so the client can see what
+   * was stored, which is also how they learn what the tool understood.
+   */
   const commit = () => {
     const value = draft.trim()
 
@@ -54,13 +59,15 @@ function ColorSlot({ index, color }: ColorSlotProps) {
       return
     }
 
-    if (!isHexColor(value)) {
-      setError(HEX_COLOR_HINT)
+    const hex = parseColorInput(value)
+    if (hex === null) {
+      setError(COLOR_HINT)
       return
     }
 
     setError(null)
-    setSiteColor(index, value)
+    setDraft(hex)
+    setSiteColor(index, hex)
   }
 
   return (

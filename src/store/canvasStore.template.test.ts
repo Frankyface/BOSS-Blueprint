@@ -114,6 +114,41 @@ describe('editing a template block', () => {
 
     expect(isFromTemplate(blockById(HOME_NAV))).toBe(false)
   })
+
+  /**
+   * The rest of the content actions, which reach the same one clearing point
+   * (`withUpdatedBlock`) — listed out because "they all funnel through one path"
+   * is exactly the kind of claim that stops being true without anyone noticing
+   * (batch-3 review LOW).
+   */
+  const firstNavItemId = () => navItemsOf(blockById(HOME_NAV))[0]?.id ?? ''
+
+  it.each([
+    ['a photo fit change', HERO_PHOTO, () => { store().setBlockImageFit(HERO_PHOTO, 'contain') }],
+    [
+      'a photo description',
+      HERO_PHOTO,
+      () => { store().setBlockImageDescription(HERO_PHOTO, 'Mum at the comal') },
+    ],
+    ['a menu item added', HOME_NAV, () => { store().addNavItem(HOME_NAV, 'Specials') }],
+    ['a menu item removed', HOME_NAV, () => { store().removeNavItem(HOME_NAV, firstNavItemId()) }],
+    [
+      'a menu item re-pointed',
+      HOME_NAV,
+      () => {
+        store().setNavItemLink(HOME_NAV, firstNavItemId(), {
+          kind: 'external',
+          url: 'https://boss.test',
+        })
+      },
+    ],
+  ])('clears the flag on %s', (_label, id, act) => {
+    expect(isFromTemplate(blockById(id))).toBe(true)
+
+    act()
+
+    expect(isFromTemplate(blockById(id))).toBe(false)
+  })
 })
 
 describe('what does NOT count as making a block your own', () => {

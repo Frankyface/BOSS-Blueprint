@@ -120,6 +120,22 @@ WEBP comment corrected, duplicate-page payload note, ingest race guard, coverage
 
 **Status: VERIFIED DONE.**
 
+**UX hardening (2026-07-28):**
+Status unchanged. One message fixed, from the batch-1 re-verification follow-ups.
+- **The ingest race guard told the client the wrong thing on a page switch.** `slotStillExists`
+  only looked at the CURRENT page, so a compression that finished after the client walked to
+  another page reported _"the image box it was for is gone"_ — about a box sitting safely on the
+  page they had just left. It is now `commitBlocker()`, which searches the whole site through the
+  new pure `pageOfBlock(document, blockId)` (`src/canvas/document.ts`) and returns the message
+  that is actually true: the block is elsewhere ("its image box is on the "Menu" page. Go back to
+  that page and pick the photo again.") or it is genuinely gone (the original wording). The commit
+  is still refused in both cases — `setBlockImage` only ever touches the current page — but the
+  sentence no longer alarms a client whose work is intact.
+- Evidence: `document.test.ts` gained a `pageOfBlock` block (finds a block on another page, null
+  for a deleted one, null in an empty design); `npm run test:coverage` exit 0 with `src/canvas`
+  still at 100% lines. The race itself remains not reproducible by hand — unchanged from the
+  original entry — so this is unit-pinned rather than E2E-pinned, exactly as the guard was.
+
 ## Open Questions
 - ~~Store as base64 in state vs IndexedDB blobs~~ **Decided at build:** base64 data URLs inside
   the document (see Notes) — measured, and the existing near-quota warning is the guardrail.

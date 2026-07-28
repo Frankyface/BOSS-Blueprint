@@ -210,6 +210,58 @@ description, and the inline block text editor — each types WITHOUT blurring, f
 _Confirmed to be a real fix, not a passing test:_ with `commitOpenDrafts()` removed and the bundle
 rebuilt, all 7 E2E tests fail and 3 of the 5 unit tests fail; restored, all pass.
 
+**UX hardening (2026-07-28):**
+Two follow-ups from the batch-1 re-verification, both in the flush-on-hide path. Status
+unchanged (`verified done`).
+- **The pagehide flush is now `try { commitOpenDrafts() } finally { autosave.flush() }`.**
+  `commitOpenDrafts` blurs whatever field has focus, which runs a blur handler this module does
+  not own — any field in the app, now or in a future batch. A throw in one of them used to take
+  the autosave down with it, and the tab was already going away: the client would have lost the
+  whole session's work, not just the sentence the broken field was holding. Worst case is now
+  the sentence.
+- **`e2e/draft-rescue.spec.ts` test 2 renamed and strengthened.** It was called "the business
+  name and style notes, typed and abandoned together", but only ONE field can be focused: filling
+  the name and moving to the notes blurs the name, which commits it the ordinary way. It is now
+  "the style notes left open after the business name was committed by blur", and it asserts both
+  halves explicitly before the tab closes (name already in the store, notes still empty) instead
+  of quietly proving something weaker than its title.
+- Evidence: `npm run test:coverage` exit 0 (43 files / 934 tests; `src/store` 96.99% lines) and
+  `e2e/draft-rescue.spec.ts` green ×3 engines in both full E2E runs.
+
+**Storage-quota messaging (2026-07-28, live UX audit MAJOR):**
+The audit filled localStorage with photos — the 9th one pushed a real browser past ~5MB — and
+reported blocks that rendered but vanished on reload. Status unchanged; the change is what we
+SAY and what we offer when that happens. Explicitly NOT changed: the 5MB reality, the warning
+threshold, or where the design is stored (out of scope, and none of them is fixable in a
+browser).
+- **Both quota messages now lead with "download your design".** The old ones advised _"consider
+  starting a fresh page soon"_ and _"delete a few blocks or start over to free some room"_ —
+  pointing a worried client at the single most destructive control in the app, and never
+  mentioning the one action that loses nothing. Downloading does not touch localStorage, so it
+  works exactly when saving has stopped (the auditor's own probe rescued a 6.4MB design that
+  way). Freeing room is now the second sentence, phrased as how to carry on HERE.
+- **The notice carries the button, not just the advice.** `StorageNotice` renders a "Download
+  design" action for `near-quota`, `save-failed` and `unavailable` — the kinds where the browser
+  has stopped being a safe place to keep the work. `recovered` deliberately does not get it: that
+  message means we could not READ a payload, so the design on screen is an empty page and
+  offering to download it would hand the client an empty file and call it a rescue. The button
+  goes through the same `downloadDesignAndAnnounce` as the header, so the two cannot drift.
+- **"Does the notice genuinely appear on a dropped write?" — verified, on the path that causes
+  it.** Traced in source (`saveDocument` catches the quota error → `reportSave` → `setNotice`;
+  nothing swallows it) and pinned by a new integration test in `imageQuota.test.ts` that
+  reproduces the audit's sequence exactly: one photo saved, the browser then refuses writes, a
+  second photo is ACCEPTED BY THE STORE and the autosave that follows is dropped. It asserts the
+  `save-failed` notice appears, that its wording leads with downloading and never says "start
+  over", that the photo is still in the store (unsaved, not lost), and that what is on disk is
+  still the one-photo design. Two more tests pin the near-quota wording and the notice's own
+  rescue button (`StorageNotice.test.tsx`, +5 including a real download through a faked
+  `downloadTextFile`).
+- **One hole stays open, and is not closeable here:** the flush on `pagehide`. If THAT write is
+  the one the browser refuses, the notice is set into a page that is already going away and the
+  client never sees it. Nothing can be shown at that point without `beforeunload`, which this
+  feature ruled out on purpose (see Notes). The near-quota warning arriving 1MB earlier is what
+  stands between a client and that case.
+
 ## Open Questions
 - ~~none yet~~ — none outstanding.
 

@@ -1,6 +1,6 @@
 import { parseNavItems } from './blockText.ts'
-import { NO_LINK, parseLink } from './links.ts'
-import type { Block, NavItem } from './types.ts'
+import { NO_LINK, pageLink, parseLink } from './links.ts'
+import type { Block, BlockLink, NavItem, Page } from './types.ts'
 
 /**
  * NAV BAR ITEMS — structured `{ id, label, link }` entries, not a comma string.
@@ -42,8 +42,40 @@ const NAV_LABEL_JOIN = ', '
  * it, so `navItemsFromText(navItemLabels(items), items)` is lossless by
  * construction (pinned by a regression test).
  */
+/**
+ * Invisible characters, stripped before anything else. A label pasted out of a Word
+ * document or a website can carry a zero-width space or joiner: it survives `trim`,
+ * it takes up no room on screen, and it makes "Home" ≠ "Home" — so the menu item
+ * quietly stops matching the page called Home, both for the auto-link below and for
+ * the label-matching that preserves wiring across an edit (review follow-up).
+ */
+const ZERO_WIDTH_CHARS = /[\u200B-\u200D\u2060\uFEFF]/g
+
 export function normaliseNavLabel(label: string): string {
-  return label.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+  return label.replace(ZERO_WIDTH_CHARS, '').replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/** Just enough of a page to match a menu label against. */
+export type PageRef = Pick<Page, 'id' | 'name'>
+
+/**
+ * WIRE A NEW MENU ITEM UP BY NAME (UX audit POLISH-3).
+ *
+ * A client who types "Home, Menu" into the nav bar has said where those items go
+ * as plainly as they know how — and used to get two items reading "Not linked yet"
+ * next to two pages of exactly those names. Matching is case-insensitive and
+ * otherwise exact: "Menu" finds the page called Menu, "Our menu" finds nothing and
+ * stays unwired rather than guessing at a page the client did not name.
+ *
+ * `none` when there is no match, which is the honest answer — the nav map then says
+ * so out loud, and the export's V-rules can flag it at submit.
+ */
+export function linkForLabel(label: string, pages: readonly PageRef[] = []): BlockLink {
+  const wanted = normaliseNavLabel(label).toLowerCase()
+  if (wanted.length === 0) return NO_LINK
+
+  const match = pages.find((page) => normaliseNavLabel(page.name).toLowerCase() === wanted)
+  return match ? pageLink(match.id) : NO_LINK
 }
 
 /** Monotonic within a session; `Date.now` keeps ids unique across reloads too. */
@@ -59,8 +91,13 @@ export function resetNavItemIdSequence(): void {
   sequence = 0
 }
 
-export function createNavItem(label: string): NavItem {
-  return { id: createNavItemId(), label: normaliseNavLabel(label), link: NO_LINK }
+/** A brand-new item, wired to the page of the same name when there is one. */
+export function createNavItem(label: string, pages: readonly PageRef[] = []): NavItem {
+  return {
+    id: createNavItemId(),
+    label: normaliseNavLabel(label),
+    link: linkForLabel(label, pages),
+  }
 }
 
 export function navItemLabels(items: readonly NavItem[]): string {
@@ -84,17 +121,23 @@ export function withNavItems(block: Block, items: readonly NavItem[]): Block {
  * "Menu" in the middle of "Home, About" keeps About's wiring on About instead of
  * sliding it onto Menu.
  */
-export function navItemsFromText(text: string, existing: readonly NavItem[] = []): readonly NavItem[] {
+export function navItemsFromText(
+  text: string,
+  existing: readonly NavItem[] = [],
+  pages: readonly PageRef[] = [],
+): readonly NavItem[] {
   const unused = existing.slice()
 
   return parseNavItems(text)
     .slice(0, NAV_ITEMS_SCHEMA_MAX)
     .map((label) => {
       const index = unused.findIndex((item) => item.label.toLowerCase() === label.toLowerCase())
-      if (index < 0) return createNavItem(label)
+      // An item the client already had keeps its own wiring, auto-linked or not:
+      // only a label that was not there before is a NEW item to wire up by name.
+      if (index < 0) return createNavItem(label, pages)
 
       const [reused] = unused.splice(index, 1)
-      return reused ?? createNavItem(label)
+      return reused ?? createNavItem(label, pages)
     })
 }
 

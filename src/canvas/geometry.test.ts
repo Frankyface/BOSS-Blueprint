@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   GRID_SIZE_PX,
   MAX_PAGE_HEIGHT_PX,
-  MIN_ON_PAGE_PX,
   MIN_PAGE_HEIGHT_PX,
   MIN_PAGE_SCALE,
   PAGE_BOTTOM_PADDING_PX,
@@ -71,22 +70,47 @@ describe('clampPosition', () => {
     expect(clampPosition(HEADING_RECT)).toEqual(HEADING_RECT)
   })
 
-  it('keeps a sliver of the block on the page when dragged off the left', () => {
+  it('stops a block at the left edge instead of letting it park off-page', () => {
     const clamped = clampPosition({ ...HEADING_RECT, x: -5000 })
-    expect(clamped.x).toBe(MIN_ON_PAGE_PX - HEADING_RECT.width)
+    expect(clamped.x).toBe(0)
   })
 
-  it('keeps a sliver of the block on the page when dragged off the right', () => {
+  /**
+   * THE AUDIT'S CASE, exactly (UX audit MAJOR-2): a 200px-wide button flung left
+   * used to come to rest at x = -176 — 24px of it on the page, the rest under the
+   * palette, its centre off the page and nothing left to grab.
+   */
+  it('never reproduces the audit x=-176 parking spot', () => {
+    const button: BlockRect = { x: 0, y: 760, width: 200, height: 56 }
+
+    const flungLeft = clampPosition({ ...button, x: -176 })
+
+    expect(flungLeft.x).toBe(0)
+    expect(flungLeft.x).toBeGreaterThanOrEqual(0)
+    expect(flungLeft.x + flungLeft.width).toBeLessThanOrEqual(PAGE_WIDTH_PX)
+  })
+
+  it('stops a block at the right edge with its whole width still on the page', () => {
     const clamped = clampPosition({ ...HEADING_RECT, x: 5000 })
-    expect(clamped.x).toBe(PAGE_WIDTH_PX - MIN_ON_PAGE_PX)
+
+    expect(clamped.x).toBe(PAGE_WIDTH_PX - HEADING_RECT.width)
+    expect(clamped.x + clamped.width).toBe(PAGE_WIDTH_PX)
+  })
+
+  it('pins a block wider than the page to the left edge rather than NaN-ing', () => {
+    const oversized: BlockRect = { x: 900, y: 0, width: PAGE_WIDTH_PX + 400, height: 72 }
+    expect(clampPosition(oversized).x).toBe(0)
   })
 
   it('treats the top of the page as a hard edge', () => {
     expect(clampPosition({ ...HEADING_RECT, y: -400 }).y).toBe(0)
   })
 
-  it('caps the bottom at the maximum page height', () => {
-    expect(clampPosition({ ...HEADING_RECT, y: 99_999 }).y).toBe(MAX_PAGE_HEIGHT_PX - MIN_ON_PAGE_PX)
+  it('keeps the whole block above the maximum page height', () => {
+    const clamped = clampPosition({ ...HEADING_RECT, y: 99_999 })
+
+    expect(clamped.y).toBe(MAX_PAGE_HEIGHT_PX - HEADING_RECT.height)
+    expect(clamped.y + clamped.height).toBe(MAX_PAGE_HEIGHT_PX)
   })
 
   it('never changes the size', () => {
@@ -116,12 +140,31 @@ describe('moveRect', () => {
     expect(moveRect(HEADING_RECT, -37, -21)).toEqual({ ...HEADING_RECT, x: 40, y: 96 })
   })
 
-  it('cannot drag a block fully off the page', () => {
+  it('cannot drag a block off the page in either direction', () => {
     const offLeft = moveRect(HEADING_RECT, -9000, 0)
     const offRight = moveRect(HEADING_RECT, 9000, 0)
 
-    expect(offLeft.x + offLeft.width).toBeGreaterThanOrEqual(MIN_ON_PAGE_PX)
-    expect(offRight.x).toBeLessThanOrEqual(PAGE_WIDTH_PX - MIN_ON_PAGE_PX)
+    expect(offLeft.x).toBe(0)
+    expect(offRight.x + offRight.width).toBe(PAGE_WIDTH_PX)
+  })
+
+  /** The drag that produced the audit's unreachable button, from every angle. */
+  it('leaves every block grabbable however hard it is flung', () => {
+    const button: BlockRect = { x: 80, y: 760, width: 200, height: 56 }
+
+    for (const [deltaX, deltaY] of [
+      [-9000, 0],
+      [9000, 0],
+      [-9000, -9000],
+      [9000, 9000],
+    ] as const) {
+      const moved = moveRect(button, deltaX, deltaY)
+
+      expect(moved.x).toBeGreaterThanOrEqual(0)
+      expect(moved.y).toBeGreaterThanOrEqual(0)
+      expect(moved.x + moved.width).toBeLessThanOrEqual(PAGE_WIDTH_PX)
+      expect(moved.y + moved.height).toBeLessThanOrEqual(MAX_PAGE_HEIGHT_PX)
+    }
   })
 
   it('is a no-op for a zero delta', () => {
@@ -197,7 +240,12 @@ describe('resizeRect', () => {
    * the block slides left so BOTH hold.
    */
   describe('minimum size versus the page edge', () => {
-    /** x = 1176 is the furthest right clampPosition allows (1200 - MIN_ON_PAGE_PX). */
+    /**
+     * x = 1176 with a 96px block: 72px of it hangs off the right of the page.
+     * Dragging can no longer produce this (`clampPosition` keeps a block whole on
+     * the page), but an imported `.blueprint` still can, and `resizeRect` has to
+     * behave when it does.
+     */
     const AT_RIGHT_EDGE: BlockRect = { x: 1176, y: 0, width: 96, height: 72 }
 
     it('slides a block at x=1176 left instead of growing it past 1200', () => {
@@ -346,9 +394,13 @@ describe('pageHeightForContent', () => {
   })
 
   it('always lands on the 8px grid, rounding UP so the padding is never eaten', () => {
-    // bottom 1701 + 160 = 1861, which is not a multiple of 8: 1864, never 1856.
-    expect(pageHeightForContent([], [markAt(1701)])).toBe(1864)
-    expect(pageHeightForContent([], [markAt(1701)]) % GRID_SIZE_PX).toBe(0)
+    // The headline case must DISCRIMINATE ceil from round, so the remainder has to
+    // be in the bottom half of the cell: 1697 + 160 = 1857, and 1857 % 8 = 1.
+    // Rounding to nearest gives 1856 and eats a pixel of padding; ceil gives 1864.
+    // (The old headline used 1701 → 1861, remainder 5, which rounds UP anyway and
+    // so passed just as happily with the bug in place — review follow-up.)
+    expect(pageHeightForContent([], [markAt(1697)])).toBe(1864)
+    expect(pageHeightForContent([], [markAt(1697)]) % GRID_SIZE_PX).toBe(0)
 
     for (const bottom of [1441, 1500.5, 1777, 2003.9, 4001]) {
       const height = pageHeightForContent([{ x: 0, y: bottom, width: 10, height: 0 }])
@@ -387,5 +439,49 @@ describe('pageScaleForViewport', () => {
   it('leaves the page fitting inside the viewport with its margins', () => {
     const viewportWidth = 900
     expect(pageScaleForViewport(viewportWidth) * PAGE_WIDTH_PX).toBeLessThanOrEqual(viewportWidth)
+  })
+
+  /**
+   * UX audit MAJOR-7: zooming the browser IN used to make the sketch smaller,
+   * because zoom shrinks the viewport measured in CSS pixels and fit-to-window
+   * dutifully re-fitted to the smaller number (0.69 → 0.45 → 0.29 at 100/125/150%).
+   */
+  describe('browser zoom', () => {
+    /** What the canvas viewport reports at 100%, on the audit's 1440px window. */
+    const VIEWPORT_AT_100 = 864
+    const UNZOOMED = pageScaleForViewport(VIEWPORT_AT_100)
+
+    it.each([1.25, 1.5, 2])('holds the fit scale steady at %sx zoom', (zoom) => {
+      // Zoom divides the CSS-pixel viewport by the zoom factor…
+      const zoomedViewport = VIEWPORT_AT_100 / zoom
+
+      // …and passing that factor back in undoes it exactly.
+      expect(pageScaleForViewport(zoomedViewport, zoom)).toBe(UNZOOMED)
+    })
+
+    it('holds it steady zooming out too', () => {
+      expect(pageScaleForViewport(VIEWPORT_AT_100 / 0.67, 0.67)).toBe(UNZOOMED)
+    })
+
+    it('is the old behaviour when nothing is zoomed', () => {
+      expect(pageScaleForViewport(800, 1)).toBe(pageScaleForViewport(800))
+    })
+
+    it('re-fits a genuinely resized window, which never moves the zoom factor', () => {
+      expect(pageScaleForViewport(600, 1)).toBeLessThan(pageScaleForViewport(900, 1))
+    })
+
+    it('ignores a zoom factor that could not be real', () => {
+      for (const factor of [0, -2, Number.NaN, Number.POSITIVE_INFINITY]) {
+        expect(pageScaleForViewport(800, factor)).toBe(pageScaleForViewport(800))
+      }
+    })
+
+    /** The audit's own numbers: the page must not shrink as she zooms in. */
+    it('never shrinks the page below its unzoomed scale as the client zooms in', () => {
+      for (const zoom of [1.25, 1.5, 2, 3]) {
+        expect(pageScaleForViewport(VIEWPORT_AT_100 / zoom, zoom)).toBeGreaterThanOrEqual(UNZOOMED)
+      }
+    })
   })
 })

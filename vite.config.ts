@@ -46,6 +46,13 @@ export default defineConfig({
       thresholds: {
         'src/canvas/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
         'src/store/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
+        // `src/hooks/**` joined the gate with the UX-hardening batch. These are
+        // logic, not markup — the committed-field protocol (one store write per
+        // edit, and what a refused commit does), the canvas keyboard, and the
+        // fit-to-window maths — and `useCommittedField` had sat at 29.62% of
+        // statements while carrying the rule every text field in the app depends
+        // on (review follow-up).
+        'src/hooks/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
       },
     },
   },

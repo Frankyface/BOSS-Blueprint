@@ -18,10 +18,16 @@ _Moderately specified on purpose — details firm up as Stage 1 lands (progressi
 - [x] feature-design-file.md — download/import the `.blueprint` file
 
 ## Definition of Done (testable checklist)
-- [ ] E2E: starting from the Restaurant template, build a 3-page site (Home, Menu, Contact)
+- [x] E2E: starting from the Restaurant template, build a 3-page site (Home, Menu, Contact)
       that uses every element type: blocks of all six kinds, a pen annotation, one real copy
       block, one generate-later copy block, one uploaded image, nav wired to all pages
-- [ ] E2E: that design survives a reload AND a download → clear → re-import round trip
+- [x] E2E: that design survives a reload AND a download → clear → re-import round trip
       (deep-equal state both times)
+
+      _Both ticked 2026-07-28 by `e2e/stage2-capstone.spec.ts`, green on chromium, firefox and
+      webkit in two consecutive full runs. The three pages are the Restaurant template's own —
+      Home, Menu, **Visit Us** — rather than a renamed "Contact"; the spec asserts the template's
+      real page names. Deep equality is on the whole document AND on DOM geometry, after the
+      reload and again after the download → Start over → re-import round trip._
 - [ ] Undo/redo covers all new mutation types (pen strokes, page ops, uploads, settings)
 - [ ] `npm test` + `npm run e2e` green in CI; every feature file `verified done` with evidence

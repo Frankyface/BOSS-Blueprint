@@ -21,9 +21,6 @@ export const MAX_PAGE_HEIGHT_PX = 8000
 /** Breathing room kept below the lowest block as the page grows. */
 export const PAGE_BOTTOM_PADDING_PX = 160
 
-/** A block may hang off the side of the page, but at least this much stays on it. */
-export const MIN_ON_PAGE_PX = 24
-
 /**
  * Ceiling for a single block's height — deliberately half of MAX_PAGE_HEIGHT_PX,
  * so one runaway resize can never eat the whole page budget on its own.

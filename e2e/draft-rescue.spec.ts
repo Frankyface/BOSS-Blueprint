@@ -67,17 +67,31 @@ test.describe('drafts survive the tab closing', () => {
     await expect(page.getByTestId('setting-about')).toHaveValue(about)
   })
 
-  test('the business name and style notes, typed and abandoned together', async ({ page }) => {
+  /**
+   * Only ONE field can be focused, so only one draft is ever open: filling the
+   * business name and then moving to the notes BLURS the name, which commits it
+   * the ordinary way. The test used to claim both were "abandoned together" and
+   * quietly proved something weaker (review follow-up), so it now asserts the two
+   * halves separately — the committed one before the tab closes, the open one
+   * after — and the name says what it does.
+   */
+  test('the style notes left open after the business name was committed by blur', async ({
+    page,
+  }) => {
     test.slow()
 
     const name = "Martina's Trattoria"
     const notes = 'Like our Instagram — lots of white space and big food photos.'
 
     await openPanel(page, 'site')
-    // The name commits on blur when the client moves to the notes…
     await page.getByTestId('setting-business-name').fill(name)
-    // …and the notes are what is still open when the tab goes.
     await typeWithoutCommitting(page, 'setting-style-notes', notes)
+
+    // Moving to the notes blurred the name, so THAT one is already in the store…
+    const beforeClose = (await readDocument(page)).siteSettings
+    expect(beforeClose.businessName).toBe(name)
+    // …and the notes are the open draft this whole spec is about.
+    expect(beforeClose.styleNotes).toBe('')
 
     await closeTheTab(page)
     await reloadCanvas(page)

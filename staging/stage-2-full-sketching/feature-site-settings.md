@@ -91,6 +91,37 @@ cross-cutting with a single hook-level fix assigned. This feature's criterion is
 
 **Status: VERIFIED DONE.**
 
+**UX hardening (2026-07-28):**
+Status unchanged. The colour field learned to read English, and the hook every field in this
+panel is built on finally got tests.
+- **POLISH-4 (data half), colour names.** The audit's client knows her brand is dark green; she
+  does not know it is `#006400`, and the field asked her for a hex code. `parseColorInput` now
+  takes a CSS colour name ("red", "DARKGREEN", "dark green", "dark-green"), the three-digit hex
+  shorthand (`#abc` → `#aabbcc`) or a full six-digit code, and normalises all of them to
+  six-digit lower-case hex on commit. **The store, the `.blueprint` file and the export contract
+  are untouched** — they still hold hex and only hex. The table itself is
+  `src/canvas/colorNames.ts`: all 148 CSS Color Level 4 names, `rebeccapurple` included, as data.
+  The FILE boundary stays strict on purpose (`normaliseHexColor`, unchanged): what a person may
+  type is a wider question than what a stored payload may contain, and `{"colors":["red"]}` is
+  still a corrupt file. An unrecognised value is still refused with the one friendly message,
+  now worded for both forms: _"Try a colour name like "dark green", or a code like #2f6f4f"_.
+  The field also rewrites itself to what was stored, so the client sees what we understood.
+- **MEDIUM follow-up, `useCommittedField` had zero tests** (29.62% of statements) while carrying
+  the refused-commit protocol for every text field in the panel. New
+  `src/hooks/useCommittedField.test.tsx` (10 tests) against a miniature store: three keystrokes
+  produce zero writes, Enter and blur each commit once and trimmed, a trim-only change is not a
+  write at all, a REFUSED commit snaps the field back, a TRANSFORMED commit shows what the store
+  kept, Escape abandons the draft (and a following blur does not resurrect it), and a second edit
+  after a refusal still commits. **And** `src/hooks/**` joined the coverage gate at 80%
+  lines/functions — the follow-up said "or"; both were done, since a test nothing gates is a
+  test that can quietly stop being run. `useBlockGesture` needed its own new spec to clear the
+  gate honestly rather than being excluded from it.
+- Evidence: `siteSettings.test.ts` colour table (9 accepted forms, 8 refused, the 148-name count,
+  and "keeps colour names out of the file boundary"); `npm run test:coverage` exit 0 with
+  `src/hooks` at 96.64% lines / 92.85% functions; E2E `site-settings.spec.ts` "typing a colour by
+  name" (4 forms × 3 engines, each asserting the stored hex AND the field's own value) plus a
+  reload case proving `dark green` comes back as `#006400`.
+
 ## Open Questions
 - ~~Where the panel lives (toolbar modal vs sidebar tab)~~ **Decided at build:** a docked
   right-hand sidebar tab (see Notes).
@@ -121,6 +152,14 @@ cross-cutting with a single hook-level fix assigned. This feature's criterion is
   can never read as two colours. Three slots maximum (§2.4), rendered as "filled + one empty", so
   the client cannot leave a gap — and `withColorAt` refuses an index past the end for the same
   reason. Clearing a slot removes the colour and closes the gap.
+- **The colour field READS more than it STORES** (changed 2026-07-28, UX audit POLISH-4). What a
+  client may type — a CSS colour name, `#abc`, or `#aabbcc` — and what the document holds — six
+  digits, lower case — are now two different questions, answered by two functions:
+  `parseColorInput` (the person) and `normaliseHexColor` (the file). Widening the first does not
+  widen the second: a `.blueprint` carrying `"red"` is still corrupt, because the export contract
+  (§2.4, `^#[0-9a-fA-F]{6}$`) is what a builder is handed and it has not moved. Names come from
+  `src/canvas/colorNames.ts`, the CSS Color Level 4 list as data, matched case- and
+  space-insensitively so "Dark Green" finds `darkgreen`.
 - **Every field commits once, on Enter or blur** (the shared `useCommittedField` hook), so a
   settings edit is ONE undo step rather than one per keystroke. Settings changes are ordinary
   history steps and are autosaved like any other document change.

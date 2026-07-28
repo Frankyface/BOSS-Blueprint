@@ -85,8 +85,8 @@ test.describe('site settings', () => {
     await expect(page.locator('[role="alert"]')).toHaveCount(0)
   })
 
-  test('refuses a colour that is not a hex value, and says why', async ({ page }) => {
-    await fillPanelField(page, 'site-color-0', 'sage green')
+  test('refuses a colour it does not recognise, and says why', async ({ page }) => {
+    await fillPanelField(page, 'site-color-0', 'notacolor')
 
     await expect(page.getByTestId('site-color-0-error')).toBeVisible()
     expect((await readDocument(page)).siteSettings.colors).toEqual([])
@@ -94,6 +94,43 @@ test.describe('site settings', () => {
     await fillPanelField(page, 'site-color-0', '#2f6f4f')
     await expect(page.getByTestId('site-color-0-error')).toBeHidden()
     expect((await readDocument(page)).siteSettings.colors).toEqual(['#2f6f4f'])
+  })
+
+  /**
+   * COLOUR NAMES (UX audit POLISH-4). The audit's client knows her brand is dark
+   * green; she does not know it is #006400. The field now takes a name or the
+   * three-digit shorthand and stores the six-digit hex the export contract wants —
+   * the document, the file and the package are all untouched by this.
+   */
+  test.describe('typing a colour by name', () => {
+    const CASES = [
+      ['dark green', '#006400'],
+      ['RED', '#ff0000'],
+      ['rebeccapurple', '#663399'],
+      ['#abc', '#aabbcc'],
+    ] as const
+
+    for (const [typed, stored] of CASES) {
+      test(`stores ${typed} as ${stored}`, async ({ page }) => {
+        await fillPanelField(page, 'site-color-0', typed)
+
+        await expect(page.getByTestId('site-color-0-error')).toBeHidden()
+        expect((await readDocument(page)).siteSettings.colors).toEqual([stored])
+        // The field shows what was kept, so the client learns what we understood.
+        await expect(page.getByTestId('site-color-0')).toHaveValue(stored)
+      })
+    }
+
+    test('survives a reload as hex, exactly like a typed code', async ({ page }) => {
+      await fillPanelField(page, 'site-color-0', 'dark green')
+      await waitForAutosave(page)
+
+      await reloadCanvas(page)
+      await openPanel(page, 'site')
+
+      expect((await readDocument(page)).siteSettings.colors).toEqual(['#006400'])
+      await expect(page.getByTestId('site-color-0')).toHaveValue('#006400')
+    })
   })
 
   test('offers three colour slots and no more, and clearing one removes it', async ({ page }) => {

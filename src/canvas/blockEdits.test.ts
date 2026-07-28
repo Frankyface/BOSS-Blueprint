@@ -180,6 +180,63 @@ describe('nav items', () => {
     expect(withNavItemRemoved(bar, 'nope')).toEqual(bar)
   })
 
+  /**
+   * AUTO-LINKING (UX audit POLISH-3) at the block layer: adding and renaming both
+   * wire an item up when its label IS a page name — and neither ever repoints an
+   * item that already goes somewhere.
+   */
+  describe('auto-linking by name', () => {
+    const pages = [
+      { id: 'page-home', name: 'Home' },
+      { id: 'page-menu', name: 'Menu' },
+    ]
+
+    it('wires a new item to the page it names', () => {
+      const bar = withNavItemAdded(block('nav-bar'), 'menu', pages)
+
+      expect(navItemsOf(bar)[0]?.link).toEqual(pageLink('page-menu'))
+    })
+
+    it('leaves a new item unlinked when nothing matches', () => {
+      const bar = withNavItemAdded(block('nav-bar'), 'Specials', pages)
+
+      expect(navItemsOf(bar)[0]?.link).toEqual({ kind: 'none' })
+    })
+
+    it('wires an unlinked item up when it is renamed onto a page name', () => {
+      const bar = withNavItemAdded(block('nav-bar'), 'New link', pages)
+      const itemId = navItemsOf(bar)[0]?.id ?? ''
+
+      const renamed = withNavItemLabel(bar, itemId, 'Menu', pages)
+
+      expect(navItemsOf(renamed)[0]).toMatchObject({
+        label: 'Menu',
+        link: { kind: 'page', pageId: 'page-menu' },
+      })
+    })
+
+    it.each([
+      ['a page the client chose', pageLink('page-home')],
+      ['a web address the client typed', externalLink('https://boss.test')],
+      ['a page name it matched earlier', pageLink('page-menu')],
+    ])('never repoints an item already going to %s', (_case, link) => {
+      const bar = withNavItemAdded(block('nav-bar'), 'New link', pages)
+      const itemId = navItemsOf(bar)[0]?.id ?? ''
+      const wired = withNavItemLink(bar, itemId, link)
+
+      const renamed = withNavItemLabel(wired, itemId, 'Menu', pages)
+
+      expect(navItemsOf(renamed)[0]?.link).toEqual(link)
+      expect(navItemsOf(renamed)[0]?.label).toBe('Menu')
+    })
+
+    it('is inert when no pages are handed in', () => {
+      const bar = withNavItemAdded(block('nav-bar'), 'Menu')
+
+      expect(navItemsOf(bar)[0]?.link).toEqual({ kind: 'none' })
+    })
+  })
+
   it('refuses to put menu items on anything but a nav bar', () => {
     const heading = block('heading')
 
