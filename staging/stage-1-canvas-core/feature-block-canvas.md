@@ -1,5 +1,5 @@
 # Feature: Block Canvas
-_Stage: stage-1-canvas-core · Status: not started_
+_Stage: stage-1-canvas-core · Status: awaiting verification_
 
 ## Goal
 The heart of the product: a virtual web page the client populates with structured blocks from
@@ -34,12 +34,67 @@ a palette. One page only in this stage (multi-page is Stage 2).
 4. Record outputs below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+**Implementer run (2026-07-28):**
+- `npm run lint` → exit 0, no errors/warnings.
+- `npm test` → exit 0, **9 files / 129 tests passed** (4.3s). Store + geometry coverage:
+  `canvasStore.test.ts` (add each type, select, delete, z-order, editing state, reset),
+  `canvasStore.geometry.test.ts` (move/snap, resize/clamp), `geometry.test.ts` (44 cases:
+  snap, clamps, page height, fit-to-window scale), `blockFactory.test.ts` (defaults, stacking,
+  cascade, JSON round-trip), `zorder.test.ts`, `blockText.test.ts`, `BlockTextEditor.test.tsx`,
+  `BlockPalette.test.tsx`, `App.test.tsx`. Immutability asserted per action (previous state
+  object `toEqual` a `structuredClone` snapshot afterwards; new array identity checked).
+- `npm run build` → exit 0. `dist/assets/index-*.js` 205.69 kB (gzip 64.97 kB), CSS 7.00 kB.
+- `npm run e2e` (build + Playwright, chromium/firefox/webkit) → exit 0, **75 passed (35.3s)**,
+  re-run for stability → **75 passed (34.4s)**.
+- E2E covering this feature (`e2e/block-canvas.spec.ts`, 9 tests × 3 engines): empty white page
+  at 1200px with scale 1; add one of each of the six types and assert each renders; per-type
+  placeholder copy asserted; default sizes on-page; full-width bands stack; cascade separates
+  repeated blocks; document JSON round-trips with exactly the 7 expected keys; fit-to-window
+  zoom < 1 at a 1024px viewport; 30-block perf probe.
+- Perf probe: 30 blocks seeded through the store + 1 dragged with a 20-step scripted drag;
+  final position asserted exactly (160, 200); elapsed time attached to the report as
+  `drag-perf.txt` (chromium locally ≈ 0.9s wall for the whole test, budget 4000 ms).
+- Store seam verified BOTH ways: `__blueprintStore` absent from the `npm run build` bundle
+  (grep false, and a headless load reports `typeof globalThis.__blueprintStore === 'undefined'`),
+  present in the `npm run build:e2e` bundle (grep true, Playwright asserts `getState` is callable).
+- Screenshots of the populated page attached to the Playwright report
+  (`all-six-block-types.png`, `edited-page.png`).
 
 ## Open Questions
-- Exact default sizes/positions per block type — implementer picks sensible values, records
-  them in Notes.
-- Should Section blocks auto-stack (each new one below the last)? Lean yes — decide at build.
+- ~~Exact default sizes/positions per block type~~ — decided, see Notes.
+- ~~Should Section blocks auto-stack?~~ — yes, see Notes.
 
 ## Notes & Decisions
 - 1200px design width is also the Stage 3 export render width — keep it a named constant.
+  (`PAGE_WIDTH_PX` in `src/canvas/constants.ts`; nothing else hard-codes 1200.)
+- **Default geometry per type** (all multiples of the 8px grid), declared in one table in
+  `src/constants/blockTypes.ts` — the palette, defaults, min sizes and placeholders all read
+  from it, so a type can't be half-added:
+
+  | Type | Default x,y | Default w×h | Min w×h | Placement | Text |
+  |---|---|---|---|---|---|
+  | Section | 0, stacked | 1200×240 | 160×64 | stacked | none |
+  | Heading | 80,120 | 640×72 | 96×40 | cascade | single-line |
+  | Text | 80,240 | 640×160 | 96×48 | cascade | multi-line |
+  | Image | 80,440 | 400×280 | 64×64 | cascade | none |
+  | Button | 80,760 | 200×56 | 64×32 | cascade | single-line |
+  | Nav bar | 0, stacked | 1200×72 | 240×40 | stacked | single-line (comma-separated items) |
+
+- **Sections auto-stack: YES** — and the rule was widened to cover Nav bars, because both are
+  full-width bands and a per-type rule would have dropped the first Section on top of the first
+  Nav bar at (0,0). Rule: a new `stacked` block lands at `x = 0, y = the lowest bottom edge of
+  any existing stacked block` (0 when there are none). Free-floating types instead cascade
+  +24px down-right per existing block **of the same type** (wrapping after 8), so a second
+  Heading never hides the first and adding a Text block isn't shifted by unrelated Headings.
+- **Full-width bands are added at the BACK of the paint order**, free-floating blocks at the
+  front. Adding a Section after a Heading would otherwise bury the Heading under the band.
+  Paint order is simply array order in the document (index 0 = furthest back) — no z-index
+  field to drift, and the whole document stays a flat serialisable array.
+- Page height is derived, not stored: `max(1600, lowest block bottom + 160)` capped at 8000px.
+- New blocks are created with `text: ''` and the placeholder is rendered from the type table.
+  Empty string therefore means "the client has not written anything here yet", which Stage 3
+  needs in order to tell real copy from filler.
+- The store is exposed on `window.__blueprintStore` in dev and in the `--mode test` production
+  build only (`npm run build:e2e`); the deployed `npm run build` bundle has the branch folded
+  away at build time. CI now builds twice — test build for Playwright, clean build for Pages.
