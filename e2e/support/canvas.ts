@@ -37,6 +37,24 @@ interface BlueprintTestBridge {
 
 type BridgeHost = { __blueprintStore?: BlueprintTestBridge }
 
+/**
+ * Must match STORAGE_KEY / RECOVERY_KEY in src/store/canvasStorage.ts. Duplicated
+ * rather than imported because the E2E suite compiles under tsconfig.node.json,
+ * which deliberately does not see the browser sources.
+ */
+export const STORAGE_KEY = 'boss-blueprint:canvas:v1'
+export const RECOVERY_KEY = `${STORAGE_KEY}-recovery`
+
+/** Geometry as the DOM reports it, independent of the store JSON. */
+export interface DomBlock {
+  id: string
+  type: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export async function openCanvas(page: Page): Promise<void> {
   const response = await page.goto('./')
   expect(response?.status()).toBe(200)
@@ -121,6 +139,104 @@ export async function pageScale(page: Page): Promise<number> {
 export async function attachPageScreenshot(page: Page, name: string): Promise<void> {
   const screenshot = await page.getByTestId('canvas-page').screenshot()
   await test.info().attach(`${name}.png`, { body: screenshot, contentType: 'image/png' })
+}
+
+/**
+ * Paint order and geometry read straight off the DOM. Deliberately a second,
+ * independent source from `readDocument` — every history assertion checks both, so
+ * a store that "undoes" without repainting cannot pass.
+ */
+export function readDomBlocks(page: Page): Promise<DomBlock[]> {
+  return blocks(page).evaluateAll((elements) =>
+    elements.map((element) => {
+      const data = (element as HTMLElement).dataset
+      return {
+        id: data.blockId ?? '',
+        type: data.blockType ?? '',
+        x: Number(data.x),
+        y: Number(data.y),
+        width: Number(data.width),
+        height: Number(data.height),
+      }
+    }),
+  )
+}
+
+/** What the DOM should look like for a given document snapshot. */
+export function domShapeOf(document: StoredDocument): DomBlock[] {
+  return document.blocks.map((block) => ({
+    id: block.id,
+    type: block.type,
+    x: block.x,
+    y: block.y,
+    width: block.width,
+    height: block.height,
+  }))
+}
+
+export function readStoredDesign(page: Page): Promise<string | null> {
+  return page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY)
+}
+
+export async function writeStoredDesign(page: Page, key: string, value: string): Promise<void> {
+  await page.evaluate(
+    ({ storageKey, payload }) => {
+      window.localStorage.setItem(storageKey, payload)
+    },
+    { storageKey: key, payload: value },
+  )
+}
+
+/**
+ * The debounce is ~1s, but three browser engines running in parallel can leave a
+ * timer waiting a good deal longer than that on a loaded machine. Generous rather
+ * than fixed-sleep: the assertion is still "the exact document reached storage",
+ * it just waits as long as it takes.
+ */
+const AUTOSAVE_WAIT_MS = 15_000
+
+/** Block until the debounced autosave has written the document currently on screen. */
+export async function waitForAutosave(page: Page): Promise<void> {
+  const expected = JSON.stringify((await readDocument(page)).blocks)
+
+  await expect
+    .poll(
+      async () => {
+        const raw = await readStoredDesign(page)
+        if (raw === null) return null
+        const parsed = JSON.parse(raw) as { blocks?: unknown }
+        return JSON.stringify(parsed.blocks)
+      },
+      { timeout: AUTOSAVE_WAIT_MS },
+    )
+    .toBe(expected)
+}
+
+/** Reload the page the way a client would, and wait for the app to come back up. */
+export async function reloadCanvas(page: Page): Promise<void> {
+  await page.reload()
+  await expect(page.getByTestId('canvas-page')).toBeVisible()
+  await expect
+    .poll(() => page.evaluate(() => typeof (globalThis as BridgeHost).__blueprintStore?.getState))
+    .toBe('function')
+}
+
+export async function undoOnce(page: Page): Promise<void> {
+  await page.getByTestId('toolbar-undo').click()
+}
+
+export async function redoOnce(page: Page): Promise<void> {
+  await page.getByTestId('toolbar-redo').click()
+}
+
+/** Commit a text edit the way a client does: double-click, type, Enter. */
+export async function editBlockText(page: Page, target: Locator, text: string): Promise<void> {
+  await target.dblclick()
+  const editor = page.getByTestId('block-text-editor')
+  await expect(editor).toBeVisible()
+  await editor.fill(text)
+  await editor.press('Enter')
+  await expect(editor).toBeHidden()
 }
 
 const DEFAULT_DRAG_STEPS = 10
