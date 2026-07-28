@@ -103,6 +103,13 @@ export interface StrokeRole {
  * §4.5 per-stroke role. `blocks` are the page's EXPORT blocks, so the returned
  * `targetBlockId` is already a public `blk_NNNN` id — the remap and the role
  * derivation cannot disagree because they read the same list.
+ *
+ * SECTIONS ARE EXCLUDED from the annotation guess. §4.5 says "the block whose frame
+ * the stroke's bbox overlaps most" without qualifying it, but a full-width band
+ * always overlaps more than the block the mark is actually about — §7.1's `stk_0002`
+ * would target the section, not the button it demonstrably targets. §4.4's
+ * reference-text preamble settles it: "`section` blocks are never referenced", and
+ * [N7] prints this guess. Sections are exempt from [N5] for the same reason.
  */
 export function strokeRole(box: Bbox | null, blocks: readonly ExportBlock[]): StrokeRole {
   if (box === null) return { role: 'annotation', targetBlockId: null }
@@ -112,8 +119,10 @@ export function strokeRole(box: Bbox | null, blocks: readonly ExportBlock[]): St
   )
   if (slot) return { role: 'imageSketch', targetBlockId: slot.id }
 
+  const guessable = blocks.filter((block) => block.type !== 'section')
+
   let bestOverlap: { id: string; area: number } | null = null
-  for (const block of blocks) {
+  for (const block of guessable) {
     const area = intersectionArea(box, block.frame)
     if (area <= 0) continue
     if (bestOverlap === null || area > bestOverlap.area) bestOverlap = { id: block.id, area }
@@ -121,7 +130,7 @@ export function strokeRole(box: Bbox | null, blocks: readonly ExportBlock[]): St
   if (bestOverlap) return { role: 'annotation', targetBlockId: bestOverlap.id }
 
   let nearest: { id: string; distance: number } | null = null
-  for (const block of blocks) {
+  for (const block of guessable) {
     const distance = centerDistance(box, block.frame)
     if (distance > NEAREST_BLOCK_RADIUS_PX) continue
     if (nearest === null || distance < nearest.distance) nearest = { id: block.id, distance }
