@@ -86,10 +86,13 @@ export type UploadFile = Blob & ImageFileFacts
  *
  * PNG sources are encoded BOTH ways and the smaller wins: screenshots, logos and
  * flat graphics compress far better as PNG than as JPEG, while a photo someone
- * saved as PNG is often ten times bigger than it needs to be. Everything else goes
- * out as JPEG. (Keeping a WEBP source as WEBP is left alone deliberately — Safari
- * only gained WEBP *encoding* recently, and a silent re-encode failure there would
- * be worse than a slightly larger JPEG.)
+ * saved as PNG is often ten times bigger than it needs to be.
+ *
+ * EVERYTHING ELSE COMES OUT AS JPEG — including WEBP, which is re-encoded rather
+ * than kept. That is deliberate: WEBP *encoding* is the newest of the three in
+ * Safari, and a silently failed or unsupported encode would be far worse than a
+ * marginally larger JPEG. The cost is that a WEBP upload loses WEBP's size
+ * advantage; the benefit is one output path that every engine has had for years.
  */
 export async function compressImage(file: UploadFile, ports: ImagePorts): Promise<CompressedImage> {
   const check = validateImageFile(file)

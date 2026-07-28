@@ -11,7 +11,7 @@ import {
   PAGE_SCALE_DECIMALS,
   PAGE_WIDTH_PX,
 } from './constants.ts'
-import type { BlockRect, ResizeHandle, Size } from './types.ts'
+import type { BlockRect, PenStroke, ResizeHandle, Size } from './types.ts'
 
 /**
  * Every piece of canvas geometry lives here as a pure function: no React, no store,
@@ -28,6 +28,15 @@ export function clamp(value: number, min: number, max: number): number {
 export function snapToGrid(value: number, gridSize: number = GRID_SIZE_PX): number {
   if (gridSize <= 0) return value
   return Math.round(value / gridSize) * gridSize
+}
+
+/**
+ * Round UP onto the grid. Used where rounding down would eat something — the page
+ * height, where `snapToGrid` could quietly shave up to 4px off the bottom padding.
+ */
+export function ceilToGrid(value: number, gridSize: number = GRID_SIZE_PX): number {
+  if (gridSize <= 0) return value
+  return Math.ceil(value / gridSize) * gridSize
 }
 
 /**
@@ -119,10 +128,36 @@ export function resizeRect(
   return { x, y, width, height }
 }
 
-/** The page grows to fit its content and never shrinks below the empty-page height. */
-export function pageHeightForRects(rects: readonly BlockRect[]): number {
-  const contentBottom = rects.reduce((lowest, rect) => Math.max(lowest, rect.y + rect.height), 0)
-  const desired = snapToGrid(contentBottom + PAGE_BOTTOM_PADDING_PX)
+/**
+ * HOW TALL THE PAGE IS — the single definition, for the editor and for the Stage 3
+ * PNG render (`docs/export-format.md` §4.2).
+ *
+ *     bottom = max(every block's bottom edge, every pen point's y)
+ *     height = clamp(1600, ceilToGrid(bottom + 160), 8000)
+ *
+ * PEN MARKS COUNT AS CONTENT (review MEDIUM-1). They used not to: the height came
+ * from the blocks alone, so a mark drawn below the lowest block kept its page
+ * coordinates but fell off the bottom of the white sheet the moment the block
+ * holding the page open was deleted — still painted (the overlay does not clip),
+ * but hanging in the grey below the page, and off the exported PNG entirely. A
+ * stroke is the client's work exactly as much as a block is, so it holds the page
+ * open exactly as much.
+ *
+ * Rounding is UP: `snapToGrid` would round 1961 down to 1960 and quietly eat 1px of
+ * the bottom padding.
+ */
+export function pageHeightForContent(
+  rects: readonly BlockRect[],
+  strokes: readonly PenStroke[] = [],
+): number {
+  const blockBottom = rects.reduce((lowest, rect) => Math.max(lowest, rect.y + rect.height), 0)
+
+  const strokeBottom = strokes.reduce(
+    (lowest, stroke) => stroke.points.reduce((low, point) => Math.max(low, point.y), lowest),
+    0,
+  )
+
+  const desired = ceilToGrid(Math.max(blockBottom, strokeBottom) + PAGE_BOTTOM_PADDING_PX)
   return clamp(desired, MIN_PAGE_HEIGHT_PX, MAX_PAGE_HEIGHT_PX)
 }
 

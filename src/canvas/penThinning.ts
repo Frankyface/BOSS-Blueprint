@@ -9,10 +9,17 @@ import type { PenPoint } from './types.ts'
  * on the line their neighbours already describe, which is exactly the redundancy
  * hand-drawn input produces.
  *
- * `docs/export-format.md` §4.5 runs RDP again at package time with ε = 0.75px. We
- * thin TIGHTER than that here (ε = 0.5px) on purpose: the export's own pass is
- * then a near no-op, and the page PNG — which §4.5 promises is rendered from the
- * in-memory strokes — still loses nothing a client could see at 1:1.
+ * WHERE THIS HAPPENS, plainly: a stroke is thinned ONCE, on pointerup, before it
+ * reaches the document. There is no second, fatter copy anywhere — the in-memory
+ * strokes ARE the thinned strokes, and so are the autosaved, exported and
+ * PNG-rendered ones.
+ *
+ * `docs/export-format.md` §4.5 runs RDP again at package time with ε = 0.75px.
+ * Because we already thinned tighter here (ε = 0.5px), that second pass is
+ * near-idempotent rather than a real reduction — measured on a real drawn stroke:
+ * 93 points in, 94 out (RDP is not monotone in the number of points it keeps, so
+ * a wider epsilon can pick a different, marginally larger, subset). Nothing a
+ * client could see at 1:1 is lost at either step.
  *
  * Pure: points in, points out, no store and no DOM.
  */

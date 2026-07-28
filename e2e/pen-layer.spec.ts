@@ -2,30 +2,37 @@ import { expect, test } from '@playwright/test'
 
 import {
   addBlock,
-  addPage,
   attachPageScreenshot,
   blockById,
   blockOfType,
+  blocks,
   dragBy,
   editBlockText,
   idOfType,
   openCanvas,
   readBlock,
   readDocument,
-  reloadCanvas,
-  switchToPage,
-  undoOnce,
+  seedBlocks,
   redoOnce,
+  reloadCanvas,
+  undoOnce,
   waitForAutosave,
 } from './support/canvas.ts'
 import {
+  addPage,
+  switchToPage,
+} from './support/site.ts'
+import {
   drawStroke,
   eraseStroke,
+  lowestStrokePoint,
+  pageHeight,
   penLayer,
   putPenAway,
   readStrokes,
   readStrokesOfPage,
   scribbleAt,
+  scrollCanvasTo,
   strokeById,
   strokes,
   usePen,
@@ -252,6 +259,59 @@ test.describe('pen layer', () => {
     )
 
     await attachPageScreenshot(page, 'pen-colours-and-widths')
+  })
+
+  /**
+   * REGRESSION (review MEDIUM-1): the page's height used to be computed from the
+   * BLOCKS alone. A mark drawn below the lowest block therefore fell off the bottom
+   * of the white sheet the moment that block was deleted — still painted (the
+   * overlay does not clip), but hanging in the grey below the page, and off the
+   * exported PNG entirely. `pageHeightForContent` counts pen points as content.
+   */
+  test('a mark below the blocks keeps the page open after the block is deleted', async ({
+    page,
+  }) => {
+    test.slow()
+
+    // Stack bands until the page is taller than its empty minimum.
+    await seedBlocks(page, 'section', 7)
+    const tallEnough = await pageHeight(page)
+    expect(tallEnough).toBeGreaterThan(1600)
+
+    // Scroll down and draw a mark below every block.
+    await scrollCanvasTo(page, 900)
+    await usePen(page, 'draw')
+    await drawStroke(page, scribbleAt(200, 1560))
+    await expect(strokes(page)).toHaveCount(1)
+    await putPenAway(page)
+
+    const markBottom = await lowestStrokePoint(page)
+    expect(markBottom).toBeGreaterThan(1400)
+    expect(await pageHeight(page)).toBeGreaterThan(markBottom)
+
+    // Delete the bands that were holding the page open.
+    const blockIds = (await readDocument(page)).blocks.map((block) => block.id)
+    await page.evaluate((ids) => {
+      const store = (globalThis as { __blueprintStore?: { getState: () => { deleteBlock: (id: string) => void } } })
+        .__blueprintStore
+      if (!store) throw new Error('The store test bridge is missing from this build')
+      for (const id of ids) store.getState().deleteBlock(id)
+    }, blockIds)
+    await expect(blocks(page)).toHaveCount(0)
+
+    // The mark still has a sheet under it…
+    const heightAfter = await pageHeight(page)
+    expect(heightAfter).toBeGreaterThan(markBottom)
+    expect(await lowestStrokePoint(page)).toBe(markBottom)
+
+    // …and it is really on the white page, not painted over the grey below it.
+    const sheet = await page.getByTestId('canvas-page').boundingBox()
+    const ink = await strokes(page).first().boundingBox()
+    expect(sheet).not.toBeNull()
+    expect(ink).not.toBeNull()
+    expect(ink!.y + ink!.height).toBeLessThanOrEqual(sheet!.y + sheet!.height)
+
+    await attachPageScreenshot(page, 'pen-mark-holds-page-open')
   })
 
   test('marks are part of the design, so "start over" clears them', async ({ page }) => {

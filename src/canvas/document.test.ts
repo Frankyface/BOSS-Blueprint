@@ -5,7 +5,6 @@ import { resetBlockIdSequence } from './blockFactory.ts'
 import {
   addPage,
   blocksOfPage,
-  countLinksToPage,
   deletePage,
   documentsEqual,
   duplicatePage,
@@ -175,7 +174,6 @@ describe('deletePage', () => {
 
   it('reverts every link that pointed at it, and counts them', () => {
     const site = siteWithLinks()
-    expect(countLinksToPage(site, 'page-menu')).toBe(2)
 
     const { document, revertedLinks } = deletePage(site, 'page-menu')
     const home = document.pages[0]

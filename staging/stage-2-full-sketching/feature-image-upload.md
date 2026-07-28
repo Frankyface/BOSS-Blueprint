@@ -136,6 +136,18 @@ engine exercises its own encoder:
 - **Every image change is one undo step**, via `useCommittedField` for the description (one step
   per field, not per keystroke) and a single store write per upload — the compression finishes
   before the document is touched, so it never holds a half-processed photo.
+- **Duplicating a page copies `imageData` verbatim, and that doubles the payload.** `duplicateBlocks`
+  copies every field, so duplicating a photo-heavy page is the fastest route to the near-quota
+  warning (three 400KB photos duplicated once ≈ 2.4MB of localStorage). Known and ACCEPTED: the
+  client asked for a copy of the page, the copy has to carry the same pictures, and de-duplicating
+  identical data URLs behind a shared asset table would add a reference-counted store for a
+  problem the near-quota notice already reports. Revisit if real designs start tripping the
+  warning through duplication alone.
+- **A photo that finishes compressing after its slot is gone is refused, not committed blind.**
+  `ImageSlot.ingest` re-checks the block still exists on the current page before writing, and says
+  so in the toast if it does not. Not reproducible by hand — compression is fast — but the path is
+  real: `setBlockImage` only touches the current page, so a stale commit would land nowhere and
+  leave the client with an empty slot and no explanation.
 - Total-design size budget matters for Stage 3 email delivery — surface a running size indicator
   if cheap. **Not built:** the near-quota notice already tells the client the one thing they can
   act on, and a live byte counter on every autosave is noise a non-technical client cannot use.

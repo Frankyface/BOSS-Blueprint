@@ -7,6 +7,7 @@ import {
   NAV_ITEMS_UI_MAX,
   navItemLabels,
   navItemsFromText,
+  normaliseNavLabel,
   parseNavItem,
   resetNavItemIdSequence,
   withNavItems,
@@ -132,5 +133,97 @@ describe('parseNavItem', () => {
     ['a bad link', { id: 'nav-1', label: 'Home', link: { kind: 'wat' } }],
   ])('refuses an item with %s', (_label, value) => {
     expect(parseNavItem(value)).toBeNull()
+  })
+
+  /**
+   * The other half of the label rule, at the FILE boundary (review bounce #1).
+   * The export schema requires `minLength: 1`, so a blank entry would fail
+   * validation at package time — far away from the file that caused it.
+   */
+  it.each([
+    ['an empty label', ''],
+    ['a whitespace-only label', '   '],
+    ['a label that is only the separator', ','],
+  ])('refuses an item with %s', (_case, label) => {
+    expect(parseNavItem({ id: 'nav-1', label, link: { kind: 'none' } })).toBeNull()
+  })
+
+  it('normalises a smuggled-in comma rather than letting it re-split the menu', () => {
+    const parsed = parseNavItem({ id: 'nav-1', label: 'Bread, Cakes', link: { kind: 'none' } })
+
+    expect(parsed?.label).toBe('Bread Cakes')
+  })
+
+  it('trims and collapses whitespace, exactly as the writers do', () => {
+    const parsed = parseNavItem({ id: 'nav-1', label: '  Our   Menu ', link: { kind: 'none' } })
+
+    expect(parsed?.label).toBe('Our Menu')
+  })
+})
+
+describe('normaliseNavLabel', () => {
+  it.each([
+    ['Home', 'Home'],
+    ['  Home  ', 'Home'],
+    ['Our   Menu', 'Our Menu'],
+    ['Bread, Cakes', 'Bread Cakes'],
+    ['Home,Shop', 'Home Shop'],
+    [',,,', ''],
+    ['', ''],
+  ])('normalises %j to %j', (input, expected) => {
+    expect(normaliseNavLabel(input)).toBe(expected)
+  })
+})
+
+/**
+ * THE ROUND TRIP IS LOSSLESS (review bounce #3).
+ *
+ * `withNavItems` writes `text` from the labels and the inline editor turns that
+ * text back into items, so this pair runs on every keystroke-commit in the block.
+ * If it were ever lossy, a client editing their menu inline would silently lose
+ * the wiring on the items they did not touch.
+ */
+describe('text <-> items round trip', () => {
+  const menus: readonly (readonly string[])[] = [
+    ['Home'],
+    ['Home', 'About', 'Contact'],
+    ['Home', 'Our Menu', 'Book a table'],
+    ['Home', 'About', 'Services', 'Gallery', 'Blog', 'Contact', 'Book'],
+    // Labels a client could produce that are NOT plain words.
+    ['Home', 'FAQ & help', 'Prices (2026)', 'Café'],
+    // Two labels differing only by case: matching must not cross them over.
+    ['Shop', 'shop'],
+  ]
+
+  it.each(menus.map((labels) => [labels.join(' | '), labels]))(
+    'rebuilds %s from its own text with ids and links intact',
+    (_name, labels) => {
+      const items: NavItem[] = labels.map((label, index) => ({
+        ...createNavItem(label),
+        link: index % 2 === 0 ? pageLink(`page-${String(index)}`) : { kind: 'none' },
+      }))
+
+      const rebuilt = navItemsFromText(navItemLabels(items), items)
+
+      expect(rebuilt).toEqual(items)
+    },
+  )
+
+  it('survives the round trip a second time — it is stable, not merely reversible', () => {
+    const items = ['Home', 'Our Menu', 'Contact'].map((label) => createNavItem(label))
+
+    const once = navItemsFromText(navItemLabels(items), items)
+    const twice = navItemsFromText(navItemLabels(once), once)
+
+    expect(twice).toEqual(items)
+  })
+
+  it('cannot be broken by a comma, because a label can never hold one', () => {
+    const items = [createNavItem('Bread, Cakes'), createNavItem('Contact')]
+
+    // The comma is gone at creation, so the menu is still two items…
+    expect(items.map((item) => item.label)).toEqual(['Bread Cakes', 'Contact'])
+    // …and stays two items through the text form.
+    expect(navItemsFromText(navItemLabels(items), items)).toEqual(items)
   })
 })

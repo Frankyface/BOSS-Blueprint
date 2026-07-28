@@ -6,14 +6,16 @@ import {
   blockById,
   blockOfType,
   editBlockText,
-  fillPanelField,
   idOfType,
-  inspectBlock,
   openCanvas,
   readDocument,
   reloadCanvas,
   waitForAutosave,
 } from './support/canvas.ts'
+import {
+  fillPanelField,
+  inspectBlock,
+} from './support/site.ts'
 
 const DESCRIPTION = 'Warm welcome for our family bakery, mention Main Street since 1998'
 const LENGTH_HINT = '~2 sentences'

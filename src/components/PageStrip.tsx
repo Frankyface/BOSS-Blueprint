@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { MIN_PAGE_COUNT } from '../canvas/document.ts'
+import { describeReverted } from '../canvas/pageNotices.ts'
 import { PAGE_NAME_MAX_LENGTH } from '../canvas/pages.ts'
 import { useCanvasStore } from '../store/canvasStore.ts'
 import { useEditorStore } from '../store/editorStore.ts'
@@ -14,13 +15,6 @@ const DELETE_PROMPT = 'Delete this page?'
 
 /** Only the page the client is looking at can be renamed, moved or deleted. */
 type PendingAction = 'none' | 'add' | 'rename' | 'delete'
-
-function describeReverted(pageName: string, revertedLinks: number): string {
-  if (revertedLinks === 0) return `"${pageName}" has been deleted.`
-
-  const links = revertedLinks === 1 ? '1 link that pointed' : `${String(revertedLinks)} links that pointed`
-  return `"${pageName}" has been deleted. ${links} at it are no longer linked — pick a new destination when you're ready.`
-}
 
 /**
  * THE PAGE STRIP — the site's pages as a row of tabs above the canvas.
@@ -54,8 +48,17 @@ export function PageStrip() {
     setPending('none')
   }
 
+  /**
+   * The guard sits HERE, against the same rule the store refuses on, rather than
+   * only on the button's `disabled` (review LOW-5). The store returns 0 reverted
+   * links both when it deleted a page that nothing pointed at AND when it refused
+   * to delete the last page — so announcing "…has been deleted" off the back of
+   * that number alone would one day tell the client we deleted a page we still
+   * have. Same condition, same place, no daylight between them.
+   */
   const handleDelete = () => {
-    if (!current) return
+    if (!current || !canDelete) return
+
     const reverted = deletePage(current.id)
     setToast(describeReverted(current.name, reverted))
     close()

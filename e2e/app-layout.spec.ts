@@ -14,7 +14,7 @@ import type { BlockTypeId } from './support/canvas.ts'
  * the canvas toolbar off the top of the screen — falsifying this project's own
  * decision that the toolbar "is always in the same place for the client".
  *
- * Measured at a real laptop size rather than the suite's roomy 1600x1000, because
+ * Measured at a real laptop size rather than the suite's roomy 1920x1000, because
  * the shorter the window the sooner the old layout broke.
  */
 const LAPTOP_VIEWPORT = { width: 1366, height: 768 }

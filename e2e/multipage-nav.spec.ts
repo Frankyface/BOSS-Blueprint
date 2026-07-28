@@ -3,32 +3,35 @@ import type { Page } from '@playwright/test'
 
 import {
   addBlock,
-  addPage,
   attachPageScreenshot,
   blockById,
   blockOfType,
   blocks,
-  deleteCurrentPage,
-  duplicateCurrentPage,
   editBlockText,
   idOfType,
+  openCanvas,
+  readAllBlocks,
+  readBlock,
+  readDocument,
+  reloadCanvas,
+  waitForAutosave,
+} from './support/canvas.ts'
+import {
+  addPage,
+  deleteCurrentPage,
+  duplicateCurrentPage,
   inspectBlock,
   linkToNothing,
   linkToPage,
   linkToUrl,
-  openCanvas,
   openPanel,
   pageNames,
   pageTab,
   pageTabs,
-  readAllBlocks,
-  readDocument,
   readNavMap,
-  reloadCanvas,
   renamePage,
   switchToPage,
-  waitForAutosave,
-} from './support/canvas.ts'
+} from './support/site.ts'
 
 /** Matches NAV_ITEMS_UI_MAX in src/canvas/navItems.ts. */
 const NAV_ITEMS_UI_MAX = 7
@@ -261,6 +264,62 @@ test.describe('linking', () => {
     await expect(blockById(page, navId).getByTestId('nav-item')).toHaveCount(3)
     const stored = (await readDocument(page)).blocks[0]
     expect(stored?.items?.map((item) => item.label)).toEqual(['Home', 'Menu', 'Contact'])
+  })
+
+  /**
+   * REGRESSION (review HIGH-2). `block.text` is the comma-joined labels, and the
+   * inline editor turns that text back into items — so a label containing a comma
+   * used to come back as TWO items, and the wiring on the second half was lost.
+   * The label rule (`normaliseNavLabel`) is what makes that impossible now.
+   */
+  test('a comma in a label cannot split the menu or lose its wiring', async ({ page }) => {
+    test.slow()
+
+    await addPage(page, 'Menu')
+    await switchToPage(page, 'Home')
+    const navId = await addNavBarWithItems(page, ['Bread, Cakes', 'Contact'])
+    const bar = blockById(page, navId)
+
+    // The comma never makes it into the label.
+    let stored = (await readDocument(page)).blocks.find((block) => block.id === navId)
+    expect(stored?.items?.map((item) => item.label)).toEqual(['Bread Cakes', 'Contact'])
+    await expect(bar.getByTestId('nav-item')).toHaveCount(2)
+
+    await page.getByTestId('nav-item-0-link-target').selectOption({ label: 'Menu' })
+    const wiredId = stored?.items?.[0]?.id
+
+    // Now commit the menu through the INLINE editor — the exact path that used to
+    // destroy it — without changing anything.
+    await editBlockText(page, bar, (await readBlock(page, navId)).text)
+
+    await expect(bar.getByTestId('nav-item')).toHaveCount(2)
+    stored = (await readDocument(page)).blocks.find((block) => block.id === navId)
+    expect(stored?.items?.map((item) => item.label)).toEqual(['Bread Cakes', 'Contact'])
+    // Same item, same id, same destination: nothing was rebuilt from scratch.
+    expect(stored?.items?.[0]?.id).toBe(wiredId)
+    expect(stored?.items?.[0]?.link.kind).toBe('page')
+  })
+
+  /**
+   * REGRESSION (review HIGH-1). An emptied label used to be stored, producing an
+   * export-invalid document; the next inline commit then dropped the item entirely.
+   */
+  test('an emptied label is refused, leaving the menu as it was', async ({ page }) => {
+    test.slow()
+
+    const navId = await addNavBarWithItems(page, ['Home', 'Contact'])
+    const bar = blockById(page, navId)
+
+    const label = page.getByTestId('nav-item-0-label')
+    await label.fill('')
+    await label.press('Enter')
+
+    // Still two items, and the first still says what it said.
+    await expect(bar.getByTestId('nav-item')).toHaveCount(2)
+    const stored = (await readDocument(page)).blocks.find((block) => block.id === navId)
+    expect(stored?.items?.map((item) => item.label)).toEqual(['Home', 'Contact'])
+    // The field snaps back to the stored label rather than sitting empty.
+    await expect(label).toHaveValue('Home')
   })
 })
 

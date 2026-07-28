@@ -6,18 +6,19 @@ import {
   MIN_ON_PAGE_PX,
   MIN_PAGE_HEIGHT_PX,
   MIN_PAGE_SCALE,
+  PAGE_BOTTOM_PADDING_PX,
   PAGE_WIDTH_PX,
 } from './constants.ts'
 import {
   clamp,
   clampPosition,
   moveRect,
-  pageHeightForRects,
+  pageHeightForContent,
   pageScaleForViewport,
   resizeRect,
   snapToGrid,
 } from './geometry.ts'
-import type { BlockRect, Size } from './types.ts'
+import type { BlockRect, PenStroke, Size } from './types.ts'
 
 const HEADING_RECT: BlockRect = { x: 80, y: 120, width: 640, height: 72 }
 const HEADING_MIN: Size = { width: 96, height: 40 }
@@ -274,21 +275,94 @@ describe('resizeRect', () => {
   })
 })
 
-describe('pageHeightForRects', () => {
+describe('pageHeightForContent', () => {
+  /** A stroke whose lowest point sits at `bottom`. */
+  const markAt = (bottom: number): PenStroke => ({
+    id: 'stroke-1',
+    points: [
+      { x: 100, y: bottom - 40 },
+      { x: 200, y: bottom },
+    ],
+    color: '#d92d20',
+    width: 4,
+  })
+
   it('uses the minimum page height when the page is empty', () => {
-    expect(pageHeightForRects([])).toBe(MIN_PAGE_HEIGHT_PX)
+    expect(pageHeightForContent([])).toBe(MIN_PAGE_HEIGHT_PX)
   })
 
   it('stays at the minimum while the content is short', () => {
-    expect(pageHeightForRects([HEADING_RECT])).toBe(MIN_PAGE_HEIGHT_PX)
+    expect(pageHeightForContent([HEADING_RECT])).toBe(MIN_PAGE_HEIGHT_PX)
   })
 
   it('grows past the lowest block plus padding', () => {
-    expect(pageHeightForRects([{ x: 0, y: 1500, width: 100, height: 300 }])).toBe(1960)
+    expect(pageHeightForContent([{ x: 0, y: 1500, width: 100, height: 300 }])).toBe(1960)
   })
 
   it('caps at the maximum page height', () => {
-    expect(pageHeightForRects([{ x: 0, y: 7000, width: 100, height: 2000 }])).toBe(MAX_PAGE_HEIGHT_PX)
+    expect(pageHeightForContent([{ x: 0, y: 7000, width: 100, height: 2000 }])).toBe(
+      MAX_PAGE_HEIGHT_PX,
+    )
+  })
+
+  /**
+   * REGRESSION (review MEDIUM-1): a mark below the lowest block used to fall off
+   * the bottom of the sheet the moment that block was deleted.
+   */
+  it('keeps the page open for a pen mark below every block', () => {
+    expect(pageHeightForContent([], [markAt(1800)])).toBe(1960)
+  })
+
+  it('keeps the page open when the block that held it open is deleted', () => {
+    const block = { x: 0, y: 1500, width: 100, height: 300 }
+    const mark = markAt(1700)
+
+    // With both, the block is lower and sets the height.
+    expect(pageHeightForContent([block], [mark])).toBe(1960)
+    // Delete the block and the mark still holds the page open past it.
+    expect(pageHeightForContent([], [mark])).toBe(1864)
+  })
+
+  it('takes whichever is lower, block or mark', () => {
+    const block = { x: 0, y: 1500, width: 100, height: 300 }
+
+    expect(pageHeightForContent([block], [markAt(1000)])).toBe(1960)
+    expect(pageHeightForContent([block], [markAt(2000)])).toBe(2160)
+  })
+
+  it('reads every point of every stroke, not just the first or last', () => {
+    const dip: PenStroke = {
+      id: 'stroke-2',
+      points: [
+        { x: 0, y: 200 },
+        { x: 100, y: 1900 },
+        { x: 200, y: 200 },
+      ],
+      color: '#d92d20',
+      width: 4,
+    }
+
+    expect(pageHeightForContent([], [dip])).toBe(2064)
+  })
+
+  it('always lands on the 8px grid, rounding UP so the padding is never eaten', () => {
+    // bottom 1701 + 160 = 1861, which is not a multiple of 8: 1864, never 1856.
+    expect(pageHeightForContent([], [markAt(1701)])).toBe(1864)
+    expect(pageHeightForContent([], [markAt(1701)]) % GRID_SIZE_PX).toBe(0)
+
+    for (const bottom of [1441, 1500.5, 1777, 2003.9, 4001]) {
+      const height = pageHeightForContent([{ x: 0, y: bottom, width: 10, height: 0 }])
+      expect(height % GRID_SIZE_PX).toBe(0)
+      expect(height).toBeGreaterThanOrEqual(bottom + PAGE_BOTTOM_PADDING_PX)
+    }
+  })
+
+  it('caps a mark drawn absurdly far down, exactly as it caps a block', () => {
+    expect(pageHeightForContent([], [markAt(20_000)])).toBe(MAX_PAGE_HEIGHT_PX)
+  })
+
+  it('ignores an empty stroke list', () => {
+    expect(pageHeightForContent([HEADING_RECT], [])).toBe(MIN_PAGE_HEIGHT_PX)
   })
 })
 

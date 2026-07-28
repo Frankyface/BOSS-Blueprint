@@ -3,13 +3,15 @@ import { expect, test } from '@playwright/test'
 import {
   addBlock,
   attachPageScreenshot,
-  fillPanelField,
   openCanvas,
-  openPanel,
   readDocument,
   reloadCanvas,
   waitForAutosave,
 } from './support/canvas.ts'
+import {
+  fillPanelField,
+  openPanel,
+} from './support/site.ts'
 
 const BUSINESS = "Martina's Trattoria"
 const TAGLINE = 'Slow food, fast smiles'

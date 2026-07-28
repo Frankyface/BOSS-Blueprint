@@ -177,6 +177,39 @@ Independent re-verification at `abba415` in a detached worktree, `npm ci` from s
 - CI green (run `30374106775`); live 200, deployed bundle byte-identical to local build.
 - **Verdict: VERIFIED DONE.**
 
+**Addendum — the tab-close guarantee now genuinely holds for text fields (2026-07-28):**
+
+Status stays `verified done`; this records a fix to a hole in the Goal's own promise, found by
+the batch-1 review as HIGH-3 and fixed once, at the hook layer, during the review-fix batch.
+
+_The hole:_ "accidental tab close and the client picks up exactly where they left off" was true
+for anything that had reached the store, but every text field in the editor keeps a LOCAL draft
+and commits once, on Enter or blur (`useCommittedField`, and `BlockTextEditor` before it) — that
+is what makes a typed sentence one undo step instead of forty. A field the client was still
+typing in had therefore never reached the store, so `installFlushOnHide` dutifully flushed a
+document that did not contain what was visibly on the screen. The most exposed were the "about"
+and "style notes" textareas, which do not commit on Enter at all: the client's longest answers
+were the likeliest to be lost.
+
+_The fix (`src/store/canvasSession.ts`):_ `installFlushOnHide` now calls `commitOpenDrafts()`
+**before** `autosave.flush()`. It blurs the focused input/textarea/contenteditable, which fires
+the commit path those components already have, synchronously — so the store is updated, the
+subscriber schedules the save, and the flush then writes the client's last sentence. Deliberately
+NOT a registry of live field instances: blurring works for fields nobody remembered to register,
+and keeps one rule about when a draft becomes real.
+
+_Evidence:_ five unit tests in `canvasSession.test.ts` (`saving when the page goes away`) driving a
+real focused element and a real blur handler — draft committed before the flush on `pagehide` and
+on `visibilitychange → hidden`, exactly one history step (the same as blurring by hand), a focused
+button left alone, and nothing focused at all not throwing. Plus `e2e/draft-rescue.spec.ts`, ×3
+engines, one test per surface: the site "about" textarea, business name + style notes together, a
+colour slot, a copy block's "write it for me" description, a half-typed button URL, an image
+description, and the inline block text editor — each types WITHOUT blurring, fires the real
+`pagehide` event, reloads, and asserts the value is there.
+
+_Confirmed to be a real fix, not a passing test:_ with `commitOpenDrafts()` removed and the bundle
+rebuilt, all 7 E2E tests fail and 3 of the 5 unit tests fail; restored, all pass.
+
 ## Open Questions
 - ~~none yet~~ — none outstanding.
 

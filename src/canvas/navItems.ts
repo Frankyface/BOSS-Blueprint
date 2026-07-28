@@ -26,6 +26,26 @@ export const NAV_ITEMS_SCHEMA_MAX = 10
 /** What the labels are joined with when they are written back into `block.text`. */
 const NAV_LABEL_JOIN = ', '
 
+/**
+ * THE LABEL RULE: non-empty, and free of the separator.
+ *
+ * `withNavItems` keeps `block.text` as the comma-joined labels, and the inline
+ * editor turns that text back into items by splitting on commas. A label
+ * containing a comma therefore does not survive that round trip — "Bread, Cakes"
+ * comes back as TWO items, the menu silently grows, and the wiring on the second
+ * half is lost. The comma is the delimiter of the text form, so a label may not
+ * contain one (review bounce #2).
+ *
+ * A comma is replaced with a SPACE rather than deleted, so "Home,Shop" reads as
+ * "Home Shop" instead of "HomeShop"; runs of whitespace are then collapsed. This
+ * is the only place a label is shaped, and every writer and the parser go through
+ * it, so `navItemsFromText(navItemLabels(items), items)` is lossless by
+ * construction (pinned by a regression test).
+ */
+export function normaliseNavLabel(label: string): string {
+  return label.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
 /** Monotonic within a session; `Date.now` keeps ids unique across reloads too. */
 let sequence = 0
 
@@ -40,7 +60,7 @@ export function resetNavItemIdSequence(): void {
 }
 
 export function createNavItem(label: string): NavItem {
-  return { id: createNavItemId(), label: label.trim(), link: NO_LINK }
+  return { id: createNavItemId(), label: normaliseNavLabel(label), link: NO_LINK }
 }
 
 export function navItemLabels(items: readonly NavItem[]): string {
@@ -82,7 +102,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** One nav item from an untrusted payload. `null` = the payload is not readable. */
+/**
+ * One nav item from an untrusted payload. `null` = the payload is not readable.
+ *
+ * An EMPTY label is refused rather than defaulted: the export schema requires
+ * `minLength: 1` (§2.7), a blank menu entry is not something we could build, and
+ * silently keeping one would push the failure all the way out to export
+ * validation. The label is put through the same `normaliseNavLabel` every writer
+ * uses, so a comma smuggled in by a hand-edited file cannot break the
+ * text↔items round trip either (review bounce #1 and #2).
+ */
 export function parseNavItem(value: unknown): NavItem | null {
   if (!isRecord(value)) return null
 
@@ -90,8 +119,11 @@ export function parseNavItem(value: unknown): NavItem | null {
   if (typeof id !== 'string' || id.length === 0) return null
   if (typeof label !== 'string') return null
 
+  const normalised = normaliseNavLabel(label)
+  if (normalised.length === 0) return null
+
   const link = parseLink(value.link)
   if (!link) return null
 
-  return { id, label, link }
+  return { id, label: normalised, link }
 }

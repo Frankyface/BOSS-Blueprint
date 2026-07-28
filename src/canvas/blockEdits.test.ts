@@ -182,6 +182,57 @@ describe('nav items', () => {
     expect(withNavItemRemoved(heading, 'x')).toBe(heading)
     expect(navItemsOf(heading)).toEqual([])
   })
+
+  /**
+   * THE LABEL RULE at the UI boundary (review bounce #1 and #2). The other half
+   * of it lives in `parseNavItem`, and both go through `normaliseNavLabel`.
+   */
+  describe('the label rule', () => {
+    const oneItem = () => {
+      const bar = withNavItemAdded(block('nav-bar'), 'Home')
+      return { bar, itemId: navItemsOf(bar)[0]?.id ?? '' }
+    }
+
+    it.each([
+      ['an empty label', ''],
+      ['a whitespace-only label', '   '],
+      ['a label that is only the separator', ','],
+    ])('refuses %s, returning the block unchanged (not even an undo step)', (_case, label) => {
+      const { bar, itemId } = oneItem()
+
+      // The SAME object back: the store's identity check turns that into a no-op.
+      expect(withNavItemLabel(bar, itemId, label)).toBe(bar)
+      expect(navItemsOf(bar)[0]?.label).toBe('Home')
+    })
+
+    it('strips a comma, so the label cannot re-split the menu later', () => {
+      const { bar, itemId } = oneItem()
+
+      const renamed = withNavItemLabel(bar, itemId, 'Bread, Cakes')
+
+      expect(navItemsOf(renamed)[0]?.label).toBe('Bread Cakes')
+      expect(renamed.text).toBe('Bread Cakes')
+    })
+
+    it('keeps the item’s wiring when the label is normalised', () => {
+      const { bar, itemId } = oneItem()
+      const wired = withNavItemLink(bar, itemId, pageLink('page-menu'))
+
+      const renamed = withNavItemLabel(wired, itemId, 'Bread, Cakes')
+
+      expect(navItemsOf(renamed)[0]).toMatchObject({
+        id: itemId,
+        label: 'Bread Cakes',
+        link: { kind: 'page', pageId: 'page-menu' },
+      })
+    })
+
+    it('adds an item with the same rule applied', () => {
+      const bar = withNavItemAdded(block('nav-bar'), '  Bread, Cakes  ')
+
+      expect(navItemsOf(bar)[0]?.label).toBe('Bread Cakes')
+    })
+  })
 })
 
 describe('blocksEqual', () => {

@@ -45,10 +45,28 @@ export function useCommittedField(
     setDraft(value)
   }
 
+  /**
+   * A REFUSED commit snaps the field back to the stored value.
+   *
+   * Most commits are accepted, and the draft is already what the store now holds.
+   * But an action is allowed to say no — clearing a nav-item label hands the block
+   * straight back unchanged, because a blank menu entry is not something we could
+   * build (`withNavItemLabel`). In that case `value` never moves, so the re-sync
+   * above never fires and the client is left staring at an empty box next to a
+   * menu item that still says "Home".
+   *
+   * Marking `lastValue` with what we TRIED to store closes that: if the store took
+   * it, `value` arrives equal on the next render and nothing happens; if it refused,
+   * `value` differs from the attempt and the draft is put back. One line, and it
+   * works for any future field whose action can decline.
+   */
   const commitDraft = (next: string) => {
     const trimmed = next.trim()
     if (trimmed !== draft) setDraft(trimmed)
-    if (trimmed !== value) commit(trimmed)
+    if (trimmed === value) return
+
+    setLastValue(trimmed)
+    commit(trimmed)
   }
 
   return {

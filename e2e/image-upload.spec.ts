@@ -4,15 +4,17 @@ import {
   addBlock,
   attachPageScreenshot,
   blockById,
-  fillPanelField,
   idOfType,
-  inspectBlock,
   openCanvas,
   readBlock,
   reloadCanvas,
   undoOnce,
   waitForAutosave,
 } from './support/canvas.ts'
+import {
+  fillPanelField,
+  inspectBlock,
+} from './support/site.ts'
 import {
   absurdlyLargePhoto,
   makePhotoFixture,

@@ -114,6 +114,55 @@ delete notice is also ungrammatical and untested.
 a subsequent inline text commit silently deletes the item and its wiring) and HIGH-2 (a label
 containing a comma re-splits into unlinked items). Seven required changes recorded; fix assigned.
 
+**Bounce fixes (2026-07-28):**
+
+All seven required changes made. Status stays `awaiting verification` — the reviewer re-verifies.
+
+| # | Required change | Where |
+|---|---|---|
+| 1 | Empty label refused at BOTH boundaries | `withNavItemLabel` returns the block unchanged (same object, so not even an undo step); `parseNavItem` returns `null` for an empty, whitespace-only or separator-only label |
+| 2 | A comma can no longer re-split the menu | one `normaliseNavLabel` in `navItems.ts`, used by `createNavItem`, `withNavItemLabel` AND `parseNavItem` (mechanism + rationale in Notes) |
+| 3 | Round-trip regression pinned | `navItemsFromText(navItemLabels(items), items)` deep-equals `items` across six UI-producible menus, plus a stability pass and a comma case |
+| 4 | Delete-notice grammar + extraction | `describeReverted` moved to `src/canvas/pageNotices.ts`; "1 link … **is** no longer linked" / "3 links … **are**"; both branches unit-tested |
+| 5 | Notes corrected | the "one writer" bullet now states the constraint it depends on and where it is enforced |
+| 6 | E2E support file split | `e2e/support/canvas.ts` 519 → **412**, new `e2e/support/site.ts` (117) — the split the file already drew for itself with a section banner; imports updated in six specs |
+| 7 | Stale comment | `e2e/app-layout.spec.ts:18` 1600×1000 → 1920×1000 |
+
+_One change beyond the seven, needed to make #1 coherent on screen:_ a REFUSED commit now snaps
+the field back to the stored value (`useCommittedField`). Clearing a label correctly left the menu
+untouched, but the input sat empty next to a menu item that still said "Home" — the store said no
+and the UI did not say so. The hook now marks what it TRIED to store, so an accepted commit is
+unchanged and a refused one puts the field back. E2E-asserted (`toHaveValue('Home')`).
+
+_Also in this pass (reviewer LOWs):_ dead `countLinksToPage` deleted from `document.ts` (LOW-1);
+the delete-toast guard moved next to the store's own refusal in `handleDelete`, so a refused
+delete can never announce itself as done (LOW-5); `withTypeDefaults` now falls back field by field
+with `??` instead of spreading `block` over a defaults object, which silently depended on absent
+keys being absent (LOW-6).
+
+_Commands (all run on this machine, 2026-07-28):_
+
+| Command | Result |
+|---|---|
+| `npm run lint` | clean, exit 0 |
+| `npm test` | **662 passed** / 36 files (619 before this batch) |
+| `npm run test:coverage` | exit 0 — `src/canvas` 99.71% lines, 99.52% funcs; `src/store` 97.02% lines, 97.15% funcs |
+| `npm run build` | ✓ built, 264.09 kB (gzip 82.10 kB) |
+| `npm run e2e` (×2) | **324 passed (3.4m)**, then **324 passed (3.5m)** — chromium + firefox + webkit |
+
+_New unit coverage:_ `src/canvas/navItems.test.ts` — empty/whitespace/separator-only labels refused
+by `parseNavItem`, a smuggled-in comma normalised, `normaliseNavLabel` table, and the `text ↔ items`
+round-trip suite (six menus incl. punctuation, a 7-item menu, and two labels differing only by case,
+which must not cross over when matching); `src/canvas/blockEdits.test.ts` — the label rule at the UI
+boundary, including that a refused rename returns the SAME block object and that normalising a label
+keeps the item's id and link; `src/canvas/pageNotices.test.ts` — both grammar branches, zero, and a
+negative count.
+
+_E2E:_ `e2e/multipage-nav.spec.ts` gains `a comma in a label cannot split the menu or lose its
+wiring` — types a comma label in the panel, commits the menu through the INLINE block editor (the
+exact path that used to destroy it), and asserts the item count, the label and the link target all
+survive; and `an emptied label is refused, leaving the menu as it was`.
+
 ## Open Questions
 - ~~Nav bar items: fixed set the client renames, or free add/remove?~~ **Decided at build:** free
   add/remove, capped at 7 in the UI (see Notes).
@@ -154,6 +203,18 @@ containing a comma re-splits into unlinked items). Seven required changes record
   the links live where the export needs them. Typing into the block rebuilds the items and matches
   surviving labels **by label, not by position**, so inserting "Menu" between "Home" and "About"
   keeps About's wiring on About.
+- **That one-writer invariant only holds because labels are CONSTRAINED, and the constraint is now
+  enforced** (review bounce, HIGH-1/HIGH-2). `items → text → items` is only lossless if every label
+  is non-empty and contains no comma — otherwise the text form cannot describe the menu it came
+  from, and the next inline commit silently drops an item and its wiring. Both halves are enforced
+  at both boundaries, through one function (`normaliseNavLabel`): **empty is refused** —
+  `withNavItemLabel` hands back the identical block (so it is not even an undo step) and
+  `parseNavItem` treats a blank label as a corrupt payload, matching the schema's `minLength: 1`
+  (§2.7); **a comma is replaced with a space** and runs of whitespace collapsed, so "Bread, Cakes"
+  becomes "Bread Cakes" rather than two items. A comma is dropped rather than escaped because the
+  text form has exactly one delimiter and the alternative — an escaping scheme in a field a client
+  types menus into — buys nothing for a character no menu label needs. The round trip is pinned by
+  a regression test rather than left as a claim.
 - **Nav item caps: UI 7, stored/schema 10** — exactly the split `docs/export-format.md` §2.7
   describes ("the schema is the outer bound, the UI the inner"). The Add button disables at 7;
   labels typed straight into the block past 10 are dropped, because a menu that cannot be exported

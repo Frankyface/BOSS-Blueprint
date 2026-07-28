@@ -2,10 +2,10 @@ import { useMemo } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { PAGE_WIDTH_PX } from '../canvas/constants.ts'
-import { pageHeightForRects } from '../canvas/geometry.ts'
+import { pageHeightForContent } from '../canvas/geometry.ts'
 import { useCanvasKeyboard } from '../hooks/useCanvasKeyboard.ts'
 import { usePageScale } from '../hooks/usePageScale.ts'
-import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
+import { selectCurrentBlocks, selectCurrentStrokes, useCanvasStore } from '../store/canvasStore.ts'
 
 import { BlockView } from './BlockView.tsx'
 import { CanvasToolbar } from './CanvasToolbar.tsx'
@@ -24,13 +24,15 @@ const PRIMARY_MOUSE_BUTTON = 0
  */
 export function CanvasArea() {
   const blocks = useCanvasStore(selectCurrentBlocks)
+  const strokes = useCanvasStore(selectCurrentStrokes)
   const currentPageId = useCanvasStore((state) => state.currentPageId)
   const selectedBlockId = useCanvasStore((state) => state.selectedBlockId)
   const editingBlockId = useCanvasStore((state) => state.editingBlockId)
   const selectBlock = useCanvasStore((state) => state.selectBlock)
 
   const { viewportRef, scale, getScale } = usePageScale()
-  const pageHeight = useMemo(() => pageHeightForRects(blocks), [blocks])
+  // Pen marks hold the page open exactly as blocks do — see `pageHeightForContent`.
+  const pageHeight = useMemo(() => pageHeightForContent(blocks, strokes), [blocks, strokes])
 
   useCanvasKeyboard()
 

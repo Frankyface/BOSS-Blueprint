@@ -72,24 +72,63 @@ async function clientPointer(
   page: Page,
 ): Promise<(point: { x: number; y: number }) => { x: number; y: number }> {
   const { left, top, scale } = await pagePlacement(page)
-  const viewport = page.viewportSize()
+
+  // Validated against the CANVAS VIEWPORT, not the window: the page scrolls inside
+  // it, and a point that is merely behind the toolbar is just as unreachable as one
+  // past the bottom of the screen.
+  const visible = await page.getByTestId('canvas-viewport').boundingBox()
 
   return (point) => {
     const client = { x: left + point.x * scale, y: top + point.y * scale }
 
-    // A mouse move outside the window lands nowhere and the test fails later, in a
-    // place that says nothing about why. Say it here instead.
-    if (viewport && (client.y > viewport.height || client.x > viewport.width)) {
+    // A mouse move outside the visible canvas lands nowhere and the test fails
+    // later, in a place that says nothing about why. Say it here instead.
+    const isVisible =
+      !visible ||
+      (client.x >= visible.x &&
+        client.x <= visible.x + visible.width &&
+        client.y >= visible.y &&
+        client.y <= visible.y + visible.height)
+
+    if (!isVisible) {
       throw new Error(
-        `Page point (${String(point.x)}, ${String(point.y)}) is off-screen at ` +
-          `(${String(Math.round(client.x))}, ${String(Math.round(client.y))}) — ` +
-          `the window is ${String(viewport.width)}x${String(viewport.height)}. ` +
-          'Draw somewhere the canvas viewport actually shows.',
+        `Page point (${String(point.x)}, ${String(point.y)}) lands at ` +
+          `(${String(Math.round(client.x))}, ${String(Math.round(client.y))}), outside the ` +
+          'visible canvas. Scroll the canvas viewport first, or draw somewhere it shows.',
       )
     }
 
     return client
   }
+}
+
+/** Scroll the canvas viewport so a lower part of the page comes into view. */
+export async function scrollCanvasTo(page: Page, scrollTop: number): Promise<void> {
+  await page.getByTestId('canvas-viewport').evaluate((viewport, top) => {
+    viewport.scrollTop = top
+  }, scrollTop)
+
+  // Let the scroll settle before anything measures the page's new position.
+  await expect
+    .poll(() =>
+      page.getByTestId('canvas-viewport').evaluate((viewport) => Math.round(viewport.scrollTop)),
+    )
+    .toBeGreaterThan(0)
+}
+
+/** The page's own idea of how tall it is, straight off the DOM. */
+export async function pageHeight(page: Page): Promise<number> {
+  const raw = await page.getByTestId('canvas-page').getAttribute('data-page-height')
+  return Number(raw)
+}
+
+/** The lowest point of any stroke on the current page, in page coordinates. */
+export async function lowestStrokePoint(page: Page): Promise<number> {
+  const drawn = await readStrokes(page)
+  return drawn.reduce(
+    (lowest, stroke) => stroke.points.reduce((low, point) => Math.max(low, point.y), lowest),
+    0,
+  )
 }
 
 /**

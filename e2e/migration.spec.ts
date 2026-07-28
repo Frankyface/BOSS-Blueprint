@@ -2,17 +2,12 @@ import { expect, test } from '@playwright/test'
 
 import {
   addBlock,
-  addPage,
   blockById,
   blockOfType,
   blocks,
   editBlockText,
   idOfType,
-  inspectBlock,
-  linkToPage,
   openCanvas,
-  pageNames,
-  pageTab,
   readDocument,
   readStoredDesign,
   reloadCanvas,
@@ -20,6 +15,13 @@ import {
   waitForAutosave,
   writeStoredDesign,
 } from './support/canvas.ts'
+import {
+  addPage,
+  inspectBlock,
+  linkToPage,
+  pageNames,
+  pageTab,
+} from './support/site.ts'
 
 /**
  * A design saved by the schema-1 build: one flat `{ blocks }` canvas, no pages and

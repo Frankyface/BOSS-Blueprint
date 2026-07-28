@@ -6,7 +6,7 @@ import { IMAGE_ACCEPT_ATTRIBUTE } from '../canvas/imageAssets.ts'
 import { compressImage, ImageIngestError } from '../canvas/imageCompression.ts'
 import { browserImagePorts } from '../platform/browserImagePorts.ts'
 import type { Block } from '../canvas/types.ts'
-import { useCanvasStore } from '../store/canvasStore.ts'
+import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
 import { useEditorStore } from '../store/editorStore.ts'
 
 const IMAGE_GLYPH = '⛰'
@@ -17,6 +17,10 @@ const BUSY_LABEL = 'Working…'
 
 const UNEXPECTED_FAILURE =
   "Something went wrong while adding that photo. Please try again, or pick a different file."
+
+const SLOT_WENT_AWAY =
+  "That photo finished loading, but the image box it was for is gone. Add the box back and " +
+  'pick the photo again.'
 
 interface ImageSlotProps {
   block: Block
@@ -72,10 +76,29 @@ export function ImageSlot({ block }: ImageSlotProps) {
     complaintRef.current = null
   }
 
+  /**
+   * Is this slot still the thing the photo was chosen for?
+   *
+   * Compressing a phone photo takes long enough for the client to delete the block
+   * or switch pages while it runs. `setBlockImage` only ever touches the CURRENT
+   * page, so a stale commit would land nowhere (or, if the block were gone, do
+   * nothing at all) and the client would be left with a slot that stayed empty and
+   * no explanation. Checking the store at commit time — not at pick time — is what
+   * makes that honest. Not reproducible by hand, but the path is real.
+   */
+  const slotStillExists = (): boolean =>
+    selectCurrentBlocks(useCanvasStore.getState()).some((candidate) => candidate.id === block.id)
+
   const ingest = async (file: File) => {
     setIsBusy(true)
     try {
       const compressed = await compressImage(file, browserImagePorts)
+
+      if (!slotStillExists()) {
+        complain(SLOT_WENT_AWAY)
+        return
+      }
+
       setBlockImage(block.id, compressed.dataUrl, compressed.originalFilename)
       withdrawComplaint()
     } catch (error) {

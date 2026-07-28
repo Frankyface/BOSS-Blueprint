@@ -73,6 +73,53 @@ _E2E_ (`e2e/pen-layer.spec.ts`, ×3 engines, `test.slow()` on every drawing test
 - `offers a red for notes, other colours, and two widths`; screenshot attached
 - `marks are part of the design, so "start over" clears them`
 
+**Bounce fixes (2026-07-28):**
+
+Status stays `awaiting verification` — the reviewer re-verifies. The thinning itself is
+**unchanged**: it was ruled better than the contract, and the contract is being amended to match.
+
+- **MEDIUM-1 — page height now counts pen marks (the one code defect).** `pageHeightForRects` is
+  replaced by ONE shared pure function, `pageHeightForContent(rects, strokes)` in
+  `src/canvas/geometry.ts`, which Stage 3's PNG render will use as well:
+
+      bottom = max(every block's bottom edge, every pen point's y)
+      height = clamp(1600, ceilToGrid(bottom + 160), 8000)
+
+  Rounding is UP (new `ceilToGrid`): the old `snapToGrid` rounded 1961 down to 1960 and quietly
+  ate a pixel of the bottom padding. Before this, a mark drawn below the lowest block kept its
+  page coordinates but fell off the bottom of the white sheet the moment that block was deleted —
+  still painted (the overlay does not clip), but hanging in the grey below the page, and off the
+  exported PNG entirely.
+- **`penThinning.ts` header comment corrected** to state the truth plainly: a stroke is thinned
+  ONCE, at commit; the in-memory strokes ARE the thinned strokes; and the export's ε = 0.75 pass
+  is near-idempotent rather than a real second reduction — measured 93 points in, 94 out (RDP is
+  not monotone in the count it keeps, so a wider epsilon can pick a marginally larger subset).
+- **Spec amendments (§4.5 point thinning, §4.2 page height) are landing separately** — the main
+  session owns `docs/`, and this batch deliberately did not touch it.
+
+_New unit coverage_ (`src/canvas/geometry.test.ts`, `pageHeightForContent`): a mark below every
+block holds the page open; the page stays open when the block that held it open is deleted;
+whichever of block-bottom and mark-bottom is lower wins; every point of a stroke is read, not just
+the first and last; the result is always on the 8px grid and always ≥ bottom + 160 (five awkward
+values); a mark drawn absurdly far down is capped exactly as a block is.
+
+_New E2E_ (`e2e/pen-layer.spec.ts`, ×3 engines): `a mark below the blocks keeps the page open
+after the block is deleted` — stacks seven bands, scrolls the canvas, draws below them all,
+deletes every band, then asserts both the page height and, independently, that the stroke's
+bounding box still sits inside the white sheet's bounding box. Screenshot attached. Confirmed to
+be a real fix: reverted to the block-only height, the test fails (`Expected: > 1600, Received:
+1600`); restored, it passes.
+
+_Commands (all run on this machine, 2026-07-28):_
+
+| Command | Result |
+|---|---|
+| `npm run lint` | clean, exit 0 |
+| `npm test` | **662 passed** / 36 files (619 before this batch) |
+| `npm run test:coverage` | exit 0 — `src/canvas` 99.71% lines, 99.52% funcs; `src/store` 97.02% lines, 97.15% funcs |
+| `npm run build` | ✓ built, 264.09 kB (gzip 82.10 kB) |
+| `npm run e2e` (×2) | **324 passed (3.4m)**, then **324 passed (3.5m)** — chromium + firefox + webkit |
+
 ## Open Questions
 - ~~Smoothing/simplification of stroke points (payload size)~~ **Decided at build:** a 0.75px
   distance pre-pass, then RDP at ε = 0.5px, coordinates rounded to 1 decimal (see Notes).

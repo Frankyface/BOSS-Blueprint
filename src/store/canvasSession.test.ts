@@ -371,6 +371,101 @@ describe('saving when the page goes away', () => {
 
     expect(storage.entries.has(STORAGE_KEY)).toBe(false)
   })
+
+  /**
+   * REGRESSION (review HIGH-3): a field the client is still typing in has not
+   * reached the store yet, because every text field in the editor commits on blur.
+   * Hiding the page must commit those drafts BEFORE the flush, or the autosave
+   * writes a design that does not match what is on the screen.
+   *
+   * These drive a real focused element and a real blur handler, which is the whole
+   * mechanism — the components under test are just the same wiring with more markup.
+   */
+  const openFields: HTMLElement[] = []
+
+  function fieldWithCommitOnBlur(tag: 'input' | 'textarea', commit: (value: string) => void) {
+    const field = document.createElement(tag)
+    document.body.append(field)
+    openFields.push(field)
+    field.addEventListener('blur', () => {
+      commit(field.value)
+    })
+    field.focus()
+    return field
+  }
+
+  /**
+   * Cleaned up HERE rather than at the end of each test: a test that fails mid-way
+   * would otherwise leave its field focused in the document, and the next test's
+   * `focus()` would blur it and commit its draft — turning a real failure into a
+   * phantom pass in the test after it. (Observed while checking these very tests
+   * fail without the fix.)
+   */
+  afterEach(() => {
+    for (const field of openFields.splice(0)) field.remove()
+  })
+
+  it('commits a field the client is still typing in before flushing', () => {
+    const field = fieldWithCommitOnBlur('textarea', (value) => {
+      canvas().updateSiteSettings({ about: value })
+    })
+    field.value = 'A family-run trattoria, open six nights a week.'
+
+    // Nothing has been committed yet — this is exactly the exposed state.
+    expect(canvas().siteSettings.about).toBe('')
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(canvas().siteSettings.about).toBe('A family-run trattoria, open six nights a week.')
+    const written = storage.entries.get(STORAGE_KEY) ?? ''
+    expect(written).toContain('A family-run trattoria')
+    expect(written).toBe(serialiseDocument(getCanvasDocument()))
+  })
+
+  it('commits an open draft when the tab is hidden, too', () => {
+    const field = fieldWithCommitOnBlur('input', (value) => {
+      canvas().updateSiteSettings({ businessName: value })
+    })
+    field.value = "Martina's Trattoria"
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(canvas().siteSettings.businessName).toBe("Martina's Trattoria")
+    expect(storage.entries.get(STORAGE_KEY)).toContain('Martina')
+  })
+
+  it('commits the draft as ONE history step, exactly as blurring by hand would', () => {
+    const before = undoDepth()
+    const field = fieldWithCommitOnBlur('input', (value) => {
+      canvas().updateSiteSettings({ tagline: value })
+    })
+    field.value = 'Slow food, fast smiles'
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(undoDepth()).toBe(before + 1)
+  })
+
+  it('leaves a focused button alone — there is no draft to lose', () => {
+    const button = document.createElement('button')
+    document.body.append(button)
+    openFields.push(button)
+    button.focus()
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(document.activeElement).toBe(button)
+  })
+
+  it('does not fall over when nothing is focused at all', () => {
+    canvas().addBlock('heading')
+
+    expect(() => {
+      window.dispatchEvent(new Event('pagehide'))
+    }).not.toThrow()
+    expect(storage.entries.get(STORAGE_KEY)).toBe(serialiseDocument(getCanvasDocument()))
+  })
 })
 
 describe('reloading', () => {

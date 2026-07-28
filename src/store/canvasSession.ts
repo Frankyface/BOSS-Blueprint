@@ -108,6 +108,35 @@ function noticeForLoad(outcome: LoadOutcome): StorageNotice | null {
   return null
 }
 
+/** Fields whose value lives in a local draft until they lose focus. */
+const DRAFT_FIELD_TAGS: ReadonlySet<string> = new Set(['INPUT', 'TEXTAREA'])
+
+/**
+ * COMMIT WHAT THE CLIENT IS STILL TYPING, before anything is written out.
+ *
+ * Every text field in the editor keeps a LOCAL draft and writes to the store once,
+ * on Enter or blur (`useCommittedField`, and `BlockTextEditor` before it) — that is
+ * what makes a typed sentence one undo step instead of forty. The cost is that a
+ * field which never lost focus has never reached the store at all: close the tab
+ * mid-sentence and the autosave dutifully flushes a document that does not contain
+ * what is visibly on screen (review HIGH-3). The most exposed of these are the
+ * "about" and "style notes" textareas, which do not even commit on Enter — the
+ * client's longest answers are the ones most likely to be lost.
+ *
+ * Blurring the focused field is the fix, and deliberately the whole fix: it fires
+ * the commit path those components ALREADY have, synchronously, so there is one
+ * rule about when a draft becomes real and no second copy of it here. A registry of
+ * live field instances would be a parallel mechanism to keep in step with every
+ * future field; this works for fields nobody remembered to register.
+ */
+function commitOpenDrafts(): void {
+  const active = document.activeElement
+  if (!(active instanceof HTMLElement)) return
+  if (!DRAFT_FIELD_TAGS.has(active.tagName) && !active.isContentEditable) return
+
+  active.blur()
+}
+
 /**
  * Write the queued design out the moment the page is being hidden.
  *
@@ -127,7 +156,11 @@ function installFlushOnHide(autosave: Autosave<CanvasDocument>): () => void {
     return () => undefined
   }
 
+  // ORDER IS THE POINT: commit first, flush second. The blur writes to the store,
+  // the subscriber schedules the autosave synchronously, and the flush then has the
+  // client's last sentence in hand rather than the document as it was before it.
   const flush = (): void => {
+    commitOpenDrafts()
     autosave.flush()
   }
   const flushWhenHidden = (): void => {

@@ -181,14 +181,6 @@ function withLinksToPageCleared(
   return reverted === 0 ? { blocks, reverted } : { blocks: next, reverted }
 }
 
-/** How many buttons and nav items currently point at this page. */
-export function countLinksToPage(document: CanvasDocument, pageId: string): number {
-  return document.pages.reduce(
-    (total, page) => total + withLinksToPageCleared(page.blocks, pageId).reverted,
-    0,
-  )
-}
-
 export interface DeletePageResult {
   readonly document: CanvasDocument
   /** Links that pointed at the deleted page and are now `none` — drives the notice. */

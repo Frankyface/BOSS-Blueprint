@@ -1,6 +1,6 @@
 import { DEFAULT_IMAGE_FIT } from './imageAssets.ts'
 import { linksEqual, NO_LINK } from './links.ts'
-import { createNavItem, navItemsFromText, withNavItems } from './navItems.ts'
+import { createNavItem, navItemsFromText, normaliseNavLabel, withNavItems } from './navItems.ts'
 import type { Block, BlockLink, BlockTypeId, CopyMode, ImageFit, NavItem } from './types.ts'
 
 /**
@@ -38,27 +38,34 @@ export function copyModeOf(block: Block): CopyMode {
  * block must be IDENTICAL to the one that was on screen. The parser defaults these
  * same fields on read, so a factory that left them off would quietly change every
  * block's shape at the first reload.
+ *
+ * Each field falls back with its own `??` rather than by spreading `block` over a
+ * defaults object (review LOW-6). The spread form silently depended on absent keys
+ * being ABSENT: a block carrying an explicit `copyMode: undefined` — which is what
+ * `{ ...block, copyMode: someUndefinedValue }` produces at runtime, whatever the
+ * types say — would overwrite the default with `undefined` and hand back a block
+ * missing a field it is supposed to always have. `??` cannot do that.
  */
 export function withTypeDefaults(block: Block): Block {
   if (isCopyBlock(block)) {
     return {
-      copyMode: DEFAULT_COPY_MODE,
-      generateDescription: '',
-      lengthHint: '',
       ...block,
+      copyMode: block.copyMode ?? DEFAULT_COPY_MODE,
+      generateDescription: block.generateDescription ?? '',
+      lengthHint: block.lengthHint ?? '',
     }
   }
 
-  if (block.type === 'button') return { link: NO_LINK, ...block }
+  if (block.type === 'button') return { ...block, link: block.link ?? NO_LINK }
   if (block.type === 'nav-bar') return withNavItems(block, block.items ?? navItemsFromText(block.text))
 
   if (block.type === 'image') {
     return {
-      imageData: '',
-      originalFilename: '',
-      fit: DEFAULT_IMAGE_FIT,
-      description: '',
       ...block,
+      imageData: block.imageData ?? '',
+      originalFilename: block.originalFilename ?? '',
+      fit: block.fit ?? DEFAULT_IMAGE_FIT,
+      description: block.description ?? '',
     }
   }
 
@@ -187,8 +194,23 @@ function withMappedNavItem(block: Block, itemId: string, update: (item: NavItem)
   )
 }
 
+/**
+ * Rename one menu item.
+ *
+ * An empty label is REFUSED, not stored: clearing the field is a slip (or a
+ * half-finished edit), and a blank menu entry is not something the export can
+ * describe or a builder can build — `minLength: 1` in the schema (§2.7). The
+ * block comes back unchanged, so it is not even an undo step, and the item keeps
+ * the name it had. Removing an item is what the Remove button is for.
+ *
+ * The label is normalised by `normaliseNavLabel`, which also strips the comma
+ * that would otherwise re-split the menu on the next inline text commit.
+ */
 export function withNavItemLabel(block: Block, itemId: string, label: string): Block {
-  return withMappedNavItem(block, itemId, (item) => ({ ...item, label: label.trim() }))
+  const normalised = normaliseNavLabel(label)
+  if (normalised.length === 0) return block
+
+  return withMappedNavItem(block, itemId, (item) => ({ ...item, label: normalised }))
 }
 
 export function withNavItemLink(block: Block, itemId: string, link: BlockLink): Block {
