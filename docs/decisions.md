@@ -224,3 +224,20 @@ defect fixed pre-implementation is a debugging session Stage 3 never has · **Re
 V-rule nagging uncaptioned photos (builder infers from the image; D13 fallback-phrase arm
 chosen); guillemet-quoting filenames (fixture pins `"…"`) · **Revisit if:** the round-trip test
 finds a class all four adversarial passes missed.
+
+## 2026-07-28 — Export format v2.4: contract FROZEN
+**Chose:** final pre-integration amendment: (1) §4.5 annotation targets exclude `section` blocks
+(a full-width band always wins on overlap area — every annotation would target its background);
+(2) §7.1 mechanically regenerated as canonical-serializer output under a four-guard script
+(value-canon identity, key order, serializer round-trip, §7.2 hash untouched) — same defect
+class as §7.2's hand-wrapping; Appendix A gains REQUIRED test D (`serialize(parse(§7.1)) ===
+§7.1` byte-exact); (3) V22 scoped to annotation clusters only (imageSketch exempt);
+(4) fromTemplate's serialized position blessed (after `frame`, before per-type fields).
+244 self-check assertions green; §7.2 hash unchanged through the entire amendment trail and
+independently reproduced by the Stage-3 implementation. THE CONTRACT NOW FREEZES — further
+changes require a decisions entry with a version bump and a round-trip regression justification ·
+**Because:** the export-core build (876 tests, A/B/C proven on its branch) surfaced these as its
+only contract frictions; freezing before integration ends the amendment churn window ·
+**Rejected:** leaving §7.1 hand-formatted (would force implementations to compare against a
+re-serialization, weakening the byte-exact discipline that caught real defects five times) ·
+**Revisit if:** the round-trip test demands it — via the frozen-contract change process only.

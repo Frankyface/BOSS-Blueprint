@@ -192,12 +192,13 @@ _Empty — nothing verified yet._
   2026-07-28). Export `null` unless the document actually carries a value; do not invent one.
 
 ## Notes & Decisions
+- **v2.4:** §7.1 is now canonical-serializer output; Appendix A test D (`serialize(parse(§7.1)) === §7.1`, byte-exact) is REQUIRED — the branch implementation's compare-vs-reserialized workaround is superseded by a direct byte test. §4.5 annotation targets exclude sections (clause now explicit). V22 = annotation clusters only.
 - **Binding contract:** `docs/export-format.md` §2 (shape), §4.1 (slugs), §4.2 (height), §4.5
   (pen semantics), §4.6 (assets), §4.7 (discriminators), §4.8 (identity remap), §5 (V1–V24),
   §6 (forward compatibility). `docs/decisions.md` 2026-07-28 "Export format v2 adopted".
 - **Export page height ≠ editor page height, and that is deliberate.** The editor derives
   `max(1600, lowest bottom + 160)` capped at 8000 (`feature-block-canvas.md` Notes); the export
-  uses §4.2's unified formula (v2.2: `clamp(1600, ceil((bottom+160)/8)*8, 8000)`, shared with the editor — heights now MATCH the editor exactly). In the §7 example this is the difference
+  uses §4.2's unified formula (v2.2: `clamp(1600, ceil((bottom+160)/8)*8, 8000)`, shared with the editor — heights now MATCH the editor exactly). In the §7 example both pages land on the 1600 floor (v2.2 unified heights).
   between a 1600px on-screen page and an 800px PNG for Contact. `page.height` is the number the
   PNG must match exactly (V6), so the renderer sizes itself from *this* module's output, never
   from the live canvas DOM. Both formulas keep their own named constants; neither is "fixed" to
