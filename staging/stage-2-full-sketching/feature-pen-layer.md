@@ -120,6 +120,53 @@ _Commands (all run on this machine, 2026-07-28):_
 | `npm run build` | ✓ built, 264.09 kB (gzip 82.10 kB) |
 | `npm run e2e` (×2) | **324 passed (3.4m)**, then **324 passed (3.5m)** — chromium + firefox + webkit |
 
+**Independent review (2026-07-28):**
+
+Re-run from a clean checkout of 47bbacc in a detached worktree (`npm ci` from scratch, 0
+vulnerabilities): `lint` clean · `test` **619 passed / 35 files** · `test:coverage` exit 0
+(`src/canvas` 99.7% lines / 99.52% funcs, `src/store` 96.96/97.14 — gate 80/80) · `build`
+**263.33 kB (gzip 81.87)** — the implementer's 263.19 does not reproduce · `e2e` ×2 =
+**294 passed (3.4m)** then **294 passed (3.4m)**, chromium + firefox + webkit. CI green on both
+312ad31 and 47bbacc, live URL 200, and the deployed bundle is sha256-identical to a local
+`npm run build` (0 occurrences of `__blueprintStore`; 1 in the `build:e2e` bundle, so the grep
+means something). `perfect-freehand@1.2.3` LICENSE read in the freshly installed tree: MIT,
+Stephen Ruiz Ltd, zero dependencies.
+
+_Independent probes (own Playwright + Vitest specs, since deleted):_ a hand-rolled 33-sample drag
+lands as **5 stored points**, every coordinate exactly one decimal, ends at (200, 300)/(520, 310)
+on chromium and (200, 299.4)/(520, 309.4) on firefox/webkit — page pixels through a fractional
+scale, not client pixels — byte-identical after reload. Two pages, one mark each, distinct ids,
+both surviving a reload. One undo took back exactly one of two strokes and redo restored it; an
+eraser click on a recorded point of stroke B removed B and left A. Pen away: computed
+`pointer-events: none` and a drag moved the block; pen out: the same drag drew, left x/y
+untouched and `selectedBlockId` null. Inline text editing still commits before and after a mark
+is painted over the block, and the Stage 1 pinned-chrome invariant still holds at 1366×768 with
+the pen toolbar present. All ×3 engines.
+
+_The thin-on-commit deviation, measured:_ a 240-sample scribble commits as 126 points at
+**0.51px** max deviation from the raw trail; the spec's own ε=0.75 export pass on the same raw
+trail gives 93 points at **0.74px**. Running the export's pass over the committed points yields
+94 points / 0.743px — materially the same site.json (§4.5's "near no-op" claim holds). Worst
+case over 40 random hand-like strokes: **1.09px**. **Ruling: the engineering is ACCEPTED and is
+strictly better than the contract as written; the documentation was NOT** — §4.5 claimed the PNG
+renders from un-thinned in-memory strokes, of which there are none.
+
+_Also found (MEDIUM-1, reproduced):_ the editor's page height ignored strokes while §4.2 defined
+`maxBottom` over blocks AND stroke point-y — a mark below the lowest block could end up painted
+below the sheet after the block holding the page open was deleted.
+
+_Deviations judged:_ thin-on-commit **accepted (code), doc amendment required**;
+`simulatePressure: false` + `thinning: 0` **accepted**; two-point taps **accepted**; strokes
+additive to schema v2 without a bump **accepted**.
+
+**Status at review time: BOUNCE** — on the §4.5 doc drift and the height reconciliation, with
+NO change wanted to the thinning itself. Both causes were resolved the same day: export-format
+v2.2 (commit 9b52638) rewrote §4.5 to the thin-at-commit truth and unified the height formula,
+and the review-fix batch (commit 21ecd72) implemented the shared
+`pageHeightForContent(rects, strokes)` = clamp(1600, ceilToGrid(bottom+160), 8000) with unit +
+E2E coverage (mark below blocks keeps the page open; deleting the block leaves the mark on the
+sheet). Awaiting re-verification.
+
 ## Open Questions
 - ~~Smoothing/simplification of stroke points (payload size)~~ **Decided at build:** a 0.75px
   distance pre-pass, then RDP at ε = 0.5px, coordinates rounded to 1 decimal (see Notes).

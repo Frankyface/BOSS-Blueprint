@@ -1,17 +1,17 @@
 # Feature: Image Upload
-_Stage: stage-2-full-sketching · Status: awaiting verification_
+_Stage: stage-2-full-sketching · Status: verified done_
 
 ## Goal
 Clients drop their real photos/logo into image slots so the finished package arrives with
 build-ready assets — no asset-chasing emails.
 
 ## Success Criteria
-- [ ] Clicking an image slot (or dropping a file on it) uploads jpg/png/webp; the image renders
+- [x] Clicking an image slot (or dropping a file on it) uploads jpg/png/webp; the image renders
       in the slot with a fit choice (cover/contain)
-- [ ] Images are compressed client-side on ingest (long edge ≤1600px, reasonable quality) —
+- [x] Images are compressed client-side on ingest (long edge ≤1600px, reasonable quality) —
       keeps autosave payloads and the Stage 3 email package small
-- [ ] Non-image/oversized files are rejected with a friendly message (validate at the boundary)
-- [ ] Images persist through reload and the `.blueprint` round trip; a slot can also stay
+- [x] Non-image/oversized files are rejected with a friendly message (validate at the boundary)
+- [x] Images persist through reload and the `.blueprint` round trip; a slot can also stay
       empty-with-description ("photo of our storefront") as a generate/none marker
 
 ## How We'll Verify
@@ -75,6 +75,50 @@ engine exercises its own encoder:
   itself shows the instruction
 - `removing a photo keeps what the client said about it`
 - `a double-click on the slot opens the picker` (asserted via the browser's `filechooser` event)
+
+**Independent review (2026-07-28):**
+
+Re-run from a clean checkout of 47bbacc in a detached worktree (`npm ci` from scratch): `lint`
+clean · `test` **619 passed / 35 files** · `test:coverage` exit 0 (`src/canvas` 99.7% lines /
+99.52% funcs, `src/store` 96.96/97.14 — gate 80/80) · `build` **263.33 kB (gzip 81.87)** ·
+`e2e` ×2 = **294 passed (3.4m)** then **294 passed (3.4m)** across chromium, firefox and webkit.
+CI green on 312ad31 and 47bbacc, live URL 200, deployed bundle sha256-identical to a local
+`npm run build`, and `__blueprintStore` appears **0** times in it (1 time in the `build:e2e`
+bundle) — the E2E store seam cannot be reached in production, so it is not a validation bypass.
+
+_Independent probes (own Playwright specs, since deleted):_ a real 3000×2000 JPEG drawn inside
+each engine and uploaded through the file input — the **stored data URL decodes to exactly
+1600×1067** on all three (source 150–380 KB → 62–89 K base64 chars). `originalFilename`
+`'golden hour patio.jpg'` came back byte-for-byte after a reload, spaces and all. The fit toggle
+changed computed `object-fit` from `cover` to `contain` and was still `contain` after reload; the
+description committed on blur and survived. A `menu.pdf` and a 21 MB `raw-scan.jpg` were both
+refused with a DesignToast naming the file, and **nothing already in the slot was lost** —
+imageData, filename, fit and description all unchanged. Removing the photo cleared the data and
+the filename and kept the description, which the slot then showed as the instruction caption.
+
+_Security probe:_ five crafted payloads written straight into the real localStorage key of a
+real autosaved design — `data:image/svg+xml` carrying a script, `data:text/html`, `javascript:`,
+a remote `https://` URL, and an SVG smuggled behind a `data:image/png;base64,` prefix with an
+`onerror=` tail — **×3 engines, 15/15**: every one classed as corruption, the payload quarantined
+under the recovery key, the storage notice shown, the design started empty, **zero** img elements
+ever carried the payload, and `window.__pwned` undefined everywhere.
+
+_`src/store/imageQuota.test.ts` read in full:_ a genuine end-to-end test, not theatre — it drives
+`startCanvasSession` + `flushAutosave` + the real serialiser against a fake storage, asserts the
+payload really crosses `STORAGE_WARNING_BYTES`, that the design is still SAVED, that the notice
+clears when the photos go, and that a restarted session finds every photo and filename.
+
+_Deviations judged:_ base64 data URLs in the document **accepted** (named in debate #1's
+mitigations; history snapshots share structure so undo costs pointers, not megabytes); WEBP →
+JPEG **accepted** (Safari's WEBP encode degrades silently); `src/platform/**` outside the
+coverage-gated globs **accepted, not a dodge** (66 lines of img/canvas adapter jsdom cannot
+execute; proven on three engines by probe); no running size indicator **accepted** ("if cheap"
+note, not a criterion; the near-quota notice is the proven actionable signal).
+
+Four LOW follow-ups were recorded and addressed in the same-day review-fix batch (21ecd72):
+WEBP comment corrected, duplicate-page payload note, ingest race guard, coverage-glob rationale.
+
+**Status: VERIFIED DONE.**
 
 ## Open Questions
 - ~~Store as base64 in state vs IndexedDB blobs~~ **Decided at build:** base64 data URLs inside

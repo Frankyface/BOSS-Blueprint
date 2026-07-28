@@ -12,7 +12,7 @@ _Moderately specified on purpose — details firm up as Stage 1 lands (progressi
 - [ ] feature-multipage-nav.md — page manager + wiring buttons/nav items to pages
 - [ ] feature-pen-layer.md — freehand pen/eraser per page, over the blocks
 - [x] feature-copy-blocks.md — real text vs "generate later" placeholder with description
-- [ ] feature-image-upload.md — upload into image slots, client-side compression
+- [x] feature-image-upload.md — upload into image slots, client-side compression
 - [x] feature-site-settings.md — business name, tagline, vibe/style + color preferences
 - [ ] feature-templates.md — Restaurant, Trades/Services, Portfolio, Shop starters + blank
 - [ ] feature-design-file.md — download/import the `.blueprint` file
