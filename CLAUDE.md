@@ -5,7 +5,9 @@ PowerPoint-style (structured blocks + freehand pen), page by page, then Submit e
 a Claude-ready build package (site.json + brief.md + page PNGs + assets).
 
 **Stack:** React + Vite + TypeScript · Zustand (immutable updates) · Vitest + Playwright ·
-GitHub Pages via Actions · canvas engine: TBD (docs/decisions.md) · email relay: TBD (docs/decisions.md)
+GitHub Pages via Actions · hand-rolled DOM/SVG canvas — NO canvas engine (perfect-freehand pen,
+snapdom→html-to-image PNG export; see debate verdict in docs/decisions.md) · delivery:
+download-first hybrid (zip always downloads; tiny text-relay notification, wired LAST)
 
 ## Session start
 1. **Read `handoff.md` first, then follow its Pointer** to the active stage/feature file.

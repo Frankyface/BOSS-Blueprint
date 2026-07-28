@@ -78,3 +78,45 @@ instruction · **Rejected:** n/a (process mandate) · **Revisit if:** Cam change
 for a stateful canvas app + automated E2E; immutability makes undo/redo cheap · **Rejected:**
 vanilla JS (test/refactor pain at this app's complexity), Redux (overkill) · **Revisit if:**
 the canvas-engine verdict (debate #1) forces a different frame.
+
+## 2026-07-27 — Canvas engine: hand-rolled DOM/SVG (Fable debate #1 verdict)
+**Chose:** blocks as absolutely-positioned React DOM elements in a scaled 1200px page container;
+pen layer as perfect-freehand strokes rendered to an SVG overlay (pure DOM, no canvas element);
+drag/resize/snap as pure unit-tested functions; PNG export via snapdom (primary) with
+html-to-image as API-comparable fallback behind one export interface · **Because:** the product's
+objects ARE html things and its most-used interaction is typing (native text editing, real web
+typography — which is also what the built site will have); real DOM = first-class Playwright
+selectors for a fully-automated-verification project; no second reconciler (react-konva has a
+verified StrictMode/version-coupling breakage history); all deps MIT · **Rejected:** react-konva
++ Konva (strongest counter: editor==exporter via stage.toDataURL — outweighed by text fidelity +
+testability; canvas text diverges from real browser typography), tldraw (proprietary license,
+commercial use paid + watermark — disqualified), Excalidraw (MIT but freeform whiteboard, ~2.3MB
+bundle, wrong data model) · **Debate-mandated mitigations for the export subsystem (binding):**
+client-side PNG sanity validation (decode + dimensions + non-blank pixel variance) with retry and
+engine fallback at export time; day-one CI visual-regression on exported page PNGs across
+Chromium/Firefox/WebKit; constrained block style vocabulary (system/self-hosted fonts, simple
+backgrounds, same-origin data-URI images); window-exposed store seam in test builds; textarea-based
+inline editing (NOT contentEditable — its native undo stack fights Zustand history); rasterize-pen
+escape hatch if stroke count ever janks; last-resort deterministic offscreen-canvas renderer of
+site.json if DOM capture proves unreliable in practice · **Revisit if:** export-PNG defects
+survive the mitigations in real browser testing.
+
+## 2026-07-27 — Delivery: download-first hybrid (Fable debate #2 verdict)
+**Chose:** on submit the zip is ALWAYS produced as a local Blob download (cannot fail, fully
+machine-verifiable); a kilobyte-scale notification (client name/email, submission UUID, page
+count, brief.md, gzipped site.json with degrade ladder full → compressed → metadata-only) goes to
+Cam via a text-only relay behind a swappable DeliveryRelay port (dual free providers; text-only
+free tiers all suffice); client forwards the zip via prefilled mailto + copyable-address fallback;
+two-step completion UX ("1. Downloaded ✓ → 2. Email it to us") · **Because:** the only
+free-with-attachments relay (FormSubmit.co) has field-reported SILENT attachment loss (200 OK,
+file never arrives), Spamhaus/DNS-blocklist incidents on the domain, and no canary can reliably
+watch its file path — silent loss at the product's decisive moment is disqualifying; both debaters
+verified EmailJS/Web3Forms/Formspree free tiers exclude attachments entirely · **Rejected:**
+FormSubmit direct attachment (its real strengths — no key to leak, no quota to drain — noted for
+possible opportunistic re-add later), paid relay tiers (violates hard-free), cloud-storage links
+(credential in public repo), Apps Script (backend by another name) · **Adopted from the losing
+side (binding):** deterministic compression ladder on the zip, submission-UUID stamping in both
+artifacts, DeliveryRelay port isolation, always-visible download receipt · **Sequencing:** per
+Cam, relay integration is wired LAST — until then submit = download + prefilled mailto, which is
+fully functional · **Revisit if:** zip-forward abandonment proves high in practice → consider
+opportunistic FormSubmit attachment attempt as a bonus channel on top (never as the primary).

@@ -70,11 +70,14 @@ future backend can reuse it unchanged; canvas state model stays serializable JSO
 
 - **React + Vite + TypeScript** — boring, safe, huge ecosystem for canvas/test tooling
 - **Zustand, immutable updates** — cheap undo/redo, matches house style
-- **Canvas engine — OPEN, Fable debate #1** (react-konva vs tldraw/Excalidraw base vs DOM/SVG)
+- **Canvas: hand-rolled DOM/SVG, no engine** (Fable debate #1 verdict, 2026-07-27) — blocks are
+  absolutely-positioned DOM in a scaled 1200px page; pen = perfect-freehand → SVG overlay;
+  PNG export via snapdom (html-to-image fallback). Binding mitigations in docs/decisions.md.
 - **Vitest + Playwright** — fully-automated verification convention (no human gate)
 - **GitHub Pages via Actions** — free hosting; repo Frankyface/BOSS-Blueprint (public)
-- **Email relay — OPEN, Fable debate #2** (EmailJS vs Web3Forms vs Formspree vs hybrid
-  download-fallback); attachment size limits are the crux
+- **Delivery: download-first hybrid** (Fable debate #2 verdict, 2026-07-27) — zip always
+  downloads locally; kilobyte notification via swappable text-only relay; client forwards zip
+  via prefilled mailto. Relay integration wired LAST (Cam's directive).
 - **No backend** — Cam's explicit choice: zero maintenance beats save-anywhere convenience
 
 ## Architecture Sketch
@@ -88,8 +91,9 @@ Browser (static SPA on GitHub Pages)
 │   ├── brief.md    — human/Claude-readable build instructions incl. GENERATE copy items
 │   ├── page PNGs   — rendered snapshot of each page (blocks + pen layer baked in)
 │   └── assets/     — client-uploaded images (compressed)
-└── Submit          — zip package → email relay (client-side API) → Cam's inbox
-                      fallback: download zip + mailto instructions
+└── Submit          — zip ALWAYS downloads locally (Blob) + kilobyte notification email via
+                      swappable text relay · client forwards zip via prefilled mailto
+                      (download-first hybrid, debate #2 verdict; relay wired last)
 ```
 
 The **Claude-friendly package** is defined by one test: a fresh Claude Code session given only
@@ -111,10 +115,11 @@ purpose (progressive detail — they're specced when we get close).
 
 ## Open Questions & Risks
 
-1. **Email attachment limits, no backend** (top risk) — image-heavy zips vs small free-tier
-   caps. Mitigations to spec in Stage 3: aggressive client-side compression, package size
-   budget with in-app warning, download-zip fallback path. Debate #2 decides the mechanism.
-2. **Canvas engine choice** — wrong pick = most expensive rework possible. Debate #1 before code.
+1. ~~Email attachment limits~~ — RESOLVED 2026-07-27 by debate #2: download-first hybrid
+   (zip never rides an attachment relay). Residual risk shifts to zip-forward abandonment;
+   mitigated by the lead-capture floor (notification always carries brief.md + site.json).
+2. ~~Canvas engine choice~~ — RESOLVED 2026-07-27 by debate #1: hand-rolled DOM/SVG. Residual
+   risk shifts to DOM→PNG capture fidelity; binding mitigations recorded in docs/decisions.md.
 3. **Export fidelity** — is the package truly enough for a zero-context build? The round-trip
    test (Stage 4 DoD) exists to falsify this; schema is specced deliberately in Stage 3.
 4. Public tool spam through the relay — free tiers have monthly caps; mitigate with honeypot
