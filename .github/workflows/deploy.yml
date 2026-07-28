@@ -23,7 +23,14 @@ jobs:
   build:
     name: Lint, test, build, E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 25, not 15. The E2E suite runs SERIALLY here (workers: 1, retries: 2, three
+    # engines) and it grew with the UX-hardening batch to 154 tests × 3 = 462. The
+    # run before that batch finished in 14m57s against the 15-minute budget, and the
+    # first run after it was killed mid-E2E at 15m16s — a timeout reported as
+    # "cancelled", with lint, unit tests and both builds already green. The budget
+    # is a runaway-job guard, not a performance target; 25 restores the headroom the
+    # serial cross-engine run needs (locally the same suite is ~4-6m in parallel).
+    timeout-minutes: 25
     permissions:
       contents: read
       # Read-only: `configure-pages` reads the already-enabled Pages settings.
