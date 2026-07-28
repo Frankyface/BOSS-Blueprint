@@ -38,7 +38,7 @@ When the user says **"update all relevant files"**, run `/sync-docs`.
 ## Conventions
 - Commits: conventional format (`feat:` `fix:` `docs:` `test:` `chore:`). NO AI attribution lines.
 - Solo trunk workflow: work on `main`, commit at every verified-green checkpoint, push after commit.
-- Code: immutable state updates only · TypeScript strict · files <400 lines ·
+- Code: immutable state updates only · TypeScript strict · source files <400 lines (test/E2E-support <600) ·
   named constants over magic numbers · validate at boundaries (file import, form submit).
 - Run: `npm run dev` · unit: `npm test` · E2E: `npm run e2e` · build: `npm run build`.
 - `handoff.md` hard budget: ≤60 lines — snapshot, not journal.

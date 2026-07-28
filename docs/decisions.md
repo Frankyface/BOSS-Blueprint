@@ -166,3 +166,26 @@ builder network denied, scripted client gates, strongest-model builder, keep the
 probe, ±24px tolerance) · **Because:** v1's definition of done needs to be executable and
 repeatable, not aspirational · **Revisit if:** two consecutive fix loops fail the same class
 (protocol's own escalation: Fable debate).
+
+## 2026-07-28 — Export format v2.1 amendment
+**Chose:** five rulings applied after the Stage-3 spec pass found contract defects: (R1) the
+brief generator emits UNWRAPPED logical lines — Appendix A's byte-exact test B was MEASURABLY
+unsatisfiable against the hand-wrapped fixture (line 1454 forced wrap ≥88, line 1497 forced ≤86);
+§7.2 regenerated mechanically with a whitespace-normalized equality proof (zero non-whitespace
+change); (R2) V7 markers re-anchored on generator-emitted frame tuples (old anchor matched 0
+times in the spec's own example); (R3) V25 WARN — blocks past x=1200 clip in the PNG, true
+geometry stays in site.json, [N13] brief marker; (R4) V26 client-facing BLOCK for blank button
+label / empty nav bar; (R5) page-height floor is 800 everywhere. Minors: derived-forms set for
+«…» tracing, `business` slug fallback, `*` escaped. 189 self-check assertions green ·
+**Because:** three independent adversarial passes (dry-run builder, fixture builder, spec author)
+each found defect classes the others missed — cheap now, expensive after Stage 3 implements ·
+**Rejected:** whitespace-normalizing the CI comparison instead of fixing the fixture (that is
+the forbidden weaken-the-criterion move) · **Revisit if:** the round-trip test hits a defect
+class all three passes missed.
+
+## 2026-07-28 — File-size ceiling clarified: source <400, test/E2E-support <600
+**Chose:** the CLAUDE.md "<400 lines" ceiling applies to SOURCE files; test files and E2E support
+files get 600 before a split is required · **Because:** batch-1 review flagged three test files
+over 400 while the same rule forced a source refactor — one rule meaning two things; test suites
+read linearly and forced splits hurt discoverability · **Rejected:** a blanket 400 (churn without
+clarity), no ceiling for tests (unbounded growth) · **Revisit if:** a test file approaches 600.
