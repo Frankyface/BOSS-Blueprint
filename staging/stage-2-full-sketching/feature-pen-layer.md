@@ -1,16 +1,16 @@
 # Feature: Pen Layer
-_Stage: stage-2-full-sketching · Status: awaiting verification_
+_Stage: stage-2-full-sketching · Status: verified done_
 
 ## Goal
 The MS Paint half of the promise: a freehand pen over each page's blocks for annotations
 ("make this bigger!") and for literally sketching what an image should contain.
 
 ## Success Criteria
-- [ ] Pen tool toggles the canvas into draw mode: freehand strokes render over the blocks,
+- [x] Pen tool toggles the canvas into draw mode: freehand strokes render over the blocks,
       anchored to page coordinates (they scroll/zoom with the page)
-- [ ] A few colors + 2 widths + an eraser (stroke-level erase is fine); strokes are undoable
-- [ ] Strokes belong to their page and serialize with the design (autosave + `.blueprint` file)
-- [ ] Block editing still works normally when the pen tool is off
+- [x] A few colors + 2 widths + an eraser (stroke-level erase is fine); strokes are undoable
+- [x] Strokes belong to their page and serialize with the design (autosave + `.blueprint` file)
+- [x] Block editing still works normally when the pen tool is off
 
 ## How We'll Verify
 Unit: stroke serialization round-trip. E2E: draw strokes on two pages, switch pages (strokes
@@ -166,6 +166,45 @@ and the review-fix batch (commit 21ecd72) implemented the shared
 `pageHeightForContent(rects, strokes)` = clamp(1600, ceilToGrid(bottom+160), 8000) with unit +
 E2E coverage (mark below blocks keeps the page open; deleting the block leaves the mark on the
 sheet). Awaiting re-verification.
+
+**Re-verification (2026-07-28):**
+
+Re-run from the pinned worktree at c180b1c (`npm ci` from scratch, 0 vulnerabilities): `lint`
+clean · `test` **662 passed / 36 files** · `test:coverage` exit 0 (`src/canvas` 99.71% lines /
+99.52% funcs, `src/store` 97.02 / 97.15) · `build` **264.09 kB (gzip 82.10)** · `e2e` ×2 =
+**324 passed (4.0m)** then **324 passed (3.5m)**, chromium + firefox + webkit, zero flakes. CI
+green on 21ecd72 and c180b1c, live 200, deployed bundle sha256-identical to a local build.
+
+_The doc drift is closed._ §4.5 as amended (v2.2) states a 0.75px minimum-distance pre-pass, then
+RDP at ε = 0.5px, coordinates rounded to 1 decimal, thinned ONCE at commit, with the in-memory
+strokes being the thinned strokes and the export's ε = 0.75px pass retained as near-idempotent.
+`thinStroke` is exactly that pipeline — `withoutTinySteps(0.75)` → `simplifyPoints(0.5)` →
+`roundPoint(1dp)` → `withoutRepeats` → the schema's two-point floor — and the constants
+(`MIN_SAMPLE_DISTANCE_PX` 0.75, `PEN_THINNING_EPSILON_PX` 0.5, `PEN_POINT_DECIMALS` 1) and the
+corrected `penThinning.ts` header agree with it. Spec knock-ons are consistent too: `page.height`
+is now `integer 1600–8000 multipleOf 8` and the §7.1/§7.2 worked example heights were updated.
+
+_MEDIUM-1 re-probed independently (own Playwright + Vitest specs, since deleted; ×3 engines):_ one
+block with a bottom of 240 leaves the page at the 1600 floor; a mark drawn below it lands at
+`markBottom` 1571 (chromium) / 1570.4 (firefox, webkit) and the page grows to
+`data-page-height` **1736**. Deleting the block that had been holding the page open leaves the
+height at **1736**, the stroke's stored points unchanged, and the ink's bounding box INSIDE the
+white sheet's bounding box. The formula matches §4.2 v2.2 verbatim, proven over 5000 random
+bottoms driven both by a block bottom and by a stroke point-y — identical results, both equal to
+`clamp(1600, ceil((bottom + 160) / 8) * 8, 8000)`.
+
+_`ceilToGrid` really ceils._ 1731 (= 1571 + 160) is a discriminating boundary — `Math.round`
+gives 1728 and eats 3px of padding, so the live assertion kills that mutant on its own.
+Systematically: across [1600, 2400] there are exactly 300 values (remainders 1–3 mod 8) where
+`snapToGrid` lands BELOW its input and `ceilToGrid` does not; and for every bottom from 1400 to
+2000 the result is the TIGHTEST multiple of 8 at or above max(1600, bottom + 160).
+
+_One LOW on the shipped test (routed to UX-hardening batch):_ `geometry.test.ts`'s "rounding UP"
+headline uses bottom 1701 → 1864, which `Math.round` also produces — non-discriminating; the loop
+after it discriminates. Move the headline to a remainder-1..3 bottom (e.g. 1697 → 1857: round
+1856, ceil 1864).
+
+**Status: VERIFIED DONE.**
 
 ## Open Questions
 - ~~Smoothing/simplification of stroke points (payload size)~~ **Decided at build:** a 0.75px

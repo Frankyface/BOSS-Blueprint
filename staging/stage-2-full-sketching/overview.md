@@ -9,8 +9,8 @@ Stage 3 export needs.
 _Moderately specified on purpose — details firm up as Stage 1 lands (progressive detail rule)._
 
 ## Features
-- [ ] feature-multipage-nav.md — page manager + wiring buttons/nav items to pages
-- [ ] feature-pen-layer.md — freehand pen/eraser per page, over the blocks
+- [x] feature-multipage-nav.md — page manager + wiring buttons/nav items to pages
+- [x] feature-pen-layer.md — freehand pen/eraser per page, over the blocks
 - [x] feature-copy-blocks.md — real text vs "generate later" placeholder with description
 - [x] feature-image-upload.md — upload into image slots, client-side compression
 - [x] feature-site-settings.md — business name, tagline, vibe/style + color preferences

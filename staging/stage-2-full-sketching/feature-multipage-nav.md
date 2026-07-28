@@ -1,5 +1,5 @@
 # Feature: Multi-page + Navigation Map
-_Stage: stage-2-full-sketching · Status: awaiting verification_
+_Stage: stage-2-full-sketching · Status: verified done_
 
 ## Goal
 Clients sketch whole sites, not single pages: add/rename/duplicate/delete pages, switch
@@ -7,12 +7,12 @@ between them, and wire buttons/nav items to target pages so the export carries t
 link structure.
 
 ## Success Criteria
-- [ ] Page strip/sidebar: add page (named, e.g. "Menu"), rename, duplicate, delete (with
+- [x] Page strip/sidebar: add page (named, e.g. "Menu"), rename, duplicate, delete (with
       confirm), reorder; switching pages swaps the canvas content
-- [ ] Buttons and nav-bar items have a "links to" picker listing the site's pages (or External
+- [x] Buttons and nav-bar items have a "links to" picker listing the site's pages (or External
       URL / None); linked state is visible on the block
-- [ ] Deleting a page cleans up links pointing at it (they revert to None, with a toast)
-- [ ] A nav map summary (simple list view: each page → its outgoing links) matches reality
+- [x] Deleting a page cleans up links pointing at it (they revert to None, with a toast)
+- [x] A nav map summary (simple list view: each page → its outgoing links) matches reality
 
 ## How We'll Verify
 Unit tests on page CRUD + link-integrity rules (especially delete cleanup). E2E: build a
@@ -162,6 +162,53 @@ _E2E:_ `e2e/multipage-nav.spec.ts` gains `a comma in a label cannot split the me
 wiring` — types a comma label in the panel, commits the menu through the INLINE block editor (the
 exact path that used to destroy it), and asserts the item count, the label and the link target all
 survive; and `an emptied label is refused, leaving the menu as it was`.
+
+**Re-verification (2026-07-28):**
+
+Re-run from the pinned worktree at c180b1c (`npm ci` from scratch, 254 packages, 0
+vulnerabilities): `lint` clean · `test` **662 passed / 36 files** · `test:coverage` exit 0
+(`src/canvas` 99.71% lines / 99.52% funcs, `src/store` 97.02 / 97.15 — gate 80/80) · `build`
+**264.09 kB (gzip 82.10)**, 0 `__blueprintStore` · `e2e` ×2 = **324 passed (4.0m)** then
+**324 passed (3.5m)**, chromium + firefox + webkit, zero flakes. Every number in the bounce-fix
+table reproduces exactly. CI green on 21ecd72 and c180b1c, live URL 200, and the deployed
+`index-QtqvL50Q.js` / `index-f1-PsJS5.css` are sha256-identical to a local `npm run build`.
+
+_Independent probes (own Playwright + Vitest specs, since deleted; ×3 engines):_ **HIGH-1** —
+an emptied label, cleared by Enter AND by blur, with `''` and `'   '`: the items array is
+deep-equal to before and the field snaps back to "Home". Traced to the mechanism, not just
+observed: `withNavItemLabel` hands back the identical block, `blocksEqual` makes
+`updateCurrentBlocks` return the SAME state object, and zustand's `Object.is` check then never
+notifies — so no history push and no autosave either. **HIGH-2** — "Fish, chips" commits as
+"Fish chips" with the item's id and its `page` link intact; `block.text` becomes
+"Fish chips, Contact"; re-committing that text through the INLINE editor (the path that used to
+destroy it) leaves two items, same id, same link, and a SECOND inline re-commit is stable too.
+**Export-validity, pushed hard** — thirteen hostile labels pasted and typed (empty, spaces, tabs,
+`,`, `,,,`, `, , ,`, NBSP, U+3000, figure/thin space, U+FEFF, VT+FF, newlines) are all refused
+with the menu unchanged; real keyboard insertion is refused; `' , ,, '` through the inline editor
+produces no zero-length label; and `parseNavItem` refuses all thirteen at the file boundary, so a
+hand-edited payload QUARANTINES rather than silently losing items. **No UI path can produce a
+label of length 0.** The round-trip regression test is real but table-driven, so it was
+strengthened independently: 2000 randomly generated menus (1–7 items, labels drawn from an
+alphabet including commas, unicode spaces, accents and punctuation) round-trip deep-equal on ids
+and links; 5000 random strings through `normaliseNavLabel` never yield a comma, are always
+trimmed and never carry double whitespace; and exact-duplicate labels (["Home","Home","HOME"],
+both orders) — a case the shipped suite does not cover — round-trip correctly.
+
+_The other five changes confirmed:_ `describeReverted` lives in `pageNotices.ts` with the is/are
+grammar and five tests; the Notes bullet now names the constraint and where it is enforced;
+`e2e/support/canvas.ts` is 412 lines with a new 117-line `site.ts`, imported by seven specs;
+`app-layout.spec.ts:18` reads 1920×1000. The `useCommittedField` commit-feedback call is judged
+CORRECT — marking `lastValue` with what was ATTEMPTED makes the render-time re-sync fire on a
+refusal, stay silent on an acceptance, and also handle the case nobody named: a commit the store
+TRANSFORMS ("Fish, chips" → "Fish chips") snaps the field to the normalised value.
+
+_Findings raised, none blocking (routed to the UX-hardening batch):_ MEDIUM — `commitOpenDrafts()`
+is not wrapped in try/catch, so a throwing blur handler would skip the pagehide flush entirely
+(fix: try/finally); MEDIUM — `useCommittedField` has no unit test (29.62% statements, outside
+the gate globs) despite carrying the refused-commit protocol; LOW — U+200B is not JS `\s`, so a
+zero-width-space label stores as a length-1, visually blank entry.
+
+**Status: VERIFIED DONE.**
 
 ## Open Questions
 - ~~Nav bar items: fixed set the client renames, or free add/remove?~~ **Decided at build:** free
