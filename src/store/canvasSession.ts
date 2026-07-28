@@ -11,11 +11,15 @@ import {
   useCanvasStore,
 } from './canvasStore.ts'
 import { clearStoredDocument, getBrowserStorage, loadDocument, saveDocument } from './canvasStorage.ts'
-import type { LoadOutcome, SaveOutcome, StorageLike } from './canvasStorage.ts'
+import type { StorageLike } from './canvasStorage.ts'
 import { useEditorStore } from './editorStore.ts'
-import type { StorageNotice, StorageNoticeKind } from './editorStore.ts'
 import { createHistory, pushHistory, redoHistory, undoHistory } from './history.ts'
 import type { History } from './history.ts'
+import {
+  clearNoticesResolvedByStartOver,
+  noticeForLoad,
+  reportSave,
+} from './storageNotices.ts'
 
 /**
  * THE SESSION — the one place the document store, the undo stack and localStorage
@@ -47,92 +51,6 @@ export interface CanvasSessionOptions {
   /** Pass `null` for "no persistence"; omit to use the browser's localStorage. */
   readonly storage?: StorageLike | null
   readonly autosaveDelayMs?: number
-}
-
-/**
- * WHAT TO SAY WHEN STORAGE IS RUNNING OUT — and, more importantly, WHAT TO DO.
- *
- * Both messages lead with "download your design" (UX audit MAJOR). The old ones
- * advised "start over" and "delete a few blocks": the first is the single most
- * destructive control in the app, the second throws away the client's work — and
- * neither mentioned the button that actually rescues everything. Downloading is
- * unaffected by a full localStorage (the audit's own probe recovered a 6.4MB design
- * that way), so it is the first thing to reach for and the only thing that loses
- * nothing. Freeing room comes second, and is phrased as a way to carry on HERE.
- *
- * The storage notice renders a Download button beside these for the same reason —
- * a sentence telling a worried client to go and find a control elsewhere is a
- * sentence they will read twice and act on once.
- */
-function noticeForSave(outcome: SaveOutcome): StorageNotice | null {
-  switch (outcome.status) {
-    case 'saved':
-      return null
-    case 'near-quota':
-      return {
-        kind: 'near-quota',
-        message:
-          'This design is nearly as large as your browser will hold. It is still being saved — ' +
-          'but download your design now to keep everything safe.',
-      }
-    case 'quota-exceeded':
-      return {
-        kind: 'save-failed',
-        message:
-          'Your browser has run out of room, so your latest changes are NOT being saved. ' +
-          'Download your design now to keep everything safe, then remove a photo or two to ' +
-          'carry on here.',
-      }
-    case 'unavailable':
-      return {
-        kind: 'unavailable',
-        message:
-          `Your work is not being saved: ${outcome.reason} ` +
-          'Download your design to keep it safe.',
-      }
-  }
-}
-
-/** Kinds the SAVE path owns, and is therefore allowed to clear when a save works. */
-const SAVE_NOTICE_KINDS: ReadonlySet<StorageNoticeKind> = new Set([
-  'near-quota',
-  'save-failed',
-  'unavailable',
-])
-
-/**
- * Report the result of a write without trampling anything else.
- *
- * A clean save clears a previous SAVE problem only. It must never quietly dismiss
- * the "we couldn't read your old design" warning: that is a one-off message the
- * client has to see, and the very next autosave — one second after they place their
- * first block — would otherwise wipe it off the screen mid-read.
- */
-function reportSave(outcome: SaveOutcome): void {
-  const notice = noticeForSave(outcome)
-  const { notice: current, setNotice } = useEditorStore.getState()
-
-  if (notice !== null) {
-    setNotice(notice)
-    return
-  }
-
-  if (current !== null && SAVE_NOTICE_KINDS.has(current.kind)) setNotice(null)
-}
-
-function noticeForLoad(outcome: LoadOutcome): StorageNotice | null {
-  if (outcome.status === 'recovered') {
-    return {
-      kind: 'recovered',
-      message: `${outcome.reason} We've started you on a fresh page and kept the old file in case it can be rescued.`,
-    }
-  }
-
-  if (outcome.status === 'unavailable') {
-    return { kind: 'unavailable', message: `Your work is not being saved: ${outcome.reason}` }
-  }
-
-  return null
 }
 
 /** Fields whose value lives in a local draft until they lose focus. */
@@ -367,21 +285,6 @@ export function openDesign(document: CanvasDocument): void {
 }
 
 /**
- * Kinds that describe the DESIGN, and so stop being true the moment it is cleared:
- * the page is no longer large, the failed save no longer matters, and the
- * quarantined file has just been deleted along with everything else.
- *
- * `unavailable` is deliberately absent — "this browser will not let us save your
- * work" is a standing fact about the browser, not about the design, and it is still
- * every bit as true after starting over.
- */
-const NOTICE_KINDS_RESOLVED_BY_START_OVER: ReadonlySet<StorageNoticeKind> = new Set([
-  'near-quota',
-  'save-failed',
-  'recovered',
-])
-
-/**
  * "Start over": empty page, empty undo stack, empty storage. The reset itself is
  * flagged as a replay so it does not land on the stack we are about to throw away,
  * and the queued autosave is cancelled before the keys are removed so a timer that
@@ -410,8 +313,7 @@ export function startOver(): void {
   session?.autosave.cancel()
   clearStoredDocument(session?.storage ?? null)
 
-  const { notice, setNotice } = useEditorStore.getState()
-  if (notice !== null && NOTICE_KINDS_RESOLVED_BY_START_OVER.has(notice.kind)) setNotice(null)
+  clearNoticesResolvedByStartOver()
 }
 
 /** Write any queued document immediately. */

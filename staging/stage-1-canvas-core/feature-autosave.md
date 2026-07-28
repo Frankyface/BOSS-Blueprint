@@ -256,6 +256,13 @@ browser).
   still the one-photo design. Two more tests pin the near-quota wording and the notice's own
   rescue button (`StorageNotice.test.tsx`, +5 including a real download through a faked
   `downloadTextFile`).
+- **`canvasSession.ts` was split** to stay under the 400-line source ceiling: every sentence the
+  client reads about storage, plus the two precedence rules for when one notice may replace
+  another, now lives in `src/store/storageNotices.ts` (`noticeForSave`, `noticeForLoad`,
+  `reportSave`, `clearNoticesResolvedByStartOver`). A real division rather than a filing
+  convenience — the session file is the wiring (history, autosave, flush-on-hide), and this is
+  the copy. 322 + 121 lines, no behaviour change, all 934 unit tests and both E2E runs green
+  across the split.
 - **One hole stays open, and is not closeable here:** the flush on `pagehide`. If THAT write is
   the one the browser refuses, the notice is set into a page that is already going away and the
   client never sees it. Nothing can be shown at that point without `beforeunload`, which this
