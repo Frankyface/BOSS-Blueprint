@@ -9,8 +9,13 @@ interface ResizeHandlesProps {
 
 /**
  * The eight corner/edge grips drawn around the selected block.
- * Pointer-only affordances (keyboard users resize via the store actions the
- * toolbar exposes), so they are hidden from the accessibility tree.
+ *
+ * Pointer-only, and hidden from the accessibility tree because a focusable grip
+ * that does nothing on Enter is worse than no grip at all. There is currently NO
+ * keyboard route to move or resize a block — the canvas toolbar only exposes
+ * stacking order, delete, undo/redo and start over. That is a known accessibility
+ * gap, not an oversight in this comment: closing it means arrow-key nudging
+ * (each press one undo step), which is a product decision rather than a tidy-up.
  */
 export function ResizeHandles({ onHandlePointerDown }: ResizeHandlesProps) {
   return (

@@ -24,7 +24,10 @@ export const PAGE_BOTTOM_PADDING_PX = 160
 /** A block may hang off the side of the page, but at least this much stays on it. */
 export const MIN_ON_PAGE_PX = 24
 
-/** Ceiling for a single block's height (a block is never taller than the page). */
+/**
+ * Ceiling for a single block's height — deliberately half of MAX_PAGE_HEIGHT_PX,
+ * so one runaway resize can never eat the whole page budget on its own.
+ */
 export const MAX_BLOCK_HEIGHT_PX = 4000
 
 /** Each extra free-floating block of a type lands this far down-and-right of the last. */

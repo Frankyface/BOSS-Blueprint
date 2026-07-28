@@ -122,8 +122,3 @@ export function getBlockTypeDefinition(id: BlockTypeId): BlockTypeDefinition {
   }
   return definition
 }
-
-/** True when double-clicking the block should open the inline text editor. */
-export function hasEditableText(id: BlockTypeId): boolean {
-  return getBlockTypeDefinition(id).textMode !== 'none'
-}
