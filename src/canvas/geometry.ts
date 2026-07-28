@@ -65,6 +65,12 @@ export function moveRect(
  * Rules, in order: snap the dragged edge to the grid → keep it inside the page →
  * enforce the type's minimum size by pinning the *opposite* edge (so a west drag
  * that hits the minimum stops dead instead of sliding the block sideways).
+ *
+ * When the minimum size and the page's right edge genuinely conflict — a block
+ * already sitting at x=1176 has only 24px of page left, but no type is allowed to
+ * be narrower than 64 — the PAGE EDGE WINS and the block slides left so that both
+ * hold. Applying the minimum last used to silently override the page clamp and
+ * leave the block's right edge at 1272, past the 1200px export width.
  */
 export function resizeRect(
   rect: BlockRect,
@@ -80,7 +86,17 @@ export function resizeRect(
   let { x, y, width, height } = rect
 
   if (handle.includes('e')) {
-    width = Math.min(snapToGrid(rect.width + deltaX), pageWidth - x)
+    // Room between the anchored west edge and the page's right edge.
+    const available = pageWidth - x
+    width = Math.min(snapToGrid(rect.width + deltaX), available)
+
+    if (width < minSize.width) {
+      width = minSize.width
+      // Only when the PAGE EDGE — not the client's own drag — is what made the
+      // minimum unreachable do we give up the anchored edge and slide left.
+      // An ordinary shrink-to-minimum must leave x exactly where it was.
+      if (available < minSize.width) x = Math.max(0, pageWidth - width)
+    }
   } else if (handle.includes('w')) {
     x = Math.max(0, snapToGrid(rect.x + deltaX))
     width = right - x

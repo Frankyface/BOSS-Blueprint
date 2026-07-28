@@ -188,6 +188,69 @@ describe('resizeRect', () => {
     expect(resized.x + resized.width).toBe(PAGE_WIDTH_PX)
   })
 
+  /**
+   * Regression (review LOW-1): the minimum-size clamp used to run AFTER the
+   * page-edge clamp and silently override it, so a block parked at the right edge
+   * could be resized to a right edge of 1272 — 72px outside the 1200px page that
+   * Stage 3 renders. When the two genuinely conflict the page edge must win and
+   * the block slides left so BOTH hold.
+   */
+  describe('minimum size versus the page edge', () => {
+    /** x = 1176 is the furthest right clampPosition allows (1200 - MIN_ON_PAGE_PX). */
+    const AT_RIGHT_EDGE: BlockRect = { x: 1176, y: 0, width: 96, height: 72 }
+
+    it('slides a block at x=1176 left instead of growing it past 1200', () => {
+      const resized = resizeRect(AT_RIGHT_EDGE, 'e', 80, 0, HEADING_MIN)
+
+      expect(resized.width).toBe(HEADING_MIN.width)
+      expect(resized.x).toBe(PAGE_WIDTH_PX - HEADING_MIN.width)
+      expect(resized.x + resized.width).toBe(PAGE_WIDTH_PX)
+    })
+
+    it.each(['e', 'ne', 'se'] as const)(
+      'holds for the %s handle, which all own the east edge',
+      (handle) => {
+        const resized = resizeRect(AT_RIGHT_EDGE, handle, 400, 40, HEADING_MIN)
+
+        expect(resized.width).toBeGreaterThanOrEqual(HEADING_MIN.width)
+        expect(resized.x + resized.width).toBeLessThanOrEqual(PAGE_WIDTH_PX)
+      },
+    )
+
+    it('also pulls the block back when the east handle is dragged inward', () => {
+      const resized = resizeRect(AT_RIGHT_EDGE, 'e', -40, 0, HEADING_MIN)
+
+      expect(resized.width).toBe(HEADING_MIN.width)
+      expect(resized.x + resized.width).toBe(PAGE_WIDTH_PX)
+    })
+
+    it('leaves x alone for an ordinary shrink to the minimum away from the edge', () => {
+      const resized = resizeRect(HEADING_RECT, 'e', -5000, 0, HEADING_MIN)
+
+      expect(resized.width).toBe(HEADING_MIN.width)
+      expect(resized.x).toBe(HEADING_RECT.x)
+    })
+
+    it('never pushes a block off the left edge when the minimum exceeds the page', () => {
+      const wideMinimum: Size = { width: PAGE_WIDTH_PX + 400, height: 40 }
+      const resized = resizeRect(AT_RIGHT_EDGE, 'e', 80, 0, wideMinimum)
+
+      expect(resized.x).toBe(0)
+    })
+
+    it('leaves the west handle free to keep a block that already overhangs', () => {
+      // Dragging the WEST edge of an overhanging block must not teleport it back
+      // onto the page — only the east edge is clamped to the page's right edge.
+      const overhanging: BlockRect = { x: 1104, y: 0, width: 400, height: 72 }
+      const resized = resizeRect(overhanging, 'w', -40, 0, HEADING_MIN)
+
+      expect(resized.x).toBe(1064)
+      expect(resized.width).toBe(440)
+      // Still overhanging on purpose: only the east edge is clamped to the page.
+      expect(resized.x + resized.width).toBeGreaterThan(PAGE_WIDTH_PX)
+    })
+  })
+
   it('cannot drag the north edge above the top of the page', () => {
     const resized = resizeRect({ x: 0, y: 40, width: 400, height: 200 }, 'n', -400, -400, HEADING_MIN)
     expect(resized.y).toBe(0)
