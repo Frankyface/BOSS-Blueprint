@@ -1,5 +1,5 @@
 # Feature: Page PNG Renderer
-_Stage: stage-3-export-delivery · Status: not started_
+_Stage: stage-3-export-delivery · Status: awaiting verification_
 
 ## Goal
 Render each page to one PNG of exactly `1200 × page.height`, with the pen layer baked in and
@@ -144,9 +144,135 @@ fallback, and day-one CI visual regression across all three browser engines.
 7. Record commands, exit codes, dimensions, ink ratios, timings and the baseline paths below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-28 — implementer evidence (branch `stage3-png-renderer`)
+
+Worktree `C:\Users\Cam\AppData\Local\Temp\bp-s3png-wt`. E2E ran against a worktree-local
+Playwright config identical to `playwright.config.ts` except the preview port (4273 instead of
+4173) — another agent held 4173. Baselines land in the repo path either way.
+
+**Files**
+
+| Path | What it is |
+|---|---|
+| `src/export/png/constants.ts` | every named number: `MAX_SAFE_RENDER_HEIGHT_PX`, `INK_SAMPLE_DIVISOR`, `MIN_INK_RATIO`, the luma thresholds |
+| `src/export/png/types.ts` | `PageRenderResult`, `PngRenderError` (carries `finding: 'V6'`), `RENDER_HICCUP_MESSAGE` |
+| `src/export/png/pngHeader.ts` | pure IHDR parser (the browser-free half of V6's dimension check) |
+| `src/export/png/sanity.ts` | `assessInk`, `checkPngSanity`, `checkRenderableHeight` — all pure |
+| `src/export/png/exportRoot.tsx` | the dedicated export root: 1200 × H, `overflow: hidden`, blocks + baked pen layer |
+| `src/export/png/mountExportRoot.tsx` | offscreen React mount (`position: fixed; left: -20000px`, `flushSync`) |
+| `src/export/png/renderLadder.ts` | primary → retry → fallback → V6, ports injected |
+| `src/export/png/renderPagePng.ts` | the public `renderPagePng(document, pageId)` |
+| `src/export/png/engineOrder.ts` | snapdom-first order + the folded-away `?export-engine=fallback` seam |
+| `src/export/png/pngTestBridge.ts` | folded-away `window.__blueprintRenderPagePng` seam for Playwright |
+| `src/export/png/index.ts` | public surface (no engine is nameable through it) |
+| `src/export/png/fixtures/pngFixtures.ts` | three real PNGs (1×1, 1200×800, 1200×12056) as base64 |
+| `src/platform/browserPngPorts.ts` | the browser adapter: snapdom, html-to-image, decode, sample |
+| `src/components/ImageSlotFace.tsx` | the image slot's face, split out of `ImageSlot` and shared with the export |
+| `src/components/BlockContent.tsx` | +`mode?: 'edit' \| 'export'` (the only production file changed for the export) |
+| `e2e/support/exportPng.ts` | the fixture design, the seam, IHDR-in-Node, pixel sampling |
+| `e2e/export-png.spec.ts` · `export-png-clip.spec.ts` · `export-png-fallback.spec.ts` · `export-visual.spec.ts` | ×3 engines |
+| `e2e/export-visual.spec.ts-snapshots/*.png` | six committed baselines (2 pages × 3 engines, win32) |
+
+**Commands and results**
+
+| Command | Result |
+|---|---|
+| `npm ci` | 254 packages, 0 vulnerabilities |
+| `npm install @zumer/snapdom@2.23.1 html-to-image@1.11.13` | both **MIT**, verified in `node_modules/*/LICENSE` and `npm view` |
+| `npm run lint` | clean |
+| `npx tsc -b` | clean |
+| `npm test` | **860 unit tests across 46 files, all pass** — 55 of them new (6 files under `src/export/png/`) |
+| `npm run test:coverage` | exit 0; `src/export/png` **94.84% stmts / 96.13% lines**; global 80.4% stmts |
+| `npm run build` | 295.11 kB — seam **absent**: `__blueprintRenderPagePng`, `export-engine`, `snapdom` all grep-negative |
+| `npm run build:e2e` | 467.53 kB — all three grep-**positive** |
+| full E2E ×3 engines, runs 1–4 | **454 passed, 2 skipped** every time (4.1 / 4.5 / 4.1 / 4.0 min) |
+| the 4 new specs alone, ×3 engines, ×4 | **52 passed, 2 skipped** every time |
+
+The 2 skips are the cross-engine test declining to run a second and third time — it drives all
+three engines itself from the chromium project (see Notes).
+
+**One flaky run, chased down.** An early four-spec run failed two Firefox tests. It did not
+reproduce in isolation or in four repeats, so the cause was pinned by deliberately overloading the
+machine: at `--workers=14` the suite fails with `Test timeout of 30000ms exceeded` — and the
+casualties are **pre-existing** specs (`autosave.spec.ts` ×4, `pen-layer.spec.ts` ×1, none of the
+export ones), alongside a Firefox `RenderCompositorSWGL` crash annotation. So the mechanism is
+worker contention against Playwright's 30 s default test timeout, a property of the whole suite on
+this hardware, not of the renderer. CI runs `workers: 1`, where the spike cannot happen. The one
+contribution this feature made to it — the cross-engine test launching three extra browsers with
+`Promise.all` — was removed: it now launches them one at a time.
+
+**Measured render evidence** (per page: wall time, PNG bytes, ink ratio)
+
+| Page | chromium | firefox | webkit |
+|---|---|---|---|
+| `page-home` (1200×1600) | 172 ms · 80 512 B · 0.2812 | 176 ms · 34 798 B · 0.2794 | 948 ms · 33 689 B · 0.2772 |
+| `page-gallery` (1200×1600) | 91 ms · 55 684 B · 0.0731 | 82 ms · 18 942 B · 0.0719 | 758 ms · 16 673 B · 0.0718 |
+| `page-clip` (1200×1600) | 117 ms · 56 540 B · 0.0130 | 74 ms · 18 664 B · 0.0120 | 652 ms · 17 236 B · 0.0119 |
+| `page-clip-control` (1200×1600) | 88 ms · 53 244 B · 0.0047 | 48 ms · 16 727 B · 0.0036 | 639 ms · 15 577 B · 0.0036 |
+| **four-page total** | **489 ms** | **537 ms** | **4457 ms** |
+
+Every render: `engine: 'snapdom'`, `attempts: 1`, IHDR **and** decoded bitmap both `1200 × 1600`.
+Forced-fallback runs (`?export-engine=fallback`) produce `engine: 'html-to-image'`, `attempts: 1`,
+same dimensions, same clip, pen layer present.
+
+**How each Success Criterion was shown**
+
+- Dimensions at 1× — `export-png.spec.ts` "every page renders at exactly 1200 × its §4.2 height,
+  twice measured": decoded bitmap **and** IHDR bytes, all 4 pages, all 3 engines.
+- Dedicated export root, not the live editor — `exportRoot.test.tsx` (computed `width`/`height`/
+  `overflow`), plus "no editor chrome survives into the picture", which selects a block (outline +
+  8 handles on screen) and renders anyway.
+- Pen baked in above blocks, as drawn — `export-png.spec.ts` "pen strokes are baked in where they
+  were drawn": pixel at a stroke coordinate is ink, pixel below it is paper. Visible in the
+  committed baselines.
+- Empty slot placeholder + filled slot photo — same spec, plus both baselines.
+- Clip rule — `export-png-clip.spec.ts`: PNG still 1200 wide with a block at `x:1000 w:400`;
+  columns 1150 and **1199** carry the block's near-black fill; the same two pixels on the control
+  page are paper; the document still reports `x:1000 w:400`.
+- One interface, two engines — `renderLadder.test.ts` (12 tests) + `export-png-fallback.spec.ts`.
+- Sanity + retry + fallback — `sanity.test.ts` (15) + `renderLadder.test.ts`: blank → retry →
+  fallback → `PngRenderError{ finding: 'V6' }`; ink floor not enforced on a block-free page.
+- Tri-engine visual regression — `export-visual.spec.ts`: six committed baselines at
+  `maxDiffPixelRatio 0.02`, plus a cross-engine test asserting identical dimensions and ink ratios
+  within 25% of the median.
+
+**Not done here, by scope**: V6's "PNG count equals page count", the `pages/<NN>-<slug>.png`
+naming, [N13] in the brief and the V25 WARN all belong to `feature-package-zip.md`,
+`feature-brief-generator.md` and `feature-site-json-generator.md` — this feature renders one page
+and reports `hasStrokes`; it does not name or count files. The clip spec asserts the document half
+of "the JSON keeps the truth" against the store, because the `site.json` generator is a sibling
+branch.
+
+**Blocker for `verified done`**: the committed baselines are `-win32`. CI runs `ubuntu-latest`, so
+the first CI run **will fail loudly** with "snapshot doesn't exist" for six files (which is what
+the spec asks a missing baseline to do). Linux baselines must be generated once — no Docker or
+WSL on this machine to produce them here. See Open Questions.
 
 ## Open Questions
+
+- **RESOLVED 2026-07-28 — `MAX_SAFE_RENDER_HEIGHT_PX = 12160`**, as recommended below, with the
+  derivation in the constant's comment and `sanity.test.ts` asserting
+  `pageHeightForContent(worstCase) ≤ MAX_SAFE_RENDER_HEIGHT_PX` **and** that the unclamped worst
+  case still clears it, so raising `MAX_PAGE_HEIGHT_PX` later cannot silently walk past the
+  ceiling. Note the shipped §4.2 function clamps at 8000, so today's reachable maximum is 8000 —
+  the ceiling is headroom, not a live limit.
+- **RESOLVED 2026-07-28 — the export floor is 1600, not 800.** This file's Success Criteria say the
+  export derives "floor 800" where the editor uses 1600. That predates §4.2 v2.2's **one shared
+  height function** ruling, which `docs/export-format.md` v2.3 states plainly:
+  `clamp(1600, ceil((bottom+160)/8)*8, 8000)` for both. The implementation calls the shipped
+  `pageHeightForContent` — one function, no second formula — which is what makes "exactly as the
+  editor shows it" literally true. **The stale "floor 800" line above should be struck when this
+  feature is verified.**
+- **OPEN, and the one thing blocking `verified done` — Linux visual baselines.** Playwright suffixes
+  baselines with the platform; the six committed ones are `-win32` and CI is `ubuntu-latest`, so
+  the first CI run fails with "A snapshot doesn't exist". Neither Docker nor WSL is available on
+  this machine, so they cannot be produced here. Options, in order of preference: (1) one
+  `workflow_dispatch` run with `--update-snapshots` and commit the six `-linux` files; (2) run the
+  suite once in the `mcr.microsoft.com/playwright` image on any Linux box; (3) if Cam decides CI
+  is the only platform that matters, delete the `-win32` set and keep `-linux` only. Do **not**
+  "fix" it by dropping the platform suffix — win32 and linux genuinely rasterize text differently
+  and a shared baseline would be permanently red or uselessly loose.
 - **`MAX_SAFE_RENDER_HEIGHT_PX` value.** Worst case reachable in the editor: `clampPosition`
   allows `y ≤ MAX_PAGE_HEIGHT_PX − 24 = 7976` and `MAX_BLOCK_HEIGHT_PX = 4000`, so
   `maxBottom ≤ 11976` and §4.2 gives `height ≤ 12056` (1200 × 12056 = 14.5 Mpx — inside every
@@ -206,3 +332,66 @@ _Empty — nothing verified yet._
 - **Test seams stay out of production** (`handoff.md` Watch Out). The engine-forcing query
   parameter is folded away in `npm run build`, exactly like `window.__blueprintStore`, and CI
   greps the production bundle to prove it.
+
+### Implementation calls (2026-07-28)
+
+- **Reused components, not a render-only clone — with one deliberate split.** `BlockContent` gained
+  `mode?: 'edit' | 'export'` (default `edit`) and the export root re-mounts it, so both renders go
+  through one component and one stylesheet. The single place the modes differ is the image slot's
+  upload chrome, so `ImageSlot` was split: `ImageSlotFace` (the photo, or the dashed placeholder
+  plus the client's description) is now shared, and `ImageSlot` supplies the picker button, file
+  input and drop handlers as props around it. `BlockView` itself is NOT reused — it exists to wire
+  gestures, selection and resize handles to the store, all of which the export must not have; the
+  export root re-creates only its positioned wrapper with the same classes and data attributes,
+  which is what makes the CSS match without a second stylesheet. Net effect: the export root
+  subscribes to no store at all, so it is testable in jsdom with no fixtures beyond a `Page`.
+- **Dependencies:** `@zumer/snapdom@2.23.1` (MIT, ZumerLab) and `html-to-image@1.11.13` (MIT, W.Y.).
+  Licenses read out of the installed `LICENSE` files, not just the registry metadata. Together they
+  add ~172 kB raw / ~55 kB gzip; today they tree-shake out of `npm run build` entirely because
+  nothing in the app calls `renderPagePng` yet — **the production bundle will grow by roughly that
+  much when the submit flow wires it in**, which is expected, not a surprise to discover later.
+- **Engine options that matter.** snapdom: `scale: 1` **and** `dpr: 1` — without `dpr` it inherits
+  `devicePixelRatio` and silently renders 2× on a retina screen, failing every dimension check;
+  `cache: 'disabled'` so the retry rung is a real re-render rather than a replay of a cached style
+  map; `embedFonts: false` because every font in the constrained vocabulary is a system font.
+  html-to-image: `pixelRatio: 1` (the same 1× rule), explicit `width`/`height`, `cacheBust: false`,
+  `skipFonts: true` (there is no `@font-face` rule in this app to embed).
+- **Variance implementation.** `assessInk` restates the round-trip gate's definition verbatim
+  (`scripts/roundtrip/README.md` note 5, `scripts/roundtrip/lib/png-inspect.mjs`): BT.709 luma,
+  8-wide buckets, **blank iff variance < 1.0 AND fewer than 3 distinct buckets**. On top of that
+  shared floor the app adds ≥ 2 distinct buckets always (a solid grey page has one bucket and no
+  variance — a variance-only rule would pass it) and `inkRatio ≥ 0.0001` only when the page has
+  blocks. `MIN_INK_RATIO` is derived from the smallest block the editor allows (96 × 40 on a
+  1200 × 1600 page ⇒ ~0.03% ink) and set three times below it: the gate exists to catch a white
+  capture, not to punish a sparse page, which is V9's WARN. Alpha is composited onto white before
+  measuring, so a transparent capture reads as blank rather than as black.
+- **The downscale is box-filtered, not point-sampled.** `INK_SAMPLE_DIVISOR = 4` with
+  `imageSmoothingQuality: 'high'`: a 2px glyph stem or a fine pen stroke can hide between the
+  columns of a nearest-neighbour sample, and averaging turns it into a grey pixel that still reads
+  as ink. A sampler that can miss ink is the wrong sampler for a blank detector.
+- **Baseline tolerances.** Per-engine screenshots at `maxDiffPixelRatio: 0.02`. Cross-engine ink
+  band **0.25 of the median**, measured against ~1.5% real spread on the content-rich pages
+  (0.2812 / 0.2794 / 0.2772). Sparse pages are excluded from the band by an `INK_BAND_FLOOR` of
+  0.01: when a page is nearly all paper its ink is almost entirely anti-aliased glyph edges and the
+  engines legitimately differ by a third there (clip-control measured 0.0047 / 0.0036 / 0.0036) —
+  the blank gate is the check that matters below that floor. Dimensional identity is asserted on
+  every page regardless.
+- **The cross-engine test drives all three engines itself** rather than writing per-project files
+  and hoping the last project to finish reads them all. It runs once (skipped outside the chromium
+  project) and launches chromium, firefox and webkit through Playwright's own `BrowserType` API, so
+  it is order-independent and cannot silently compare fewer than three readings.
+- **WebKit is ~9× slower than the other two** (4457 ms vs 489/537 ms for the four-page fixture) and
+  carries `test.slow()`. Its *output* is excellent — visually indistinguishable from Chromium's and
+  within 1.5% on ink — so this is a throughput note, not a fidelity one. A 20-page design would
+  cost WebKit ~20 s of render time inside the submit flow, which the submit UI should expect.
+- **The E2E seam is `window.__blueprintRenderPagePng`,** installed from `main.tsx` beside the store
+  seam and folded away by the same inline `import.meta.env` guard. It exists because the submit
+  flow that will call the renderer is a later feature and this one is not allowed to wait for it;
+  it hands the PNG back as base64 so the specs assert on the bytes that would be zipped.
+- **`renderPagePng` is `async`, not merely `Promise`-returning.** A bad page id has to *reject*; a
+  synchronous throw would sail past a caller's `.catch`. A unit test caught this.
+- **Pen probes need a straight stroke.** perfect-freehand applies streamline and smoothing, so a
+  scribble's rendered outline does not pass through its own recorded points — a pixel probe aimed
+  at one misses the ink it is looking for (it did, on the first run). The fixture's annotation
+  stroke is a straight horizontal run for exactly that reason; the second stroke stays a curve so
+  the baselines still show a real scribble.
