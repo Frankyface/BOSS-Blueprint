@@ -32,15 +32,17 @@ Every canvas mutation is undoable. Clients experiment fearlessly; nothing is eve
 - `npm run build` → exit 0. `dist/assets/index-*.js` 213.67 kB (gzip 67.42 kB), CSS 8.03 kB.
   `grep __blueprintStore dist/assets/*.js` → 0 matches (deploy bundle still has no test seam).
 - `npm run e2e` (build + Playwright, chromium/firefox/webkit) → exit 0, **132 passed (1.2m)**,
-  re-run for stability → **132 passed (1.3m)**.
+  re-run for stability → **132 passed (1.3m)**. _(Superseded — see the Bounce fixes entry below:
+  the suite has since grown to 141 tests and was re-run twice on the fixed timeout config.)_
 - Unit coverage for this feature:
-  - `src/store/history.test.ts` (17 tests): push/undo/redo semantics · no-op push returns the
+  - `src/store/history.test.ts` (13 tests): push/undo/redo semantics · no-op push returns the
     *identical* object · custom equality · redo cleared by a new push after undo · immutability of
-    the input stack · `HISTORY_LIMIT >= 50` · after 100 pushes the stack holds exactly 50 and the
+    the input stack · `HISTORY_LIMIT >= 50` · after 60 pushes the stack holds exactly 50 and the
     oldest entries are gone · undo counted exactly 50 times after overflow · undo/redo at the ends
     return the same object · deep-equal round-trip over a scripted 10-value sequence, asserted at
     every step in both directions.
-  - `src/store/canvasSession.test.ts` (27 tests) drives the REAL store through the real wiring:
+  - `src/store/canvasSession.test.ts` (27 tests at the time of this entry) drives the REAL
+    store through the real wiring:
     one step per mutating action · a committed drag is one step · **no history for no-ops**
     (zero-delta move, zero-delta resize, unknown-id move/delete, send-backward and bring-forward
     at the ends) · **selection and inline editing are not in history at all** · a committed text
@@ -70,6 +72,34 @@ Every canvas mutation is undoable. Clients experiment fearlessly; nothing is eve
     one undo then goes straight back to the empty page and disables the button.
   - A new action after undo disables redo and the document is `['heading', 'image']`.
   - **≥50 steps**: 55 blocks added, 50 × Ctrl+Z, exactly 5 blocks remain and undo is disabled.
+
+**Bounce fixes (2026-07-28):**
+Both bounces on this feature were evidence-quality, not behaviour — the review passed every
+Success Criterion on all three engines and found nothing in the five modules needing a rewrite.
+Status stays `awaiting verification`; the stage-close reviewer re-verifies.
+
+- **HIGH-1 — `npm run e2e` is reproducibly green now.** The review measured
+  `[webkit] a 10-edit session rewinds and replays` at 25.1s serial and >30s parallel on a second
+  Windows machine (4.7s chromium, 10.1s firefox), against Playwright's 30s default — i.e. the test
+  was passing on margin, not on merit. It is per-step round-trip cost on WebKit/Windows rather
+  than anything the app does: the test performs 21 full document comparisons, each reading both
+  the DOM and the store. `test.slow()` (the preferred fix) had already landed on that test in
+  commit `5a0e6b3`, which post-dates the reviewed SHA, so the config the review measured no longer
+  exists. Budget is now 90s against a measured 26.4s / 25.3s — roughly 3.4x headroom.
+- **Re-recorded E2E evidence, from the fixed config, at default settings:**
+  `npm run e2e` → exit 0, **141 passed (1.5m)**; immediately re-run → exit 0,
+  **141 passed (1.5m)**. The slow test itself: **26.4s** then **25.3s** on WebKit. Both runs are
+  the full suite across chromium/firefox/webkit — 47 tests × 3 engines.
+- **LOW-1 — bookkeeping corrected in this log.** `history.test.ts` is **13** tests, not the 17
+  claimed; the overflow test pushes **60**, not "100 pushes" (a separate test pushes 100 and
+  asserts the undo count is exactly 50 — the two were conflated). `canvasSession.test.ts` was 27
+  at the time of the original entry and is **35** now. Counts verified by running each file and
+  reading `numTotalTests` out of the JSON reporter rather than by eye, which is how the original
+  error got in.
+- Results after the fixes: `npm run lint` → exit 0 · `npx tsc -b` → exit 0 ·
+  `npm test` → **17 files / 249 tests passed** (12.3s) · `npm run test:coverage` → exit 0 with the
+  80% gate held (`src/canvas/**` 100% lines / 100% functions, `src/store/**` 96.24% / 95.34%) ·
+  `npm run build` → exit 0, 214.19 kB JS (gzip 67.57 kB).
 
 ## Open Questions
 - ~~Implementation approach (snapshot stack vs patches)~~ — decided: snapshot stack, see Notes.
