@@ -10,7 +10,11 @@
  * decoder because it runs in the browser too.
  */
 
+import { generateBrief } from '../export/brief/generateBrief.ts'
 import type { ExportDocument, ExportDocumentBlock, SubmissionInfo } from '../export/siteJson.ts'
+import { buildSiteJson } from '../export/siteJson.ts'
+import type { SiteJson } from '../export/types.ts'
+import type { PackageBundle } from '../export/validate/types.ts'
 
 /** The internal id used for the home hero heading — V24's red-path canary. */
 export const SEMANTIC_BLOCK_ID = 'rest-home-hero-title'
@@ -308,5 +312,59 @@ export function bluebirdDocument(): ExportDocument {
         penStrokes: [],
       },
     ],
+  }
+}
+
+/**
+ * A FULLY EVIDENCED, VALID package built from `bluebirdDocument()` — the green path
+ * every V-rule is asserted silent on. The optional evidence (staged bytes, rendered
+ * PNGs, zip entries, internal ids) is filled in so the rules that need it actually
+ * run rather than skipping.
+ */
+export function bluebirdPackage(): PackageBundle {
+  const site = buildSiteJson(bluebirdDocument(), BLUEBIRD_SUBMISSION)
+  return {
+    site,
+    brief: generateBrief(site),
+    stagedAssets: site.assets.map((asset) => ({
+      path: asset.path,
+      byteLength: asset.bytes,
+      width: asset.width,
+      height: asset.height,
+      mimeType: asset.mimeType,
+    })),
+    renderedPages: site.pages.map((page) => ({
+      path: page.screenshot,
+      width: 1200,
+      height: page.height,
+      nonBlank: true,
+    })),
+    zipEntries: [
+      'site.json',
+      'brief.md',
+      ...site.pages.map((page) => page.screenshot),
+      ...site.assets.map((asset) => asset.path),
+    ],
+    zipBytes: 240_000,
+    internalIds: [SEMANTIC_BLOCK_ID, 'page-home', 'page-contact', 'home-nav-1', 'stroke-loop'],
+    stagedDataUrls: new Map(site.assets.map((asset) => [asset.path, BLUEBIRD_PHOTO])),
+  }
+}
+
+/**
+ * A red-path bundle: deep-clone the green one and break exactly one thing. The
+ * clone is a JSON round-trip so no rule can accidentally see the green object.
+ */
+export function brokenPackage(
+  breakIt: (site: SiteJson) => SiteJson | void,
+  options: { regenerateBrief?: boolean } = {},
+): PackageBundle {
+  const green = bluebirdPackage()
+  const clone = JSON.parse(JSON.stringify(green.site)) as SiteJson
+  const site = breakIt(clone) ?? clone
+  return {
+    ...green,
+    site,
+    brief: options.regenerateBrief === false ? green.brief : generateBrief(site),
   }
 }

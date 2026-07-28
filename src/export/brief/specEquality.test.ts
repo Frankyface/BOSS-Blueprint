@@ -33,7 +33,6 @@ describe('Appendix A equality test B — generateBrief(§7.1) === §7.2', () => 
 
   it('is byte-exact', () => {
     // Printed so the evidence in the feature file is reproducible from a test run.
-    // eslint-disable-next-line no-console
     console.log(
       `[test B] expected ${String(Buffer.byteLength(expected, 'utf8'))} bytes sha256 ${sha256(expected)}\n` +
         `[test B] actual   ${String(Buffer.byteLength(actual, 'utf8'))} bytes sha256 ${sha256(actual)}`,

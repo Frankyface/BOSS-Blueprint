@@ -57,6 +57,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** `Array.isArray` widens `unknown` to `any[]`; this keeps the elements `unknown`. */
+function asArray(value: unknown): unknown[] | null {
+  return Array.isArray(value) ? (value as unknown[]) : null
+}
+
 /**
  * Rebuild `value` with its keys in `order`, dropping keys whose value is
  * `undefined` (an absent optional must not serialize as anything at all) and
@@ -88,8 +93,9 @@ function canonicalBlock(block: Record<string, unknown>): Record<string, unknown>
 
   if (isRecord(flat.frame)) flat.frame = ordered(flat.frame, KEY_ORDER.frame)
   if (isRecord(flat.link)) flat.link = canonicalLink(flat.link)
-  if (Array.isArray(flat.items)) {
-    flat.items = flat.items.map((item) => {
+  const items = asArray(flat.items)
+  if (items) {
+    flat.items = items.map((item) => {
       if (!isRecord(item)) return item
       const navItem = ordered(item, KEY_ORDER.navItem)
       if (isRecord(navItem.link)) navItem.link = canonicalLink(navItem.link)
@@ -101,11 +107,12 @@ function canonicalBlock(block: Record<string, unknown>): Record<string, unknown>
 
 function canonicalPage(page: Record<string, unknown>): Record<string, unknown> {
   const flat = ordered(page, KEY_ORDER.page)
-  if (Array.isArray(flat.blocks)) {
-    flat.blocks = flat.blocks.map((block) => (isRecord(block) ? canonicalBlock(block) : block))
-  }
-  if (Array.isArray(flat.penStrokes)) {
-    flat.penStrokes = flat.penStrokes.map((stroke) =>
+  const blocks = asArray(flat.blocks)
+  if (blocks) flat.blocks = blocks.map((block) => (isRecord(block) ? canonicalBlock(block) : block))
+
+  const strokes = asArray(flat.penStrokes)
+  if (strokes) {
+    flat.penStrokes = strokes.map((stroke) =>
       isRecord(stroke) ? ordered(stroke, KEY_ORDER.penStroke) : stroke,
     )
   }
@@ -114,7 +121,7 @@ function canonicalPage(page: Record<string, unknown>): Record<string, unknown> {
 
 /** `site.json` as a plain object with every key in its normative position. */
 export function canonicalSiteJson(site: SiteJson): Record<string, unknown> {
-  const root = ordered({ ...site } as unknown as Record<string, unknown>, KEY_ORDER.root)
+  const root = ordered({ ...site }, KEY_ORDER.root)
 
   if (isRecord(root.submission)) {
     const submission = ordered(root.submission, KEY_ORDER.submission)
@@ -124,12 +131,11 @@ export function canonicalSiteJson(site: SiteJson): Record<string, unknown> {
   if (isRecord(root.siteSettings)) {
     root.siteSettings = ordered(root.siteSettings, KEY_ORDER.siteSettings)
   }
-  if (Array.isArray(root.pages)) {
-    root.pages = root.pages.map((page) => (isRecord(page) ? canonicalPage(page) : page))
-  }
-  if (Array.isArray(root.assets)) {
-    root.assets = root.assets.map((asset) => (isRecord(asset) ? ordered(asset, KEY_ORDER.asset) : asset))
-  }
+  const pages = asArray(root.pages)
+  if (pages) root.pages = pages.map((page) => (isRecord(page) ? canonicalPage(page) : page))
+
+  const assets = asArray(root.assets)
+  if (assets) root.assets = assets.map((asset) => (isRecord(asset) ? ordered(asset, KEY_ORDER.asset) : asset))
   return root
 }
 
@@ -169,13 +175,13 @@ export function keyOrderProblems(parsed: unknown): string[] {
   if (isRecord(parsed.submission)) checkNode(parsed.submission.client, KEY_ORDER.client, 'submission.client')
   checkNode(parsed.siteSettings, KEY_ORDER.siteSettings, 'siteSettings')
 
-  const pages = Array.isArray(parsed.pages) ? parsed.pages : []
+  const pages = asArray(parsed.pages) ?? []
   pages.forEach((page, pageIndex) => {
     const pagePath = `pages[${String(pageIndex)}]`
     checkNode(page, KEY_ORDER.page, pagePath)
     if (!isRecord(page)) return
 
-    const blocks = Array.isArray(page.blocks) ? page.blocks : []
+    const blocks = asArray(page.blocks) ?? []
     blocks.forEach((block, blockIndex) => {
       if (!isRecord(block)) return
       const blockPath = `${pagePath}.blocks[${String(blockIndex)}]`
@@ -183,7 +189,7 @@ export function keyOrderProblems(parsed: unknown): string[] {
       checkNode(block, [...KEY_ORDER.block, ...(shape ? KEY_ORDER[shape] : [])], blockPath)
       checkNode(block.frame, KEY_ORDER.frame, `${blockPath}.frame`)
       checkNode(block.link, KEY_ORDER.link, `${blockPath}.link`)
-      const items = Array.isArray(block.items) ? block.items : []
+      const items = asArray(block.items) ?? []
       items.forEach((item, itemIndex) => {
         const itemPath = `${blockPath}.items[${String(itemIndex)}]`
         checkNode(item, KEY_ORDER.navItem, itemPath)
@@ -191,13 +197,13 @@ export function keyOrderProblems(parsed: unknown): string[] {
       })
     })
 
-    const strokes = Array.isArray(page.penStrokes) ? page.penStrokes : []
+    const strokes = asArray(page.penStrokes) ?? []
     strokes.forEach((stroke, strokeIndex) => {
       checkNode(stroke, KEY_ORDER.penStroke, `${pagePath}.penStrokes[${String(strokeIndex)}]`)
     })
   })
 
-  const assets = Array.isArray(parsed.assets) ? parsed.assets : []
+  const assets = asArray(parsed.assets) ?? []
   assets.forEach((asset, index) => {
     checkNode(asset, KEY_ORDER.asset, `assets[${String(index)}]`)
   })

@@ -46,6 +46,9 @@ export default defineConfig({
       thresholds: {
         'src/canvas/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
         'src/store/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
+        // The export module is pure, has no UI to hide behind, and its bugs reach
+        // every downstream artifact — same gate as the other logic layers.
+        'src/export/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
       },
     },
   },

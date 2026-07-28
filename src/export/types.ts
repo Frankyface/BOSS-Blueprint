@@ -140,15 +140,3 @@ export const SCHEMA_VERSION = 1
 
 /** §0.2 — the design width of a page, and the PNG render width. */
 export const EXPORT_PAGE_WIDTH = 1200
-
-export function isSectionBlock(block: ExportBlock): block is SectionBlock {
-  return block.type === 'section'
-}
-
-export function isCopyBlock(block: ExportBlock): block is CopyBlock {
-  return block.type === 'heading' || block.type === 'text'
-}
-
-export function isImageSlotBlock(block: ExportBlock): block is ImageSlotBlock {
-  return block.type === 'imageSlot'
-}

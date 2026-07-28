@@ -53,6 +53,18 @@ export function escapeClientText(raw: string): string {
   return oneLine.replace(LEADING_ORDERED_LIST, '$1\\.')
 }
 
+/**
+ * The exact inverse of `escapeClientText`'s backslash pass — V7 reverses the
+ * rule-7 escapes before comparing a quoted span to a `site.json` field.
+ *
+ * One left-to-right pass over `\<any>` is the whole inverse, and it is only
+ * well-defined because v2.3 made the escaper emit `\\` for a client backslash. It
+ * lives next to the escaper on purpose: an inverse in another module drifts.
+ */
+export function unescapeClientText(escaped: string): string {
+  return escaped.replace(/\\([\s\S])/g, '$1')
+}
+
 /** §3.3 rule 3 — copy and free prose are quoted with «…» guillemets. */
 export function quote(raw: string): string {
   return `«${escapeClientText(raw)}»`

@@ -19,7 +19,6 @@ describe('Appendix A equality test A — §2.2 schema vs the repo file', () => {
   const fromRepo = readRepoText(SCHEMA_PATH)
 
   it('byte-matches the fenced block in §2.2', () => {
-    // eslint-disable-next-line no-console
     console.log(
       `[test A] §2.2 fence ${String(Buffer.byteLength(fromDoc, 'utf8'))} bytes · repo file ${String(Buffer.byteLength(fromRepo, 'utf8'))} bytes`,
     )
