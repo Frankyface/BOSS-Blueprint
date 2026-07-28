@@ -1,5 +1,5 @@
 # Feature: Multi-page + Navigation Map
-_Stage: stage-2-full-sketching · Status: not started_
+_Stage: stage-2-full-sketching · Status: awaiting verification_
 
 ## Goal
 Clients sketch whole sites, not single pages: add/rename/duplicate/delete pages, switch
@@ -20,11 +20,112 @@ Unit tests on page CRUD + link-integrity rules (especially delete cleanup). E2E:
 reverted. Record evidence below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+**Implementer run (2026-07-28):**
+
+Built as document schema v2 — `{ schemaVersion: 2, siteSettings, pages: [{ id, name, blocks }] }`.
+
+_Files added:_ `src/canvas/document.ts` (page CRUD + link cleanup, pure), `src/canvas/pages.ts`
+(page naming/identity/duplication), `src/canvas/links.ts` (the link union + validation),
+`src/canvas/navItems.ts` (structured menu items), `src/canvas/navMap.ts` (derived nav map),
+`src/canvas/blueprintBlock.ts` (per-block parse + per-type defaults),
+`src/components/PageStrip.tsx` + `.css`, `PageNameForm.tsx`, `SidePanel.tsx` + `.css`,
+`BlockInspector.tsx`, `LinkPicker.tsx`, `NavItemsEditor.tsx`, `NavMapPanel.tsx`,
+`DesignToast.tsx`, `src/hooks/useCommittedField.ts`.
+_Files reworked:_ `src/canvas/types.ts`, `src/canvas/blueprintFile.ts` (v2 + migration),
+`src/canvas/blockFactory.ts`, `src/store/canvasStore.ts`, `canvasSession.ts`, `editorStore.ts`,
+`devFreeze.ts`, `src/components/BlockContent.tsx`, `BlockView.tsx`, `CanvasArea.tsx`,
+`CanvasToolbar.tsx`, `StartOverButton.tsx`, `src/App.tsx`, `playwright.config.ts`.
+
+_Commands (all run on this machine, 2026-07-28):_
+
+| Command | Result |
+|---|---|
+| `npm run lint` | clean, exit 0 |
+| `npm test` | **463 passed** / 26 files |
+| `npm run test:coverage` | exit 0 — `src/canvas` 100% lines, 100% funcs; `src/store` 97.14% lines, 97.33% funcs (gate: 80/80) |
+| `npm run build` | ✓ built, `dist/assets/index-*.js` 243.60 kB (gzip 75.09 kB); `grep -c __blueprintStore dist/assets/*.js` → **0** |
+| `npm run e2e` (run 1) | **237 passed (2.6m)** — chromium + firefox + webkit |
+| `npm run e2e` (run 2) | **237 passed (2.5m)** — repeated for flake detection |
+
+_Unit coverage of this feature:_ `src/canvas/document.test.ts` (add / rename / duplicate /
+delete / move / link revert / no-op identity), `src/canvas/pages.test.ts`,
+`src/canvas/links.test.ts`, `src/canvas/navItems.test.ts`, `src/canvas/navMap.test.ts`,
+`src/store/canvasStore.pages.test.ts`, `src/store/canvasStore.copy.test.ts`,
+`src/canvas/blueprintFile.test.ts` (v2 validation + the v1→v2 migration path).
+
+_E2E covering this feature_ (`e2e/multipage-nav.spec.ts`, `e2e/migration.spec.ts`, ×3 engines):
+- `pages › adds, renames, duplicates, reorders and deletes pages`
+- `pages › refuses to delete the last page, and asks before deleting any page`
+- `pages › each page keeps its own blocks, and switching swaps the canvas`
+- `pages › switching pages is not an undo step, but adding one is`
+- `pages › page operations are undoable and redoable` / `a deleted page comes back with undo`
+- `linking › a button links to a page, an address, or nothing — and shows it`
+- `linking › a half-typed web address is refused rather than stored`
+- `linking › nav-bar items are structured, wired one by one, and capped in the UI`
+- `deleting a linked-to page › reverts every link to it, says so, and the nav map agrees`
+- `deleting a linked-to page › leaves links to other pages and external addresses alone`
+- `a three-page site end to end › builds, wires, survives a reload, and reads back as one nav map`
+- `opening a design saved by the previous schema › migrates it into a single Home page…` (+3 more)
+
+_Real-browser spot check:_ production preview at 1600×900 — palette 240 | stage 1056 | details
+panel 304 = 1600, `document.scrollWidth === clientWidth` (no horizontal scroll), page scaled to
+0.814, page tabs and the three panel tabs render.
 
 ## Open Questions
-- Nav bar items: fixed set the client renames, or free add/remove? Lean free add/remove capped
-  at ~7. Decide at build, record here.
+- ~~Nav bar items: fixed set the client renames, or free add/remove?~~ **Decided at build:** free
+  add/remove, capped at 7 in the UI (see Notes).
 
 ## Notes & Decisions
-- none yet — revisit when starting.
+- **Document schema v2 = `{ schemaVersion: 2, siteSettings, pages: [{ id, name, blocks }] }`.**
+  No slugs stored (export derives them per `docs/export-format.md` §4.1, so a rename can never
+  leave a stale one) and no `navLinks` graph (§2.1 — links live on blocks, the graph is derived).
+- **Page ids are free-form and semantic** — `page-menu`, `page-menu-2` on collision, `page` when
+  the name has no usable characters. §4.8 remaps every id to `pg_NNNN` at package time, so a
+  readable id costs the export nothing and buys much better selectors and debugging. Ids are
+  minted once from the name and NEVER change on rename, because links point at them.
+- **Page SWITCHING is not undoable; every other page operation is.** `currentPageId` lives in the
+  store but not in `CanvasDocument`, so it is neither snapshotted into history nor autosaved —
+  the same reasoning that keeps selection out (undo should put the client's content back, not
+  teleport them). Add / rename / duplicate / delete / reorder all change `pages` and are therefore
+  ordinary history steps. `replaceDocument` prunes `currentPageId` to `pages[0]` when an undo
+  takes back the page being looked at.
+- **Exactly-one-page minimum** is enforced in `document.ts` (`MIN_PAGE_COUNT`), and the Delete
+  button is disabled at one page — a site with no pages is not a site.
+- **Deleting is a two-step in-app confirm**, matching "Start over" and for the same reasons
+  recorded in `feature-autosave.md` (never `window.confirm`).
+- **Reordering is "Move left" / "Move right" buttons, not drag-and-drop.** A drag between tabs is
+  the one gesture that behaves differently in all three engines, is awkward on a trackpad and is
+  impossible from a keyboard.
+- **Deleting a page reverts links to it in the same immutable pass** and returns the count, which
+  the strip turns into a non-blocking notice ("…2 links that pointed at it are no longer linked").
+  The notice is `DesignToast` — a separate `toast` slot in `editorStore`, deliberately NOT the
+  storage notice, so a successful autosave can never wipe a design message off the screen and vice
+  versa. It stays until dismissed rather than expiring on a timer (a timed toast is both missable
+  and the classic source of a flaky cross-engine test).
+- **The nav map is derived on every render** from the blocks (`src/canvas/navMap.ts`), never
+  stored — §2.1 is explicit that the graph has no field of its own, and a stored copy is exactly
+  what drifts.
+- **Nav bar items are structured `{ id, label, link }`, and `block.text` is kept as their
+  comma-joined labels** by one function (`withNavItems`). That keeps the Stage 1 inline editor,
+  the "empty text = untouched" placeholder rule and the block's rendered face all working, while
+  the links live where the export needs them. Typing into the block rebuilds the items and matches
+  surviving labels **by label, not by position**, so inserting "Menu" between "Home" and "About"
+  keeps About's wiring on About.
+- **Nav item caps: UI 7, stored/schema 10** — exactly the split `docs/export-format.md` §2.7
+  describes ("the schema is the outer bound, the UI the inner"). The Add button disables at 7;
+  labels typed straight into the block past 10 are dropped, because a menu that cannot be exported
+  is not a menu we can promise to build. A payload carrying >10 items is corrupt.
+- **External links are only written to the store once valid** (http(s) with a host — the schema's
+  own rule); until then the picker holds the draft and shows a hint, so a half-typed URL can never
+  reach the package.
+- **The details panel is a docked right-hand sidebar with three tabs (Block / Site / Nav map), not
+  a modal.** A modal would hide the design being described, needs a focus trap and scroll lock to
+  be correct, and behaves differently in each engine. The tab deliberately does NOT follow the
+  selection — auto-switching would yank a client out of a half-typed paragraph.
+- **`playwright.config.ts` viewport widened 1600 → 1920.** The 1:1 fit-to-window promise the whole
+  suite's coordinate maths depends on needs `1200 + 240 (palette) + 304 (panel) + 64 (margins) =
+  1808`; at 1600 every scripted drag silently became a 0.83-scale drag. Caught by eight
+  pre-existing geometry tests failing on the first cross-engine run.
+- **`data-linked` on the block plus a `↪`/`↗` glyph in the pill / menu item** are how a wired link
+  shows on the page itself; the nav map is the summary view.
