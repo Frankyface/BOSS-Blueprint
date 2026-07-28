@@ -1,5 +1,5 @@
 # Feature: Copy Blocks
-_Stage: stage-2-full-sketching · Status: awaiting verification_
+_Stage: stage-2-full-sketching · Status: verified done_
 
 ## Goal
 Text blocks carry either real client copy or a "generate later" placeholder with a client-written
@@ -7,12 +7,12 @@ description ("warm intro about our family bakery, ~2 sentences") that Claude ful
 time. Kills blank-page paralysis and powers BOSS's "we handle the words" pitch.
 
 ## Success Criteria
-- [ ] Heading and Text blocks have a mode toggle: **My words** / **Write it for me**
-- [ ] "Write it for me" mode shows a description field + optional length hint; the block renders
+- [x] Heading and Text blocks have a mode toggle: **My words** / **Write it for me**
+- [x] "Write it for me" mode shows a description field + optional length hint; the block renders
       visibly as a placeholder (e.g. hatched background + the description in italics)
-- [ ] Mode + description serialize with the design and are distinguishable in the store as
+- [x] Mode + description serialize with the design and are distinguishable in the store as
       `copyMode: 'real' | 'generate'`
-- [ ] A design can mix both modes freely; switching modes preserves any text already entered
+- [x] A design can mix both modes freely; switching modes preserves any text already entered
 
 ## How We'll Verify
 Unit: store/serializer tests for both modes and mode-switching. E2E: create one of each,
@@ -53,6 +53,33 @@ _E2E_ (`e2e/copy-blocks.spec.ts`, ×3 engines):
 - `a design mixes both modes and survives a reload` (deep-equal blocks before/after)
 - `a mode change is one undo step, and the description is another`
 - `blocks that carry no copy offer no copy controls`
+
+**Independent review (2026-07-28):**
+
+Re-run from a clean checkout of b5d0885 in a detached worktree: `lint` clean · `test` **463 passed
+/ 26 files** · `test:coverage` exit 0 (`src/canvas` 100% lines + funcs) · `build` 243.60 kB ·
+`e2e` run 1 236 passed / 1 unrelated firefox flake, run 2 **237 passed**. CI green, live URL 200,
+deployed bundle sha256-identical to a local build.
+
+_Independent probe:_ a copy block with **both** sides populated at once (`text` "Half-typed context",
+`generateDescription` "Warm intro about the pub", `lengthHint` "~2 sentences") was flipped
+generate → real → generate; all three fields survived every crossing intact. The generate face
+was asserted by **computed style** — `border-top-style: dashed`, `font-style: italic` — and shown
+to differ from the real face, to render the description, and never to leak the residual words.
+Mode change, description and length hint were confirmed to be one undo step each, in that order,
+and the mixed design reloaded deep-equal. `blueprintFile` treats an unknown `copyMode` as
+corruption rather than coercing it, and migrated blocks default to `real`.
+
+_Deviation judged:_ per-type defaults filled in at creation **accepted** — the factory and the
+parser call the same `withTypeDefaults`, which is what makes a saved-and-reloaded block identical
+to the one on screen; the migration probe confirms a migrated block and a fresh one carry the same
+field set. Field names match `docs/export-format.md` §2.7 verbatim.
+
+Cross-cutting note: HIGH-3 (typed-but-uncommitted drafts lost on reload/tab-close) touches this
+feature's description/hint fields via the shared `useCommittedField` hook — filed against the
+hook layer with a single fix + per-surface tests, not against this feature.
+
+**Status: VERIFIED DONE.**
 
 ## Open Questions
 - none — the coaching placeholder wording is settled (see Notes).

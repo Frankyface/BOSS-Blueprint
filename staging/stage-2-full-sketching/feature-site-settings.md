@@ -1,5 +1,5 @@
 # Feature: Site Settings
-_Stage: stage-2-full-sketching · Status: awaiting verification_
+_Stage: stage-2-full-sketching · Status: verified done_
 
 ## Goal
 A small settings panel for site-wide facts the layout can't express: business name, tagline,
@@ -7,11 +7,11 @@ what the business does, style vibe, and color preferences. This context makes th
 brief dramatically better ("modern & warm, sage green + cream" beats guessing from blocks).
 
 ## Success Criteria
-- [ ] Settings panel captures: business name*, tagline, one-paragraph "about", vibe pick-list
+- [x] Settings panel captures: business name*, tagline, one-paragraph "about", vibe pick-list
       (e.g. modern / classic / playful / bold / warm) + free-text style notes, and up to 3
       preferred colors (swatch picker or hex)
-- [ ] Only business name is required — everything else optional and skippable
-- [ ] Values serialize with the design and survive reload + `.blueprint` round trip
+- [x] Only business name is required — everything else optional and skippable
+- [x] Values serialize with the design and survive reload + `.blueprint` round trip
 
 ## How We'll Verify
 Unit: serializer round-trip. E2E: fill settings, reload, assert persisted; leave optionals
@@ -55,6 +55,41 @@ _E2E_ (`e2e/site-settings.spec.ts`, ×3 engines):
 
 _Real-browser spot check:_ production preview at 1600×900 — the Site tab renders all six controls
 inside the 304px column and the panel scrolls internally (`scrollHeight` 794 in a ~740px view).
+
+**Independent review (2026-07-28):**
+
+Re-run from a clean checkout of b5d0885 in a detached worktree: `lint` clean · `test` **463 passed
+/ 26 files** · `test:coverage` exit 0 (`src/canvas` 100% lines + funcs) · `build` 243.60 kB ·
+`e2e` run 1 236 passed / 1 unrelated firefox flake, run 2 **237 passed**. CI green, live URL 200,
+deployed bundle sha256-identical to a local build.
+
+_Independent probe:_ the rendered option values of the vibe select were compared against
+`docs/export-format.md` §2.2 directly — one "Not sure yet" sentinel followed by
+`modern, classic, playful, bold, warm` in the schema's own order and nothing else — and every value
+was then selected and confirmed to reach the store, with the sentinel storing `null`. The unit test
+pinning `VIBE_OPTIONS` to the literal enum was read and is genuine, so schema drift fails here
+first. A full v2 payload carrying all six settings fields round-tripped deep-equal through a reload;
+an unknown vibe, a non-hex colour, a fourth colour and a non-list `colors` each quarantine the
+payload rather than being silently dropped. Colours normalise to lower case, and the whole panel
+left blank produces `[role="alert"]` count 0.
+
+_Deviations judged:_ sidebar tab over modal **accepted** (a modal would hide the design being
+described and needs a focus trap + scroll lock in three engines); hex text fields over the native
+color input **accepted** (the native widget differs per engine and cannot express "no colour");
+`businessName` required at submit rather than while sketching **accepted** and consistent with
+the Stage 3 gate.
+
+**Follow-up probe (2026-07-28), prompted by the live-site UX audit's "settings not saved" report:**
+the autosave subscriber guard was read in source — it compares BOTH `pages` and `siteSettings`
+slices — and a settings-ONLY session (zero block/page edits, real UI input, 3s wall-clock wait)
+was proven to persist: the captured localStorage payload carried every field with
+`pages[0].blocks: []`, and a reload restored store AND rendered panel. The pagehide flush inside
+the debounce window also passed. The audit's symptom was traced instead to **HIGH-3**: a
+typed-but-uncommitted draft (focus still in the field) lives only in component state and dies on
+reload — a shared `useCommittedField`-layer defect affecting multiple features, filed
+cross-cutting with a single hook-level fix assigned. This feature's criterion is met.
+
+**Status: VERIFIED DONE.**
 
 ## Open Questions
 - ~~Where the panel lives (toolbar modal vs sidebar tab)~~ **Decided at build:** a docked

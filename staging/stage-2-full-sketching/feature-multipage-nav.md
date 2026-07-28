@@ -72,6 +72,48 @@ _Real-browser spot check:_ production preview at 1600×900 — palette 240 | sta
 panel 304 = 1600, `document.scrollWidth === clientWidth` (no horizontal scroll), page scaled to
 0.814, page tabs and the three panel tabs render.
 
+**Independent review (2026-07-28):**
+
+Re-run from a clean checkout of b5d0885 in a detached worktree (`npm ci` from scratch):
+`lint` clean · `test` **463 passed / 26 files** · `test:coverage` exit 0 (`src/canvas` 100% lines
++ funcs, `src/store` 97.14/97.33 — gate 80/80) · `build` 243.60 kB (gzip 75.07) ·
+`e2e` run 1 **236 passed, 1 failed**, run 2 **237 passed**. The run-1 failure was
+`[firefox] autosave › does not persist the selection` (click timeout); it did not reproduce
+and passes in isolation — a parallel-load flake, not a defect. CI is green on b5d0885, the live
+URL returns 200, and the deployed `index-CRnG0TYs.js` / `index-C-UCmsEd.css` are sha256-identical
+to a local `npm run build` (0 occurrences of `__blueprintStore`).
+
+_Independent probes (own Playwright specs, since deleted):_ v1→v2 migration driven by a payload
+built from the real pre-Stage-2 serialiser (`git show d2c3e82~1:src/canvas/blueprintFile.ts`) with
+all six block types, an embedded newline and comma-separated nav labels → one "Home" page, ids,
+geometry and text verbatim, per-type defaults added, no quarantine, no recovery key; edit + reload
+re-saves as v2 and does not migrate twice (×3 engines). Corrupt, `schemaVersion: 3` and an unknown
+`vibe` all quarantine with the file kept; a v2 payload round-trips deep-equal (×3 engines).
+Link integrity across a 3-page site: three links to the deleted page reverted, toast named the
+count and the page, **zero dangling `pageId` site-wide**, links to other pages and external
+addresses untouched, nav map agreed — and **undo restored the page together with every reverted
+link** (redo re-reverts), which is coherent because the revert rides the same document transition.
+Nine malformed addresses refused and four valid ones stored verbatim. Four page switches left the
+stored payload byte-identical and added no undo step, while add/rename/duplicate/move were one step
+each. `e2e/app-layout.spec.ts` was confirmed to pin its own explicit 1366×768 viewport, and the
+Stage 1 layout HIGH was re-proved at **both** 1366×768 and 1920×1000 with the new SidePanel inside
+the viewport, on all three engines.
+
+_Deviations judged:_ viewport 1600→1920 **accepted** (the 1:1 fit-to-window arithmetic is correct
+and the Stage 1 regression spec does not inherit it); per-type defaults on `createBlock` **accepted**
+(factory and parser share `withTypeDefaults`, so screen and disk cannot diverge); Move-left/right
+instead of drag **accepted** (more accessible, deterministic, and the criterion says "reorder");
+store split **accepted** (a genuine response to the 400-line ceiling, 482→327 + 197, no test changes).
+
+_Not accepted — see the bounce:_ the "text as comma-joined labels" invariant. `withNavItems` really
+is the only writer, but `items → text` and `text → items` are not inverses, and two ordinary client
+actions silently destroy wiring (empty label; label containing a comma). The singular form of the
+delete notice is also ungrammatical and untested.
+
+**Status: BOUNCE** — HIGH-1 (an emptied nav-item label produces an export-invalid document, then
+a subsequent inline text commit silently deletes the item and its wiring) and HIGH-2 (a label
+containing a comma re-splits into unlinked items). Seven required changes recorded; fix assigned.
+
 ## Open Questions
 - ~~Nav bar items: fixed set the client renames, or free add/remove?~~ **Decided at build:** free
   add/remove, capped at 7 in the UI (see Notes).
