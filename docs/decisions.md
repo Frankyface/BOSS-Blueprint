@@ -206,3 +206,21 @@ than the contract — 0.51px vs 0.74px deviation) and three height formulas had 
 **Rejected:** changing the thinning to match the stale doc; editor adopting §4.2's formula
 (would visually resize every existing design); keeping two documented formulas ·
 **Revisit if:** tall-but-empty pages make packages heavy (white PNG compresses cheaply).
+
+## 2026-07-28 — Export format v2.3: prototype-hardened, fromTemplate scope, normative key order
+**Chose:** (1) all 21 findings from the byte-exact brief-generator prototype applied — the
+reference implementation reproduced §7.2 sha256-identically with ZERO special cases, proving the
+contract implementable, and its 4 severity-A fixes (generate-block reference-text fallback,
+backslash + quote escaping, CommonMark-correct digit-period escape), 4 doc-reconciliations
+(incl. Appendix test C redefined whitespace-normalized — byte-exact was unsatisfiable by rule
+10's own display-wrapping), and 13 under-specifications resolved by adopting the prototype's
+behavior as normative; (2) `fromTemplate` is only ever set on content-bearing block types —
+sections NEVER carry it (flag clears only on content edits; sections have none → the V23 filler
+WARN would be permanent for every template start; found by the Stage-4 harness consistency
+pass); V23 defensively strips it on sections (FIX-class); (3) site.json key order is NORMATIVE
+(byte-diffable packages), canon = §7.1's order, new V27 WARN (§2.1/§7.1 had drifted). Fixture
+byte-identical through the whole amendment (233 self-check assertions) · **Because:** every
+defect fixed pre-implementation is a debugging session Stage 3 never has · **Rejected:** a
+V-rule nagging uncaptioned photos (builder infers from the image; D13 fallback-phrase arm
+chosen); guillemet-quoting filenames (fixture pins `"…"`) · **Revisit if:** the round-trip test
+finds a class all four adversarial passes missed.

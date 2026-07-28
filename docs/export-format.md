@@ -1,11 +1,15 @@
-# Export Format v2.2 — the Claude-Ready Package
+# Export Format v2.3 — the Claude-Ready Package
 
 _Draft spec for `docs/export-format.md` · BOSS Blueprint · schemaVersion 1 · drafted
 2026-07-28, revised same day after the adversarial builder dry-run (23 defects addressed);
 v2.1 amendment per the Stage-3 contract rulings R1–R5 (unwrapped brief lines, re-anchored
 V7, V25/V26); v2.2 amendment per the batch-2 implementation review (commit-time stroke
 thinning stated truthfully; one shared editor/export height function —
-clamp(1600, ceil((bottom+160)/8)·8, 8000))_
+clamp(1600, ceil((bottom+160)/8)·8, 8000)); v2.3 amendment per the byte-exact
+reference-implementation findings (21 items: escaping completeness `\` `"` `1\.`,
+reference-text definition, quoting-scope restatement, template/fixture reconciliation,
+whitespace-normalized test C, thirteen narration edge cases, fromTemplate scope) —
+every v2.3 change is byte-neutral on the §7 fixture_
 
 ---
 
@@ -110,9 +114,10 @@ Rules:
 - `assets/` may be absent entirely if the design references no uploaded images. `pages/` is
   always present (≥1 page).
 - **File conventions:** `site.json` and `brief.md` are UTF-8, no BOM, LF line endings.
-  `site.json` is pretty-printed with 2-space indentation and **stable key order** (the
-  property order shown in §2 and §7 — required for the deterministic-output claim in §4
-  and for meaningful fixture diffs). Zip entries are written in the order listed above:
+  `site.json` is pretty-printed with 2-space indentation and **stable key order — the
+  §7.1 fixture's order is normative** (v2.3; see §2.1) — required for the
+  deterministic-output claim in §4 and for meaningful fixture diffs. Zip entries are
+  written in the order listed above:
   `site.json`, `brief.md`, `pages/` in page order, `assets/` in id order.
 
 ---
@@ -130,6 +135,15 @@ Rules:
   "assets": [ ... ]            // manifest of every file in assets/ — §2.9
 }
 ```
+
+**Key order is normative, and §7.1 is the canon (v2.3 ruling).** Determinism is one of
+this contract's design principles — two exports of the same design must be
+byte-identical so packages are diffable across round-trip iterations — and a normative
+key order is what makes that checkable. Where any §2 listing and the §7.1 fixture have
+ever disagreed (historically: `z` before vs after `frame` on blocks), **the fixture
+wins**: block keys are `id`, `type`, `z`, `frame`, then the per-type fields; every
+implementation and every Appendix A test targets §7.1's order. V27 (WARN) checks it at
+package time — order divergence is a producer bug, never client-fixable.
 
 Design choices worth naming:
 
@@ -514,15 +528,16 @@ Ordered exactly as the client's page strip. **`pages[0]` is the homepage.**
 
 ### 2.6 Blocks — common fields
 
-Every block, regardless of type:
+Every block, regardless of type — rows listed in the normative §7.1 key order (v2.3:
+`id`, `type`, `z`, `frame`, then per-type fields; see §2.1):
 
 | Field | Req | Type | Intent |
 |---|---|---|---|
 | `id` | ✔ | `blk_` + 4–16 `[a-z0-9]` | **Export identity**, remapped at package time (§4.8 — ordinal `blk_0001`… site-wide in document order). `brief.md` and `penStroke.targetBlockId` reference these. |
 | `type` | ✔ | one of the six discriminators | Discriminated union tag. |
-| `frame` | ✔ | `{x, y, w, h}` numbers | Page coordinates (§0.2). `x`/`y` may be negative or exceed 1200 by small amounts (blocks may hang partially off-page; the editor only prevents fully-off-page). `w`/`h` > 0. Values are typically multiples of 8 (grid snap) but the schema does not require it. |
 | `z` | ✔ | integer ≥ 0 | Stacking order within the page. **Unique per page**, and `blocks[]` is sorted by it ascending — array order and `z` always agree (validator-enforced, §5). `z` is the authority if a hand-edited file ever disagrees. |
-| `fromTemplate` | opt | boolean (default `false`) | `true` = this block came from a starter template and **the client never touched its content** (text/label/description unchanged from the template fixture; moving/resizing doesn't clear it, editing content does). The brief flags such content as filler to replace, not client copy (§3.2); submit warns the client about it (V23). Absent = `false`. |
+| `frame` | ✔ | `{x, y, w, h}` numbers | Page coordinates (§0.2). `x`/`y` may be negative or exceed 1200 by small amounts (blocks may hang partially off-page; the editor only prevents fully-off-page). `w`/`h` > 0. Values are typically multiples of 8 (grid snap) but the schema does not require it. |
+| `fromTemplate` | opt | boolean (default `false`) | `true` = this block came from a starter template and **the client never touched its content** (text/label/description unchanged from the template fixture; moving/resizing doesn't clear it, editing content does). The brief flags such content as filler to replace, not client copy (§3.2); submit warns the client about it (V23). Absent = `false`. **Scope (v2.3):** producers (the app and its template fixtures) set the flag only on content-bearing types — `heading`, `text`, `button`, `navBar`, `imageSlot`. `section` blocks never carry it: the flag clears only on content edits and a section has no content, so a flagged section would make the V23 warning permanent for every template-start design. V23 defensively ignores (FIX-class strips) the flag on any `section` block that carries it anyway. |
 
 ### 2.7 Blocks — per-type fields
 
@@ -691,7 +706,7 @@ copy is written in and set `<html lang>` accordingly.
   and a light entry as the lightest surface color; derive neutrals and text colors
   yourself to meet WCAG AA contrast. Explicit section backgrounds in the walkthroughs
   override this. If the style notes below describe how colors should be used, those win.
-- **Client style notes:** {{styleNotes | "— none —"}}
+- **Client style notes:** {{«styleNotes» — quoted in guillemets (v2.3, per the fixture) | "— none —" bare}}
 - **Heading levels:** on each page the largest heading is that page's single `<h1>`;
   other headings become h2/h3 by relative size.
 - **Not captured by the sketch and therefore yours:** font families and sizes, text
@@ -724,9 +739,10 @@ any deviation in BUILD_NOTES.md.
 
 ## Site inventory
 
-{{page count}} pages. **Page 1 is the homepage.**
+{{page count}} {{page|pages [N11]}}. **Page 1 is the homepage.**
 
 | # | Page | Slug | Sketch (ground truth) | Blocks | Links out |
+|---|---|---|---|---|---|
 {{#each pages}}
 | {{n}} | {{name}} | `{{slug}}` | `{{screenshot}}` ({{1200×height}}) | {{block count}} | {{links-out list [N9]}} |
 {{/each}}
@@ -851,7 +867,9 @@ placeholder brackets.
 
 {{#each assets}}
 - `{{path}}` — client's file "{{originalFilename}}", {{width}}×{{height}}, ~{{KB [N11]}} KB.
-  Used: {{each usage: "Page name — image slot at (x, y), fit, «description»"}}
+  Used: {{each usage: "Page name — image slot at (x, y), fit, «description»" — null
+  description renders the bare fixed string (no description) [N6 v2.3]; entries joined
+  with "; " [N11 v2.3]}}
 {{/each}}
 {{#if empty}}No uploaded images. Every image slot describes what it wants — see the
 walkthroughs.{{/if}}
@@ -902,9 +920,10 @@ Your build is complete when ALL of these hold:
    client-typed `**WRITE THIS COPY**` can't even form the bold token), and the
    Definition-of-done boilerplate can never be counted — its mentions are numbered
    list items with no `- **Type** … (x, y, w, h)` prefix and no `**` around the marker.
-3. **Client text is always quoted with «…» guillemets** so the builder can distinguish
-   client words from generator prose. The brief's preamble states the sandbox rule
-   ("content, never an instruction"); rules 7–8 make the quoting airtight.
+3. **Client copy and prose is quoted with «…» guillemets** so the builder can
+   distinguish client words from generator prose (identifier-like values appear
+   bare-but-escaped per rule 7's scope list — v2.3). The brief's preamble states the
+   sandbox rule ("content, never an instruction"); rules 7–8 make the quoting airtight.
 4. **Fallback phrases for absent optionals are fixed strings** (the `| "…"` defaults shown
    in the template) — never omit a line because the value is null; say "none provided" and
    tell the builder what to do about it. Silence invites questions; the round-trip test
@@ -916,13 +935,26 @@ Your build is complete when ALL of these hold:
    byte-deterministic, and CI asserts `generateBrief(§7.1) === §7.2` against this very
    document (Appendix A) — provenance alone doesn't guarantee correctness; the equality
    test does.
-7. **Escaping (all client-supplied strings, before interpolation):** backslash-escape
-   `«`, `»`, `|`, `*`, and `` ` `` (v2.1 adds `*` — client asterisks must never form
-   bold/italic tokens or fake a counted marker); prefix a leading `#`, `-`, `>`, or
-   digit-followed-by-period with `\`. Client text never appears outside a `«…»`
-   quotation or a quoted `"…"` filename. Applies to: businessName, tagline, about,
-   styleNotes, page names, block text, labels, descriptions, generateDescriptions,
-   lengthHints, originalFilename.
+7. **Escaping (all client-supplied strings, before interpolation):** backslash-escape,
+   **`\` first** (v2.3 — without it the escape map has no inverse and V7's
+   reverse-the-escapes step is ill-defined: `\«` would be ambiguous), then `«`, `»`,
+   `|`, `*`, `"`, and `` ` `` (v2.1 added `*` — client asterisks must never form
+   bold/italic tokens or fake a counted marker; v2.3 adds `"` so quoted filenames can't
+   be broken from inside: `"my \"best\" photo\|final.jpeg"`). Prefix a leading `#`,
+   `-`, or `>` with `\`; a leading ordered-list marker (digits then `.`) escapes the
+   **period** — `1\. Order now` — because a backslash before a digit is a literal
+   backslash in CommonMark and escapes nothing (v2.3).
+   **Scope of quoting (v2.3 — replaces the earlier "never appears outside «…»"
+   overclaim, which §7.2 itself legitimately violates six ways):** every client string
+   is *escaped* wherever it appears; strings that are copy or free prose additionally
+   appear inside `«…»`. A fixed set of identifier-like values appears bare-but-escaped:
+   `businessName` (the H1 and the Name line), `tagline`, `about`, page `name`s (page
+   headers, inventory, nav map, copy list, assets usage), `lengthHint` (both Length
+   renderings), nav-item labels inside the shared-nav parenthetical, and
+   `originalFilename` (inside `"…"`). V7's «…» cross-check applies to quoted
+   occurrences only. Applies to: businessName, tagline, about, styleNotes, page names,
+   block text, labels, descriptions, generateDescriptions, lengthHints,
+   originalFilename.
 8. **Newlines in client text:** inside `«…»`, CR/LF render as the `↵` glyph so the quote
    stays on one line; any multi-line `real` text block is ADDITIONALLY rendered beneath
    its bullet as an indented fenced verbatim sub-block, preserving line structure. The
@@ -1015,17 +1047,30 @@ shows it" is literally true — same pixels, same height.
   stroke-free pages. This replaces the old subjective "legibility is the floor" wording
   with a checkable rule; V22 additionally warns on marks too sparse to be legible at all.
 
-### 4.4 Brief narration algorithms (numbered — the template cites these as [N1]–[N12])
+### 4.4 Brief narration algorithms (numbered — the template cites these as [N1]–[N13])
 
 Every line of a generated brief must trace to the §3.2 template plus exactly one of these
 rules. Nothing else may appear (template rule 9); CI enforces byte-equality against the
 §7 fixture (Appendix A).
 
+**Reference text (v2.3 — shared by [N5], [N7], and [N8]).** Wherever those rules print a
+referenced block's "text/label", the string is: heading/text → `generateDescription`
+when `copyMode` is `"generate"`, else `text` (V5 guarantees the description is non-empty
+— a generate block must never be referenced as `«»`, which is what naive use of its
+residual `text` produced); button → `label`; imageSlot → `description`; navBar → its
+item labels joined with `, `; `section` blocks are never referenced. Where a reference
+is truncated ([N5], [N7]): **truncate the raw string to 40 chars first, then apply
+rule-7 escaping** — an escape pair is never cut in half and V7's escape reversal stays
+well-defined.
+
 **[N1] Section grouping.** Per page: take all `section` blocks sorted by `frame.y`. Every
 other block belongs to the **first** section whose vertical range `[y, y+h)` contains the
 block's center-y; blocks in no section band form the "Outside any section" group, and a
 `navBar` whose center-y is above the first section is captioned "Nav bar". Groups are
-emitted in order of their top edge.
+emitted in order of their top edge. A page with **no** sections treats the first-section
+boundary as +∞: a navBar still gets its "Nav bar" caption and everything else is
+"Outside any section" (v2.3). A section band containing **no** blocks still emits its
+header — DoD #2 requires the builder to build every band (v2.3).
 
 **[N2] Rows and columns.** Within a group, partition blocks into **rows**: two blocks
 share a row if their vertical ranges overlap by ≥ 50% of the shorter block's height
@@ -1060,30 +1105,52 @@ numbers so no information is lost. Let `leftGap = x`, `rightGap = 1200 − (x + 
 
 **[N5] Overlap suffix.** If a block's frame intersects the frame of another non-`section`
 block on the same page with lower `z`, append `(overlaps «X»)` where X is the lower
-block's text/label/description, escaped and truncated to 40 chars. Sections are exempt
-(everything sits on them by design).
+block's **reference text** (§4.4 preamble — truncate raw to 40, then escape; v2.3).
+When a block overlaps **several** lower blocks, emit one suffix per overlapped block,
+nearest paint-neighbour first (descending `z`) (v2.3). Sections are exempt (everything
+sits on them by design).
 
 **[N6] Per-type narration.** The template's branch texts are normative, verbatim —
 including the asset-dimension lookup (`assetW`×`assetH` from the manifest) and the
 alt-text-FROM-description instruction in both imageSlot branches. The empty-slot branch
 requires `description` to exist — guaranteed by V14, so the branch has no null fallback.
+The generate branch renders `generateDescription`; V5 guarantees presence, so
+implementations may safely coalesce a null to `""` — the case is unreachable in a valid
+package (v2.3). The **filled**-slot branch, whose `description` MAY be null (no
+validator forbids it — V14 covers empty slots only, and an uploaded image without a
+caption is a legitimate state): replace the entire `Client's description: «…» — write
+alt text FROM this…` clause with the fixed sentence
+`No description given — write alt text from what the image shows.`; the assets-section
+usage entry likewise renders the bare fixed string `(no description)` in place of the
+quoted description (v2.3 — fallback phrase adopted instead of a new V-rule, which would
+nag clients about something the builder can infer from the image itself).
 
 **[N7] Pen clusters.** Union-find over a page's strokes: two strokes join if their
-bboxes, each expanded by 40px, intersect. Cluster role: `imageSketch` iff every member
-stroke is `imageSketch` targeting the same slot, else `annotation`. Clusters are emitted
-in order of cluster-bbox top edge. The imageSketch branch splits on the target slot's
-`assetId` (empty vs filled — template text is normative). Annotation bboxes print as
+bboxes, each expanded by 40px, intersect — intersection is **inclusive**: touching
+edges join (v2.3). Cluster role: `imageSketch` iff every member stroke is `imageSketch`
+targeting the same slot, else `annotation`. Clusters are emitted in order of
+cluster-bbox top edge. The imageSketch branch splits on the target slot's `assetId`
+(empty vs filled — template text is normative). Annotation bboxes print as
 `(x, y, w, h)` rounded to integers; the nearest-block guess names the target block's
-type, its text/label (escaped, truncated 40), and **the block's own frame** — never
-conflating it with the stroke bbox.
+type, its **reference text** (§4.4 preamble — truncate raw to 40, then escape), and
+**the block's own frame** — never conflating it with the stroke bbox. For a
+multi-stroke annotation cluster, the printed guess is that of the **first stroke in
+draw order with a non-null `targetBlockId`**; if no member has one, the guess clause is
+omitted per the template's `{{#if guess}}` (v2.3).
 
 **[N8] Copy list.** Items numbered in walkthrough order (page order, then reading order
 within the page). Header count pluralizes: `1 item`, otherwise `N items`. When
 `lengthHint` is null, precompute the estimate before interpolation (no nested templates):
 text blocks → `chars = (w / 8) × (h / 24)`, rendered as
 `roughly ⌊chars/8⌋–⌊chars/5⌋ words`; heading blocks → `a short headline, a few words`.
-Context line: the nearest block above and the nearest below within the same group
-("sits under the heading «…», above the button «…»"; omit a side that doesn't exist).
+Context line (v2.3 precision): candidates are blocks in the same group that are
+**strictly non-overlapping vertically** — "above" means `candidate.y + candidate.h ≤
+block.y`, "below" means `candidate.y ≥ block.y + block.h`; take the nearest by vertical
+gap. A tall same-row neighbour is neither above nor below — this is exactly what makes
+§7.1's answer (the heading, not the image slot beside it) correct. Names use the
+reference text (§4.4 preamble). Render "sits under the heading «…», above the button
+«…»"; omit a side that doesn't exist; when NEITHER side exists the line reads the fixed
+string `nothing directly above or below it` — rule 4 forbids dropping the line (v2.3).
 
 **[N9] Inventory "Links out".** Distinct internal page targets excluding self-links,
 rendered as the page Name, in order of first appearance on the page; then distinct
@@ -1098,17 +1165,23 @@ nav map like any other item. Iteration order: walk the page's blocks in `z` orde
 `navBar` contributes its items in their own order. Separators: nav-map entries join with
 ` · `; a walkthrough navBar's `items:` list and the unlinked-items list join with `, `
 (unlinked entries render `Page name — button «label»`); the shared-nav label list joins
-with `, `.
+with `, `. A page with **no** buttons and no navBar renders its nav-map line as
+`- **Name** → —`, reusing [N9]'s empty marker (v2.3).
 
 **[N11] Number & text formatting.** File sizes: `~<round(bytes/1024)> KB`. Colors: bare
 hex exactly as stored, comma-separated — never invented color names. Ranges: en dash
 (`y=80–600`). Coordinates and dimensions: as stored (integers stay integers, one decimal
-max). Dates: ISO 8601 as stored.
+max). Dates: ISO 8601 as stored. Pluralization (v2.3): the inventory count line renders
+`1 page` / `N pages` (a 1-page site must not read "1 pages"); the copy-list header
+renders `1 item` / `N items` per [N8]. Asset usage entries join with `; ` — the entries
+themselves contain commas (v2.3).
 
 **[N12] Template-filler marker.** A block with `fromTemplate: true` whose narration
 carries client-visible content gets the parenthetical marker (template text normative):
 `(untouched template filler — treat as a request to write fitting content, do not ship
-it verbatim)`.
+it verbatim)`. Sections are never narrated as bullets, so [N12] structurally cannot
+fire for them — consistent with §2.6's v2.3 scope rule that the flag never appears on
+`section` blocks in the first place.
 
 **[N13] Right-overflow marker (v2.1).** If `frame.x + frame.w > 1200`, append to the
 block's bullet — after the overlap suffix, before the colon — the marker
@@ -1236,10 +1309,11 @@ downloading / notifying. Three outcome classes:
 | V20 | `copyMode: "real"` with non-null `generateDescription` (mode switched back; description stranded) | FIX (null it) |
 | V21 | Every `assets[]` entry's `width`/`height`/`bytes` match the staged file (decode and compare — the brief prints these numbers to the builder) | BLOCK (bug) |
 | V22 | Annotation cluster likely illegible: bbox smaller than 40×20px, or fewer than 12 total points across the cluster | WARN — noted in the notification payload so Cam can eyeball the PNG |
-| V23 | Any block with `fromTemplate: true` (untouched template filler reaching the export) | WARN — client-facing before submit: "Some template placeholder text is still in your design — want to review it?" (list + jump); if submitted anyway, the brief's [N12] marker tells the builder to replace the filler |
+| V23 | Any **non-section** block with `fromTemplate: true` (untouched template filler reaching the export). A `section` block carrying the flag is stripped instead (FIX) and never counted — sections have no content for the flag to mean anything (§2.6 scope rule, v2.3) | WARN — client-facing before submit: "Some template placeholder text is still in your design — want to review it?" (list + jump); if submitted anyway, the brief's [N12] marker tells the builder to replace the filler |
 | V24 | Identity remap complete (§4.8): every page/block/nav-item/stroke id in `site.json` matches its schema pattern AND equals the §4.8 ordinal for its document position; no internal (pre-remap) app id appears anywhere in `site.json` or `brief.md` | BLOCK (bug) |
 | V25 | Any block with `frame.x + frame.w > 1200` — such content is clipped at x=1200 in the PNG render (§4.3), so the sketch no longer shows everything the JSON describes; [N13] marks the block in the brief; `site.json` keeps the true geometry. Additive rule (v2.1), no schemaVersion bump | WARN |
 | V26 | Blank/whitespace-only `button.label`, or a `navBar` with zero items — states the schema already rejects (`minLength: 1` / `minItems: 1`), reclassified (v2.1) so the client gets a fixable message instead of V1's "bug" path; mirrors V19 | BLOCK — client-facing: "This button has no text — give it a label" / "Your menu bar is empty — add at least one item" + jump to block |
+| V27 | `site.json` key order equals the normative §7.1 order everywhere (§2.1, v2.3) — determinism check: same design must serialize byte-identically | WARN (producer bug, never client-fixable) |
 
 The same validator module (pure functions) runs in three places: the app at submit, unit
 tests against fixtures, and the Stage 4 round-trip harness against real packages. One
@@ -1610,6 +1684,12 @@ Before calling the export subsystem done, confirm each row has a test:
       **unwrapped logical lines** of §3.3 rule 10 (v2.1 — no wrap width exists that all
       content satisfies, so the wrapped form was unsatisfiable; satisfiability of the
       unwrapped form was proven by regenerating §7.2 mechanically, whitespace-only)
+- [ ] **REQUIRED CI equality test C (v2.3 definition):** each frozen boilerplate region
+      of the brief (Your role, Responsive rules, Definition of done) matches its §3.2
+      counterpart **under whitespace normalization** — NOT byte-exact: §3.2 is displayed
+      hard-wrapped for readability while emitted lines are unwrapped (§3.3 rule 10), so
+      a byte-exact C is unsatisfiable by construction (measured: all three regions
+      normalize-match and byte-mismatch). Only test B is byte-exact
 - [ ] `generateBrief(siteJson)` snapshot tests for a wider fixture covering: all six
       block types, both copy modes, uploaded + empty image slot, internal + external +
       none links, identical AND differing navs, both pen roles on empty and filled
@@ -1625,10 +1705,11 @@ Before calling the export subsystem done, confirm each row has a test:
       exactly 24 and 25; row overlap exactly at 50% of the shorter height; column
       overlap exactly at 50% of the narrower width (§4.4 [N2]/[N4] — the dry-run's D2
       bugs were all boundary cases)
-- [ ] Client-string escaping tests: names/copy containing `|`, `«`, `»`, `#`, backticks,
-      leading `-`/digit-period, CR/LF, and the literal string `WRITE THIS COPY` —
-      asserting table integrity, guillemet integrity, and no V7 count inflation (§3.3
-      rules 7–8)
+- [ ] Client-string escaping tests: names/copy containing `\`, `"`, `|`, `«`, `»`, `#`,
+      `*`, backticks, a leading `-`, a leading `1.` (asserting the emitted form is
+      `1\.`, not `\1.`), CR/LF, and the literal string `WRITE THIS COPY` — asserting
+      table integrity, guillemet integrity, quoted-filename integrity, escape-map
+      invertibility, and no V7 count inflation (§3.3 rules 7–8, v2.3)
 - [ ] Page-height formula tests incl. stroke-driven height, the 1600 floor, and the
       8000 cap (§4.2 v2.2) — plus an editor-parity test asserting the canvas and the
       export call the one shared height function
@@ -1637,7 +1718,7 @@ Before calling the export subsystem done, confirm each row has a test:
 - [ ] Pen role/threshold tests at the 60% boundary; cluster union-find tests; filled-slot
       vs empty-slot narration branch tests (§4.5, [N7])
 - [ ] Asset first-use ordering + unreferenced-asset stripping tests (§4.6)
-- [ ] Every §5 validator rule has a red-path unit test (V1–V26) — incl. V25 (overflowing
+- [ ] Every §5 validator rule has a red-path unit test (V1–V27) — incl. V25 (overflowing
       block → WARN + [N13] marker appears) and V26 (blank label / empty nav → the
       client-facing message, not V1's bug path)
 - [ ] E2E: full submit produces a zip whose listing exactly matches §1 and whose PNGs
