@@ -40,7 +40,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run preview',
     url: PREVIEW_BASE_URL,
-    reuseExistingServer: !isCi,
+    // Never attach to a pre-existing preview server: a stale one serving an old
+    // dist/ would let E2E pass against a build that no longer exists (review MEDIUM-1).
+    reuseExistingServer: false,
     timeout: SERVER_START_TIMEOUT_MS,
   },
 })

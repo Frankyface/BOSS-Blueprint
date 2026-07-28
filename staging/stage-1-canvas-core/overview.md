@@ -9,7 +9,7 @@ This stage also stands up the entire engineering skeleton (build, tests, CI, dep
 `docs/decisions.md` before any canvas code is written.
 
 ## Features
-- [ ] feature-app-scaffold.md — Vite/React/TS project, Vitest, Playwright, Pages deploy pipeline
+- [x] feature-app-scaffold.md — Vite/React/TS project, Vitest, Playwright, Pages deploy pipeline (verified done 2026-07-28)
 - [ ] feature-block-canvas.md — virtual page + block palette, add/render all six block types
 - [ ] feature-block-editing.md — select, drag, resize, snap, inline text edit, z-order, delete
 - [ ] feature-undo-redo.md — full history for every canvas mutation

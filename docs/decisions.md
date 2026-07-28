@@ -120,3 +120,25 @@ artifacts, DeliveryRelay port isolation, always-visible download receipt · **Se
 Cam, relay integration is wired LAST — until then submit = download + prefilled mailto, which is
 fully functional · **Revisit if:** zip-forward abandonment proves high in practice → consider
 opportunistic FormSubmit attachment attempt as a bonus channel on top (never as the primary).
+
+## 2026-07-28 — Template guardrails (ruled on template designer's flags)
+**Chose:** (1) every template-seeded block carries `fromTemplate: true`, cleared on first client
+edit — brief.md flags untouched filler and submit warns (placeholder-leak guard); template
+`siteSettings.businessName` ships EMPTY; (2) v1 block-type gaps are deliberate — no form, map,
+footer, or repeating-list blocks; templates coach clients to DESCRIBE forms/maps in text blocks;
+(3) Blank start = zero blocks + dismissible coach overlay, never pre-seeded blocks; (4) page
+names are free-form (Portfolio template's landing page is "Work" at `/`) · **Because:** a client
+who only edits the menu must not submit "Martina's Trattoria" as their business; nothing should
+appear in an export the client didn't choose · **Rejected:** seeding Blank with a starter nav
+(unchosen content in export), footer bands in templates (editability budget) · **Revisit if:**
+submissions repeatedly describe contact forms in text → promote a form block in v2.
+
+## 2026-07-28 — Export format rulings (on the Fable designer's open questions)
+**Chose:** `submission` block (UUID, timestamps, contact, appVersion) is a TOP-LEVEL sibling of
+`siteSettings`; `section.background` stays as optional/nullable schema headroom; page PNGs
+render at 1× (1200 × height) — revisit 2× only if pen handwriting proves illegible in real
+render tests; the schema's `vibe` enum is the source of truth for the Stage 2 pick-list; nav
+items cap at 7 in UI while the schema allows 10 · **Because:** transaction facts ≠ website
+facts; deterministic dims + email-forward size budget favor 1×; enum drift between schema and
+UI would break validation · **Rejected:** folding submission into siteSettings, 2×-by-default
+renders · **Revisit if:** first real pen-stroke render tests show illegible handwriting at 1×.

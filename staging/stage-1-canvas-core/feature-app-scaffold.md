@@ -1,5 +1,5 @@
 # Feature: App Scaffold
-_Stage: stage-1-canvas-core · Status: awaiting verification_
+_Stage: stage-1-canvas-core · Status: verified done_
 
 ## Goal
 Stand up the whole engineering skeleton: a Vite + React + TypeScript app with Vitest,
@@ -7,14 +7,14 @@ Playwright, linting, and a GitHub Actions pipeline that deploys `main` to GitHub
 Everything after this feature is app logic, not infrastructure.
 
 ## Success Criteria
-- [ ] `npm run dev` serves an app shell locally: BOSS Blueprint header bar + an empty canvas
+- [x] `npm run dev` serves an app shell locally: BOSS Blueprint header bar + an empty canvas
       area + an (inert) block palette placeholder
-- [ ] `npm test` runs Vitest with ≥1 real passing unit test (not a placeholder assert-true)
-- [ ] `npm run e2e` runs Playwright headless: loads the app, asserts the shell renders
-- [ ] `npm run build` produces a `dist/` that works under the `/BOSS-Blueprint/` base path
-- [ ] Push to `main` triggers a GitHub Actions workflow that deploys to GitHub Pages, and
+- [x] `npm test` runs Vitest with ≥1 real passing unit test (not a placeholder assert-true)
+- [x] `npm run e2e` runs Playwright headless: loads the app, asserts the shell renders
+- [x] `npm run build` produces a `dist/` that works under the `/BOSS-Blueprint/` base path
+- [x] Push to `main` triggers a GitHub Actions workflow that deploys to GitHub Pages, and
       `https://frankyface.github.io/BOSS-Blueprint/` serves the shell
-- [ ] TypeScript strict mode on; ESLint configured; both clean
+- [x] TypeScript strict mode on; ESLint configured; both clean
 
 ## How We'll Verify
 1. `npm run dev` → open http://localhost:5173 with Playwright → screenshot shows shell.
@@ -54,9 +54,35 @@ Deviations from spec: none functional. Two notes for the reviewer —
 committed; the app code, tests, workflow and final config states all landed in `1f4fa54`.
 (b) No canvas/drawing library and no Zustand were installed — this feature is skeleton only.
 
+**Independent review (2026-07-28):** re-executed in a detached worktree pinned at commit
+`1c4e831` (no reuse of the implementer's `node_modules`, `dist`, or servers).
+Windows 10 / Node v24.15.0 / npm 11.16.0. Ports 5173/4173 confirmed free before each run.
+
+| # | Command (reviewer) | Result |
+|---|---------|--------|
+| 1 | `npm ci` | exit 0 — 239 packages added, **0 vulnerabilities** |
+| 2 | `npm run lint` | exit 0 — **0 problems**; `eslint . --format json` confirms **14 files** actually linted |
+| 3 | `npm test` (`vitest run` 4.1.10) | exit 0 — **2 test files, 6 tests passed**, 0 failed (3.15s) |
+| 4 | `npm run build` | exit 0 — dist hashes **identical to the implementer's build** (reproducible) |
+| 5 | `npm run e2e` (Playwright 1.62.0 vs `vite preview`) | exit 0 — **6 passed (8.2s)**: 2 specs × chromium + firefox + webkit |
+| 6 | TS strict probe (`tsc -p` on a probe extending tsconfig.app.json) | exit **2** — TS18048/TS18047 raised → strict + `noUncheckedIndexedAccess` genuinely enforced |
+| 7 | ESLint teeth probe (`eslint --stdin`) | exit **1** — 2 errors raised → config is not a no-op |
+| 8 | `npm run dev` → independent Playwright assertion | HTTP **200**, RENDER_CHECK=PASS — h1, canvas, 6 disabled palette buttons, 0 console errors, 0 responses ≥400 |
+| 9 | `gh run list --limit 5` / `gh run view 30327129647` | both runs **success**; headSha = the reviewed commit `1c4e831` |
+| 10 | `curl -sI https://frankyface.github.io/BOSS-Blueprint/` | **HTTP/1.1 200 OK** |
+| 11 | Live body vs local `dist/index.html` | **byte-identical asset refs** — deployed artifact is exactly what `1c4e831` builds |
+| 12 | Playwright assertion + screenshot vs the live URL | **200**, RENDER_CHECK=PASS, 0 console errors |
+
+Reviewer ruling: **VERIFIED DONE** — all six Success Criteria independently reproduced; no
+CRITICAL/HIGH findings. MEDIUM follow-ups (E2E `reuseExistingServer:false` — applied in the
+same sync commit as this entry; coverage tooling — assigned to the undo/autosave batch; stale
+handoff.md — rewritten in the same sync commit). LOW findings assigned to the undo/autosave
+batch: typecheck-aware eslint preset, deploy-job-scoped Pages permissions, CI `timeout-minutes`,
+Playwright browser cache, `engines` field, blockTypes const cleanup.
+
 ## Open Questions
-- Canvas engine (Fable debate #1) — decides which rendering deps get installed here.
-  Do not start until the verdict is in `docs/decisions.md`.
+- ~~Canvas engine (Fable debate #1)~~ — resolved 2026-07-27: hand-rolled DOM/SVG, verdict in
+  `docs/decisions.md`. No canvas engine deps were ever installed here.
 
 ## Notes & Decisions
 - Vite `base` must be `/BOSS-Blueprint/` for project Pages.
