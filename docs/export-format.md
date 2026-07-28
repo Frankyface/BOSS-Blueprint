@@ -1,9 +1,11 @@
-# Export Format v2.1 — the Claude-Ready Package
+# Export Format v2.2 — the Claude-Ready Package
 
 _Draft spec for `docs/export-format.md` · BOSS Blueprint · schemaVersion 1 · drafted
 2026-07-28, revised same day after the adversarial builder dry-run (23 defects addressed);
-v2.1 amendment same day per the Stage-3 contract rulings R1–R5 (unwrapped brief lines,
-re-anchored V7, V25/V26, height-floor consistency)_
+v2.1 amendment per the Stage-3 contract rulings R1–R5 (unwrapped brief lines, re-anchored
+V7, V25/V26); v2.2 amendment per the batch-2 implementation review (commit-time stroke
+thinning stated truthfully; one shared editor/export height function —
+clamp(1600, ceil((bottom+160)/8)·8, 8000))_
 
 ---
 
@@ -233,7 +235,7 @@ duplicate" must not let its own two copies drift.
         "id": { "type": "string", "pattern": "^pg_[a-z0-9]{4,16}$" },
         "name": { "type": "string", "minLength": 1 },
         "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 40 },
-        "height": { "type": "integer", "minimum": 800, "multipleOf": 8 },
+        "height": { "type": "integer", "minimum": 1600, "maximum": 8000, "multipleOf": 8 },
         "screenshot": {
           "type": "string",
           "pattern": "^pages/[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*\\.png$"
@@ -505,7 +507,7 @@ Ordered exactly as the client's page strip. **`pages[0]` is the homepage.**
 | `id` | ✔ | `pg_` + 4–16 `[a-z0-9]` | **Export identity**, remapped from the internal app id at package time (§4.8 — ordinal: `pg_0001`, `pg_0002`, … in page order). Link targets point at these. Internal semantic ids never leak into the package (V24). |
 | `name` | ✔ | non-empty string | The client's page name, verbatim ("Menu", "Our Work"). |
 | `slug` | ✔ | kebab-case, ≤40 chars | Derived from `name` at export time (§4.1). Unique per site. **Routing rule: `pages[0]` renders at the site root (`index.html` / `/`) — its slug names the PNG and the page title, never a URL. Every other page renders at its slug** (`menu.html` or `/menu`). The brief's DoD states this to the builder verbatim. |
-| `height` | ✔ | integer ≥ 800, multiple of 8 | Page height in design px, computed at export (§4.2 — the 800 floor and grid rounding are part of the formula; the schema enforces both). The PNG must be exactly `1200 × height`. |
+| `height` | ✔ | integer 1600–8000, multiple of 8 | Page height in design px from the single shared editor/export height function (§4.2, v2.2: `clamp(1600, ceil((bottom + 160) / 8) * 8, 8000)`); the schema enforces floor, cap, and grid. The PNG must be exactly `1200 × height`. |
 | `screenshot` | ✔ | `pages/NN-slug.png` | Exact zip path of this page's render. Explicit rather than derived so the consumer never guesses. |
 | `blocks` | ✔ | array (may be empty) | All blocks on the page, **sorted by `z` ascending** (paint order: first = bottom). |
 | `penStrokes` | ✔ | array (may be empty) | All pen strokes, in draw order. Strokes always paint ABOVE all blocks. |
@@ -968,10 +970,17 @@ slugs. Note `pages[0]`'s slug is never a URL (§2.5 routing rule).
 
 ### 4.2 Page height
 
-`height = max(800, ceil((maxBottom + 80) / 8) * 8)` where `maxBottom` = the largest
-`frame.y + frame.h` over blocks and the largest point-y over pen strokes on the page.
-The +80 gives visual breathing room at the page foot; rounding keeps it on the grid;
-the 800 floor keeps near-empty pages from producing sliver PNGs.
+**One shared height function (v2.2 ruling):** the editor canvas and the export call the
+same function — there are not two height computations to drift apart.
+
+`bottom = max(all block bottoms (frame.y + frame.h), all stroke point-y)` on the page;
+`height = clamp(1600, ceil((bottom + 160) / 8) * 8, 8000)`.
+
+The +160 gives visual breathing room at the page foot; rounding keeps it on the grid;
+the 1600 floor means a near-empty page still looks like a page (and matches what the
+editor shows); the 8000 cap keeps a runaway canvas from producing an absurd PNG.
+Because the editor uses this exact function, §4.3's "the page exactly as the editor
+shows it" is literally true — same pixels, same height.
 
 ### 4.3 PNG render contract
 
@@ -987,8 +996,11 @@ the 800 floor keeps near-empty pages from producing sliver PNGs.
   geometry — v2.1).
 - Content: the page exactly as the editor shows it at 100% zoom with **all editor chrome
   removed** — no selection outlines, handles, grid dots, hover states, or cursors. White
-  page background beneath the blocks.
-- **Pen layer baked in**, above all blocks, exactly as drawn.
+  page background beneath the blocks. "Exactly as the editor shows it" is literal
+  (v2.2): the editor and the export share one height function (§4.2) and the strokes
+  are the committed strokes (§4.5), so canvas and PNG are the same pixels.
+- **Pen layer baked in**, above all blocks, exactly as committed in the editor (the
+  committed strokes are the only strokes that exist — §4.5 point thinning).
 - Empty image slots render their dashed placeholder frame + description text (as in the
   editor) so the PNG shows the builder what the client saw.
 - Renderer: snapdom, falling back to html-to-image behind the single export interface
@@ -1106,7 +1118,9 @@ overflowing block, so this rule contributes zero bytes to §7.2 and test B is un
 
 ### 4.5 Pen-stroke semantics and clustering
 
-Computed at export time (never stored in editor state — derived data stays derived):
+Role and clusters are computed at export time (never stored in editor state — derived
+data stays derived). Point geometry, by contrast, is committed in the editor (v2.2 —
+last bullet):
 
 - **Per-stroke role (pure geometry — `assetId` plays no part):** compute the stroke's
   bounding box. If ≥ 60% of its area lies inside a single `imageSlot` frame on the same
@@ -1120,9 +1134,19 @@ Computed at export time (never stored in editor state — derived data stays der
   without content.
 - **Clusters (brief only):** per [N7] — union-find with 40px-expanded bboxes; cluster
   role `imageSketch` iff every member targets the same slot; ordered by bbox top edge.
-- **Point thinning:** strokes serialize after Ramer–Douglas–Peucker simplification with
-  ε = 0.75px (visually lossless at 1:1), coordinates rounded to 1 decimal. The PNG is
-  rendered from the *un*-thinned in-memory strokes, so baked visuals lose nothing.
+- **Point thinning (v2.2 — matches the shipped code):** strokes are thinned **once, at
+  commit time in the editor**: a 0.75px minimum-distance pre-pass, then
+  Ramer–Douglas–Peucker at ε = 0.5px, coordinates rounded to 1 decimal. The in-memory
+  strokes ARE the thinned strokes — no un-thinned trail exists anywhere (it would sit in
+  every autosave payload, and bare RDP on a 10k-sample stroke measured 18s; the pre-pass
+  is what makes commit-time thinning affordable). The PNG is a DOM capture of those
+  committed strokes, so **editor, PNG, and `site.json` all show the same geometry**. The
+  export's own RDP pass at ε = 0.75px REMAINS as specified — it is measurably
+  near-idempotent on committed strokes (240-sample scribble: 93→94 points, deviation
+  0.741→0.743px) and exists so the export contract holds even if commit-time parameters
+  drift. Fidelity, honestly stated: the committed stroke deviates from the raw pointer
+  trail by ≈0.5px typically, 1.09px worst case over random hand-like input —
+  imperceptible at 1:1, and identical in all three artifacts.
 
 ### 4.6 Asset naming and identity
 
@@ -1293,7 +1317,7 @@ branches. The empty-slot-with-no-description red path cannot appear here (V14 bl
       "id": "pg_0001",
       "name": "Home",
       "slug": "home",
-      "height": 1144,
+      "height": 1600,
       "screenshot": "pages/01-home.png",
       "blocks": [
         { "id": "blk_0001", "type": "section", "z": 0,
@@ -1358,7 +1382,7 @@ branches. The empty-slot-with-no-description red path cannot appear here (V14 bl
       "id": "pg_0002",
       "name": "Contact",
       "slug": "contact",
-      "height": 800,
+      "height": 1600,
       "screenshot": "pages/02-contact.png",
       "blocks": [
         { "id": "blk_0011", "type": "section", "z": 0,
@@ -1405,9 +1429,9 @@ branches. The empty-slot-with-no-description red path cannot appear here (V14 bl
 ```
 
 Zip: `blueprint_bluebird-bakery_3f2a9c1e.zip` containing `site.json`, `brief.md`,
-`pages/01-home.png` (1200×1144), `pages/02-contact.png` (1200×800), `assets/img_001.jpg`.
-(Heights per §4.2: Home's lowest content bottom is 1060 → 1144 after padding + rounding;
-Contact's is 640 → the 800 floor applies.)
+`pages/01-home.png` (1200×1600), `pages/02-contact.png` (1200×1600), `assets/img_001.jpg`.
+(Heights per §4.2 v2.2: Home's content bottom is 1060 → 1224 after padding + rounding,
+clamped up to the 1600 floor; Contact's is 640 → 800, likewise clamped to 1600.)
 
 ### 7.2 Generated `brief.md`
 
@@ -1477,8 +1501,8 @@ The sketch is a fixed 1200px-wide desktop layout. The PNGs cannot show you any o
 
 | # | Page | Slug | Sketch (ground truth) | Blocks | Links out |
 |---|---|---|---|---|---|
-| 1 | Home | `home` | `pages/01-home.png` (1200×1144) | 10 | Contact |
-| 2 | Contact | `contact` | `pages/02-contact.png` (1200×800) | 6 | Home, instagram.com |
+| 1 | Home | `home` | `pages/01-home.png` (1200×1600) | 10 | Contact |
+| 2 | Contact | `contact` | `pages/02-contact.png` (1200×1600) | 6 | Home, instagram.com |
 
 ## Navigation map
 
@@ -1495,7 +1519,7 @@ Each walkthrough narrates the page top-to-bottom in reading order. Coordinates a
 
 ### Page 1 — Home (`home`)
 
-Sketch: `pages/01-home.png` — 1200 × 1144 px.
+Sketch: `pages/01-home.png` — 1200 × 1600 px.
 
 Nav bar:
 - **Nav bar** spanning the full width (0, 0, 1200, 64): items: «Home» → Home (`home`), «Contact» → Contact (`contact`)
@@ -1521,7 +1545,7 @@ Section band, full-width, y=640–1060 (no background set — choose one from th
 
 ### Page 2 — Contact (`contact`)
 
-Sketch: `pages/02-contact.png` — 1200 × 800 px.
+Sketch: `pages/02-contact.png` — 1200 × 1600 px.
 
 Nav bar:
 - **Nav bar** spanning the full width (0, 0, 1200, 64): items: «Home» → Home (`home`), «Contact» → Contact (`contact`)
@@ -1605,7 +1629,9 @@ Before calling the export subsystem done, confirm each row has a test:
       leading `-`/digit-period, CR/LF, and the literal string `WRITE THIS COPY` —
       asserting table integrity, guillemet integrity, and no V7 count inflation (§3.3
       rules 7–8)
-- [ ] Page-height formula tests incl. stroke-driven height and the 800 floor (§4.2)
+- [ ] Page-height formula tests incl. stroke-driven height, the 1600 floor, and the
+      8000 cap (§4.2 v2.2) — plus an editor-parity test asserting the canvas and the
+      export call the one shared height function
 - [ ] PNG sanity validation path: dims mismatch triggers retry then engine fallback;
       lossless-only compression on stroke pages (§4.3)
 - [ ] Pen role/threshold tests at the 60% boundary; cluster union-find tests; filled-slot

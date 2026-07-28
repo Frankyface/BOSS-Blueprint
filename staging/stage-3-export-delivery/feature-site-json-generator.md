@@ -41,7 +41,7 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
       36 at a `-` boundary where possible, `-page` suffix on the reserved names
       (`index`, `assets`, `pages`, `site`, `brief`, `static`, `public`), `-2`/`-3`… on collision
       in page order with the first occurrence keeping the bare slug
-- [ ] **Page height (§4.2)** is `max(800, ceil((maxBottom + 80) / 8) * 8)` where `maxBottom` is
+- [ ] **Page height (§4.2, as amended v2.2)** is the SHARED editor/export function `clamp(1600, ceil((bottom + 160) / 8) * 8, 8000)` where `bottom` is
       the largest `y + h` over blocks **and** the largest point-y over pen strokes on the page —
       not the editor's on-screen page height (which floors at 1600 and caps at 8000; the two are
       deliberately different, see Notes)
@@ -197,7 +197,7 @@ _Empty — nothing verified yet._
   §6 (forward compatibility). `docs/decisions.md` 2026-07-28 "Export format v2 adopted".
 - **Export page height ≠ editor page height, and that is deliberate.** The editor derives
   `max(1600, lowest bottom + 160)` capped at 8000 (`feature-block-canvas.md` Notes); the export
-  uses §4.2's `max(800, ceil((maxBottom + 80)/8)*8)`. In the §7 example this is the difference
+  uses §4.2's unified formula (v2.2: `clamp(1600, ceil((bottom+160)/8)*8, 8000)`, shared with the editor — heights now MATCH the editor exactly). In the §7 example this is the difference
   between a 1600px on-screen page and an 800px PNG for Contact. `page.height` is the number the
   PNG must match exactly (V6), so the renderer sizes itself from *this* module's output, never
   from the live canvas DOM. Both formulas keep their own named constants; neither is "fixed" to

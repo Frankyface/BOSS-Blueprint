@@ -189,3 +189,20 @@ files get 600 before a split is required · **Because:** batch-1 review flagged 
 over 400 while the same rule forced a source refactor — one rule meaning two things; test suites
 read linearly and forced splits hurt discoverability · **Rejected:** a blanket 400 (churn without
 clarity), no ceiling for tests (unbounded growth) · **Revisit if:** a test file approaches 600.
+
+## 2026-07-28 — Export format v2.2: thin-at-commit truth + height unification
+**Chose:** (1) §4.5 rewritten to the shipped truth — pen strokes are thinned ONCE at commit
+(0.75px distance pre-pass, RDP ε=0.5px, 1-decimal coords); the in-memory strokes ARE the thinned
+strokes; the PNG is a DOM capture of them, so editor, PNG and site.json show identical geometry;
+the export's ε=0.75 pass stays as a near-idempotent contract guard (measured 93→94 pts,
+0.741→0.743px); honest fidelity bound stated (≈0.5px typical, 1.09px worst over hand-like input).
+(2) ONE shared editor/export page-height function: bottom = max(block bottoms, stroke point-y);
+height = clamp(1600, ceil((bottom+160)/8)*8, 8000); schema minimum 1600; §4.3's "exactly as the
+editor shows it" is now literally true. Worked example regenerated under a mechanical guard
+proving exactly 4 height-derived lines changed. 199 self-check assertions green ·
+**Because:** the batch-2 review found §4.5 false of accepted code (the thinning was ruled BETTER
+than the contract — 0.51px vs 0.74px deviation) and three height formulas had drifted (editor
++160/1600, §4.2 +80/800, §4.3's promise); one shared function kills the drift class ·
+**Rejected:** changing the thinning to match the stale doc; editor adopting §4.2's formula
+(would visually resize every existing design); keeping two documented formulas ·
+**Revisit if:** tall-but-empty pages make packages heavy (white PNG compresses cheaply).
