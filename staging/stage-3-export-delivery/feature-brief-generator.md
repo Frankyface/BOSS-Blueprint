@@ -14,8 +14,8 @@ against its own worked example rather than trusting a snapshot.
 
 ## Scope
 - The §3.2 template, emitted in the fixed section order of §3.3 rule 1.
-- The narration algorithms [N1]–[N12] of §4.4, plus **[N13]** (overflow marker, pending the
-  ruling in `overview.md` Open Question 3).
+- The narration algorithms [N1]–[N13] of §4.4. **[N13]** (right-overflow marker) was ruled in
+  v2.1 and is binding as written in `docs/export-format.md` §4.4 [N13] — not pending anything.
 - Escaping and quoting (§3.3 rules 3, 7, 8) and the no-invented-data rule (rule 9).
 - Appendix A **equality test B** and the boilerplate-sync test C.
 
@@ -30,14 +30,24 @@ because they are properties of this generator's output.
       Look & feel → Responsive rules → Site inventory → Navigation map → Page walkthroughs →
       Copy you must write → Assets → Definition of done** (§3.3 rule 1)
 - [ ] The three fixed regions — **Your role**, **Responsive rules**, **Definition of done** —
-      are frozen string constants that interpolate nothing, and a CI test asserts each
-      byte-matches its §3.2 counterpart in `docs/export-format.md` (**equality test C**)
+      are frozen string constants that interpolate nothing, and a CI test asserts each matches
+      its §3.2 counterpart in `docs/export-format.md` **under whitespace normalization**
+      (**equality test C**, v2.3 definition). Byte-exact C is unsatisfiable by construction:
+      §3.2 is *displayed* hard-wrapped while emitted lines are unwrapped (§3.3 rule 10).
+      Measured: all three regions normalize-match and byte-mismatch. Only test B is byte-exact
 - [ ] The HTML comment header carries `appVersion`, `submission.id`, `submittedAt` and
       `schemaVersion` (§6.7 — a stray `brief.md` stays traceable)
 - [ ] **Absent optionals never remove a line**: `tagline`/`about` render `— none provided —`,
-      `styleNotes` renders `— none —`, `vibe` renders the "not specified — infer a fitting tone
-      …" fallback, empty `colors` renders the "none given — derive a palette …" fallback (§3.3
-      rule 4 — silence invites questions and the round-trip test forbids questions)
+      `styleNotes` renders `— none —` (bare; a present value is guillemet-quoted per §7.2),
+      `vibe` renders the "not specified — infer a fitting tone …" fallback, empty `colors`
+      renders the "none given — derive a palette …" fallback (§3.3 rule 4 — silence invites
+      questions and the round-trip test forbids questions). The v2.3 fixed strings join the
+      same list: a copy-list block with no vertical neighbour renders
+      `nothing directly above or below it` ([N8]); a page with no buttons and no navBar renders
+      its nav-map line as `- **Name** → —` ([N10]); a **filled** image slot with a null
+      `description` renders `No description given — write alt text from what the image shows.`
+      in place of the whole `Client's description: «…» — write alt text FROM this…` clause, and
+      the bare string `(no description)` in its assets-section usage entry ([N6])
 - [ ] **No invented data** (§3.3 rule 9): bare hex only (never colour names), no URL prettifying
       beyond [N9]'s hostname rule, no unit conversions beyond [N11]. Any string in the output
       traces to the template plus exactly one [N] rule
@@ -46,7 +56,10 @@ because they are properties of this generator's output.
 - [ ] **[N1] section grouping** — sections sorted by `frame.y`; every other block joins the
       *first* section whose `[y, y+h)` contains its center-y; a `navBar` above the first section
       gets the `Nav bar:` caption; the rest form `Outside any section:`; groups emitted by top
-      edge
+      edge. A page with **no** sections treats the first-section boundary as **+∞**, so a navBar
+      still gets its `Nav bar:` caption and everything else is `Outside any section:` (v2.3); a
+      section band containing **no** blocks still emits its header, because DoD #2 makes the
+      builder build every band (v2.3)
 - [ ] **[N2] rows and columns** — union-find rows (vertical overlap ≥ 50% of the *shorter*
       block's height), then union-find columns within a row (horizontal overlap ≥ 50% of the
       *narrower* block's width); one-column rows emit plain bullets, ≥2-column rows emit the
@@ -57,37 +70,73 @@ because they are properties of this generator's output.
       vocabulary at its exact thresholds (`w ≥ 1120` full width / `≥ 960` wide / `≥ 600` about
       half / else narrow; `|leftGap − rightGap| ≤ 24` centered, else left/right; horizontal
       phrase omitted when full-width); `(overlaps «X»)` only against non-`section` blocks with
-      lower `z`, X truncated to 40 chars
+      lower `z`, where X is the **reference text** of §4.4's preamble (v2.3 — heading/text use
+      `generateDescription` when `copyMode` is `generate`, else `text`; button → `label`;
+      imageSlot → `description`; navBar → its item labels joined with `, `), **truncated to 40
+      chars on the raw string and escaped afterwards** so an escape pair is never cut in half
+      and V7's escape reversal stays well-defined. A block overlapping **several** lower blocks
+      emits **one suffix per overlapped block, nearest paint-neighbour first (descending `z`)**
 - [ ] **[N6] per-type narration** is verbatim from the template for all six types, including the
       `assetW×assetH` lookup, the "write alt text FROM this" instruction in **both** imageSlot
-      branches, and the `assets/placeholders/{{block-id}}.<ext>` path in the empty-slot branch
-- [ ] **[N7] pen clusters** — union-find over 40px-expanded bboxes; cluster role `imageSketch`
-      iff every member targets the same slot; ordered by cluster-bbox top edge; the imageSketch
-      branch splits on the slot's `assetId` (**empty** = depicts the desired image / **filled** =
-      an instruction about the upload, never a replacement); annotation bboxes print as integers
-      and the nearest-block guess prints **the block's own frame**, never the stroke bbox
+      branches, and the `assets/placeholders/{{block-id}}.<ext>` path in the empty-slot branch.
+      Two null cases, both v2.3: the generate branch may coalesce a null `generateDescription`
+      to `""` (V5 makes the case unreachable in a valid package), and a **filled** slot with a
+      null `description` — which no validator forbids — renders the fixed sentences named under
+      "Absent optionals" above rather than `«»`
+- [ ] **[N7] pen clusters** — union-find over 40px-expanded bboxes, **intersection inclusive:
+      touching edges join** (v2.3); cluster role `imageSketch` iff every member targets the same
+      slot; ordered by cluster-bbox top edge; the imageSketch branch splits on the slot's
+      `assetId` (**empty** = depicts the desired image / **filled** = an instruction about the
+      upload, never a replacement); annotation bboxes print as integers and the nearest-block
+      guess prints the block's type, its **reference text** (§4.4 preamble — truncate raw to 40,
+      then escape) and **the block's own frame**, never the stroke bbox. For a multi-stroke
+      annotation cluster the printed guess is that of the **first stroke in draw order with a
+      non-null `targetBlockId`**; when no member has one the guess clause is omitted entirely
+      (v2.3)
 - [ ] **[N8] copy list** — walkthrough order, `1 item` / `N items` pluralization, the
       precomputed length estimate when `lengthHint` is null (`chars = (w/8) × (h/24)` →
       `roughly ⌊chars/8⌋–⌊chars/5⌋ words` for text, `a short headline, a few words` for
-      headings), and a context line naming the nearest block above and below within the group
+      headings), and a context line naming the nearest block above and below within the group.
+      The v2.3 metric is **strictly non-overlapping vertically** — "above" means
+      `candidate.y + candidate.h ≤ block.y`, "below" means `candidate.y ≥ block.y + block.h`,
+      nearest by vertical gap — which is exactly what makes §7.1's answer (the heading, not the
+      tall image slot beside it) correct; names use the reference text; a side that does not
+      exist is omitted, and when NEITHER exists the line reads the fixed string
+      `nothing directly above or below it` (rule 4 forbids dropping the line)
 - [ ] **[N9]/[N10]/[N11]** — inventory "Links out" as distinct internal page **names** (self
       excluded) then distinct external hosts with `www.` stripped, `—` when empty; resolved
       targets as `Name (`slug`)` / full URL / the two `none` phrasings; nav-map separator ` · `,
-      list separators `, `; `~<round(bytes/1024)> KB`; en dashes in ranges
+      list separators `, `; `~<round(bytes/1024)> KB`; en dashes in ranges. v2.3 additions: the
+      inventory count line pluralizes (`1 page` / `N pages` — a 1-page site must not read
+      "1 pages"); asset **usage** entries join with `; ` because the entries themselves contain
+      commas; and a page with no buttons and no navBar renders `- **Name** → —`, reusing [N9]'s
+      empty marker
 - [ ] **[N12]** — the untouched-template-filler parenthetical on any `fromTemplate: true` block
       whose narration carries client-visible content
-- [ ] **[N13] (new, pending ruling)** — a block whose frame leaves the exported page rectangle
-      gets ` (extends past the page's right edge to x={{x+w}} — the sketch PNG is clipped at
-      1200; treat the block as reaching the container's right edge)` appended after the frame
-      tuple, and the left-edge mirror for `x < 0`. **Conditional and inert on the §7.1 fixture**,
-      so equality test B stays byte-exact
+- [ ] **[N13]** — a block with `frame.x + frame.w > 1200` gets the marker string of
+      `docs/export-format.md` §4.4 [N13] appended **after the overlap suffix, before the colon**,
+      character-for-character: ` (extends past the right page edge — clipped at x=1200 in the
+      sketch PNG; site.json has the true width)`. **Right edge only** — negative-x / off-page
+      frames are V18's WARN, not this marker, and there is no left-edge mirror. **Conditional
+      and inert on the §7.1 fixture**, so equality test B stays byte-exact
 
 ### Escaping and quoting
-- [ ] **Every client string is escaped before interpolation** (§3.3 rule 7): backslash-escape
-      `«`, `»`, `|`, `` ` ``; prefix a leading `#`, `-`, `*`, `>` or digit-followed-by-period
-      with `\`. Applied to businessName, tagline, about, styleNotes, page names, block text,
-      labels, descriptions, generateDescriptions, lengthHints and originalFilename
-- [ ] **Client text appears only inside `«…»` or a quoted `"…"` filename** — never bare
+- [ ] **Every client string is escaped before interpolation** (§3.3 rule 7, v2.3):
+      backslash-escape **`\` first** (without it the escape map has no inverse and V7's
+      reverse-the-escapes step is ill-defined), then `«`, `»`, `|`, `*`, `"`, and `` ` ``.
+      Prefix a leading `#`, `-` or `>` with `\`; a leading ordered-list marker escapes **the
+      period** — `1\. Order now`, not `\1. Order now`, because a backslash before a digit is a
+      literal backslash in CommonMark and escapes nothing. Applied to businessName, tagline,
+      about, styleNotes, page names, block text, labels, descriptions, generateDescriptions,
+      lengthHints and originalFilename
+- [ ] **Scope of quoting (§3.3 rule 7, v2.3 — replaces the old "never bare" claim, which §7.2
+      itself legitimately violates six ways):** every client string is *escaped* wherever it
+      appears; strings that are copy or free prose additionally appear inside `«…»`. A fixed
+      set of identifier-like values appears **bare-but-escaped**: `businessName` (the H1 and the
+      Name line), `tagline`, `about`, page `name`s (page headers, inventory, nav map, copy list,
+      assets usage), `lengthHint` (both Length renderings), nav-item labels inside the shared-nav
+      parenthetical, and `originalFilename` (inside `"…"`). V7's «…» cross-check applies to
+      quoted occurrences only
 - [ ] **Newlines (§3.3 rule 8):** CR/LF inside `«…»` render as `↵`; a multi-line `real` text
       block ADDITIONALLY emits an indented fenced verbatim sub-block beneath its bullet
 - [ ] A client string containing `|` cannot break the inventory table; a client string
@@ -98,7 +147,8 @@ because they are properties of this generator's output.
 ### The equality tests
 - [ ] **Equality test B (REQUIRED, Appendix A):** `generateBrief(parse(§7.1)) === §7.2`,
       byte-exact, with **both** blocks extracted from `docs/export-format.md` at test time
-- [ ] **Equality test C:** the three fixed boilerplate constants byte-match their §3.2 regions
+- [ ] **Equality test C:** the three fixed boilerplate constants match their §3.2 regions under
+      **whitespace normalization** (v2.3) — byte-exactness is unsatisfiable there by construction
 - [ ] A wider snapshot fixture covers what §7 cannot: all six block types, both copy modes,
       uploaded + empty image slots, internal + external + none links, identical **and** differing
       navs, both pen roles on empty **and** filled slots, `fromTemplate` filler, an unreachable
@@ -116,8 +166,12 @@ because they are properties of this generator's output.
    The extractor is itself unit-tested (it must handle the 4-backtick outer fence around a
    3-backtick inner fence). A deliberate one-character edit to any [N] rule must turn this test
    red — demonstrate that once and record the failure output alongside the pass.
-2. **Equality test C (`npm test`)** — same file: `expect(BOILERPLATE_ROLE).toBe(sectionOf(doc,
-   '## Your role'))` and the same for `## Responsive rules` and `## Definition of done`.
+2. **Equality test C (`npm test`)** — same file, **whitespace-normalized** (v2.3):
+   `expect(normalize(BOILERPLATE_ROLE)).toBe(normalize(sectionOf(doc, '## Your role')))` and the
+   same for `## Responsive rules` and `## Definition of done`, where `normalize` collapses runs
+   of whitespace and trims. Byte comparison is deliberately NOT asserted here — §3.2 is
+   displayed hard-wrapped and the emitted form is unwrapped (§3.3 rule 10); test B remains the
+   byte-exact one.
 3. **Boundary tests (`npm test`)** — `src/export/brief/narrate.test.ts`, from Appendix A:
    `w` exactly 600 / 960 / 1120; `|leftGap − rightGap|` exactly 24 and 25; row vertical overlap
    exactly at 50% of the shorter height and one pixel either side; column horizontal overlap
@@ -128,10 +182,10 @@ because they are properties of this generator's output.
    `WRITE THIS COPY`. Assertions: the inventory table still has the right column count per row;
    every `«` in the output has a matching unescaped `»`; the V7 marker regexes still count
    exactly the true number of generate blocks and empty slots.
-5. **V7 regex tests (`npm test`)** — the two counting regexes defined in Notes are asserted to
-   return `1` and `1` on §7.2 (today they return **0**, which is Open Question 2), `0` on a brief
-   with no generate blocks, and to be unaffected by the two bare occurrences of the phrases in
-   the Definition-of-done boilerplate.
+5. **V7 regex tests (`npm test`)** — the two frame-tuple-anchored regexes of §3.3 rule 2 (cited
+   in Notes, not redefined) return `1` and `1` on §7.2 — measured on the prototype, matching its
+   one generate block and one empty slot — `0` on a brief with no generate blocks, and are
+   unaffected by the two bare occurrences of the phrases in the Definition-of-done boilerplate.
 6. **Wider snapshot (`npm test`)** — `src/export/brief/__snapshots__/wide-fixture.md` committed
    as a file (not an inline snapshot) so review diffs are readable; regenerating it requires an
    explicit `-u` and shows up in the PR.
@@ -147,7 +201,13 @@ because they are properties of this generator's output.
 _Empty — nothing verified yet._
 
 ## Open Questions
-1. **§7.2's hand-wrapping makes equality test B unsatisfiable — measured, not suspected.**
+_All three were **RULED and applied** in the export-format v2.1 amendment (rule 10 unwrapped
+logical lines + regenerated §7.2; frame-tuple-anchored V7; [N13] and the `*` escape), and v2.3
+refined the escape set and test C. `docs/export-format.md` is the binding text. The measurements
+below are kept as history — do not re-open them._
+
+1. **RESOLVED (v2.1 rule 10).** **§7.2's hand-wrapping makes equality test B unsatisfiable —
+   measured, not suspected.**
    Constraints extracted from `docs/export-format.md` this session: line 1454
    (`- **Client style notes:** «Cozy but not twee. … dark green`, 88 chars, next word
    `accents.»`) requires any greedy wrap width `W ≥ 88`; line 1497
@@ -167,14 +227,16 @@ _Empty — nothing verified yet._
    - Rejected alternatives: (a) normalizing both sides at compare time — that is precisely the
      "weakened success criterion" CLAUDE.md forbids, and it would let real drift hide inside
      whitespace changes; (b) hand-tuning a wrapper until it matches — proven impossible above.
-2. **V7's marker anchor counts zero in the spec's own example.** `^\s*\*\*WRITE THIS COPY\*\*`
+2. **RESOLVED (v2.1 rule 2).** **V7's marker anchor counts zero in the spec's own example.**
+   `^\s*\*\*WRITE THIS COPY\*\*`
    matches 0 times in §7.2 (measured); the marker sits mid-bullet after the frame tuple, and the
    bare phrases appear twice more in the Definition-of-done boilerplate — a raw substring count
    would say 2 and 2. **Recommendation:** anchor on the generator-emitted frame tuple (exact
    regexes in Notes) and unit-test the adversarial client string.
-3. **[N13] and the `*` escape (overview Open Questions 3 and 7)** both need the same
-   `docs/decisions.md` entry. Both are byte-neutral on the §7.1 fixture by construction — write
-   them that way or equality test B will fight the amendment.
+3. **RESOLVED (v2.1).** **[N13] and the `*` escape (overview Open Questions 3 and 7)** were both
+   ruled and are live in `docs/export-format.md` (§4.4 [N13], §3.3 rule 7). Both are byte-neutral
+   on the §7.1 fixture by construction, so equality test B is unaffected — as are v2.3's later
+   escape-set additions (`\`, `"`, `1\.`): no §7.1 string contains any of them.
 
 ## Notes & Decisions
 - **Binding contract:** `docs/export-format.md` §3.1 (pure-function contract), §3.2 (the
@@ -186,20 +248,29 @@ _Empty — nothing verified yet._
   `imageSlot → **Image slot**`, `button → **Button**`, `navBar → **Nav bar**`. The **copy list**
   instead uses the bare lowercase discriminator (`— text at (…)`, `— heading at (…)`), also per
   the fixture. One table, both mappings, so neither can drift.
-- **V7 counting regexes (defined here because they are properties of this output):**
+- **V7 counting regexes are DEFINED IN `docs/export-format.md` §3.3 rule 2 (v2.1) and are copied
+  verbatim from there — this file cites them, it does not redefine them.** The pre-v2.1 draft
+  that used to live here was wrong three ways and must not be resurrected: `\d+` disallowed the
+  negative coordinates the schema permits (`frame.x` may be negative, §2.6), the `[^«»\n]*`
+  classes broke the moment a bullet carried an overlap suffix (whose `«X»` sits *before* the
+  marker), and `: \*\*` demanded a colon-space adjacency the emitter does not guarantee. The
+  binding pair:
   ```
-  WRITE_THIS_COPY_RE = /^[ \t]*-[ \t]+\*\*(?:Heading|Text)\*\*[^«»\n]*\(\d+(?:\.\d)?, \d+(?:\.\d)?, \d+(?:\.\d)?, \d+(?:\.\d)?\)[^«»\n]*: \*\*WRITE THIS COPY\*\*/gm
-  SOURCE_AN_IMAGE_RE = /^[ \t]*-[ \t]+\*\*Image slot\*\*[^«»\n]*\(\d+(?:\.\d)?, \d+(?:\.\d)?, \d+(?:\.\d)?, \d+(?:\.\d)?\)[^«»\n]*: \*\*SOURCE AN IMAGE\*\*/gm
+  ^\s*- \*\*(Heading|Text)\*\* [^(\n]*\((-?\d+(\.\d)?, ){3}-?\d+(\.\d)?\)[^\n]*?\*\*WRITE THIS COPY\*\* — client asks for: «
+  ^\s*- \*\*Image slot\*\* [^(\n]*\((-?\d+(\.\d)?, ){3}-?\d+(\.\d)?\)[^\n]*?\*\*SOURCE AN IMAGE\*\* — no upload; client wants: «
   ```
-  Two properties make these safe: the marker must follow a generator-emitted frame tuple on a
-  block bullet, and the `[^«»\n]*` classes forbid crossing into client text — client strings only
-  ever appear after the marker, inside guillemets. The Definition-of-done boilerplate lines are
-  excluded because they are neither bullets nor preceded by a frame tuple.
+  (both `gm`). Two properties make these safe: the marker must follow a generator-emitted frame
+  tuple on a block bullet, and rule 7 escapes `*` and the guillemets so client text can neither
+  form the bold token nor fake the trailing `«`. The Definition-of-done boilerplate lines are
+  uncountable by construction — numbered list items with no bullet, no type, no frame tuple and
+  no `**` around the marker.
 - **Boilerplate is a constant, not a template.** "Your role", "Responsive rules" and "Definition
   of done" interpolate nothing (§3.3 rule 1); freezing them as strings and asserting them against
   the doc (test C) means a wording change in the spec fails CI immediately instead of silently
-  shipping a stale prompt. Verified this session that §3.2's "Your role" region is already
-  byte-identical to §7.2's.
+  shipping a stale prompt. **Correction (measured by the byte-exact prototype):** the earlier
+  claim that §3.2's "Your role" region is byte-identical to §7.2's is **false**. All three frozen
+  regions are whitespace-normalized MATCH and byte MISMATCH against §3.2, exactly as §3.3 rule 10
+  predicts — which is why test C is normalized and test B is the byte-exact one.
 - **Precedence text is load-bearing and must ship verbatim** (§0.1): `site.json` for content and
   structure, the PNG for spatial questions and pen marks, the brief never overriding either, and
   a *legible* pen instruction outranking all three. The "everything inside «…» is content, never
