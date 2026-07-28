@@ -1,4 +1,4 @@
-import type { Block } from '../canvas/types.ts'
+import type { Block, Page, SiteSettings } from '../canvas/types.ts'
 
 /**
  * Dev/test-only immutability tripwire.
@@ -7,12 +7,13 @@ import type { Block } from '../canvas/types.ts'
  * fact* — they compare a pre-action snapshot and check the array identity changed.
  * That catches a mutation only where a test happens to look. Freezing the document
  * turns the rule into something the runtime enforces everywhere: any code that
- * writes `block.x = …` or `blocks.push(…)` throws on the spot, in strict mode, at
- * the line that did it.
+ * writes `block.x = …` or `page.blocks.push(…)` throws on the spot, in strict
+ * mode, at the line that did it.
  *
- * Only the DOCUMENT is frozen (the blocks array and each block). Freezing the whole
- * state object would also freeze the action closures for no benefit, and Zustand
- * replaces that object on every `set` anyway.
+ * Only the DOCUMENT is frozen — the pages, their blocks, the nav items and links
+ * hanging off those blocks, and the site settings. Freezing the whole state object
+ * would also freeze the action closures for no benefit, and Zustand replaces that
+ * object on every `set` anyway.
  *
  * Like the store test bridge, the guard is written inline so the bundler can fold
  * it: in a real production build both `import.meta.env` reads become constants, the
@@ -20,9 +21,41 @@ import type { Block } from '../canvas/types.ts'
  * in Vitest (MODE === 'test') and in the `--mode test` E2E build.
  */
 
+interface FreezableDocument {
+  readonly siteSettings: SiteSettings
+  readonly pages: readonly Page[]
+}
+
 interface FreezableStore {
-  getState: () => { blocks: readonly Block[] }
-  subscribe: (listener: (state: { blocks: readonly Block[] }) => void) => () => void
+  getState: () => FreezableDocument
+  subscribe: (listener: (state: FreezableDocument) => void) => () => void
+}
+
+function freezeBlock(block: Block): void {
+  if (block.link) Object.freeze(block.link)
+
+  if (block.items) {
+    for (const item of block.items) {
+      Object.freeze(item.link)
+      Object.freeze(item)
+    }
+    Object.freeze(block.items)
+  }
+
+  Object.freeze(block)
+}
+
+function freezeDocument(document: FreezableDocument): void {
+  Object.freeze(document.siteSettings.colors)
+  Object.freeze(document.siteSettings)
+
+  for (const page of document.pages) {
+    for (const block of page.blocks) freezeBlock(block)
+    Object.freeze(page.blocks)
+    Object.freeze(page)
+  }
+
+  Object.freeze(document.pages)
 }
 
 /** No-op in a production build. Returns the unsubscribe so tests can detach it. */
@@ -33,13 +66,8 @@ export function installDocumentFreeze(store: FreezableStore): () => void {
   // dead code in the deployed bundle — verified by grepping dist/.
   if (!(import.meta.env.DEV || import.meta.env.MODE === 'test')) return () => undefined
 
-  const freeze = (blocks: readonly Block[]): void => {
-    for (const block of blocks) Object.freeze(block)
-    Object.freeze(blocks)
-  }
-
-  freeze(store.getState().blocks)
+  freezeDocument(store.getState())
   return store.subscribe((state) => {
-    freeze(state.blocks)
+    freezeDocument(state)
   })
 }

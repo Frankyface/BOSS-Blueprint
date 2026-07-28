@@ -1,5 +1,5 @@
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
-import { useCanvasStore } from '../store/canvasStore.ts'
+import { selectSelectedBlock, useCanvasStore } from '../store/canvasStore.ts'
 
 import { HistoryControls } from './HistoryControls.tsx'
 import { StartOverButton } from './StartOverButton.tsx'
@@ -15,13 +15,11 @@ const EMPTY_HINT = 'Click a block to select it. Double-click to type.'
  * `useCanvasKeyboard`.
  */
 export function CanvasToolbar() {
-  const blocks = useCanvasStore((state) => state.blocks)
-  const selectedBlockId = useCanvasStore((state) => state.selectedBlockId)
+  const selectedBlock = useCanvasStore(selectSelectedBlock)
   const bringBlockForward = useCanvasStore((state) => state.bringBlockForward)
   const sendBlockBackward = useCanvasStore((state) => state.sendBlockBackward)
   const deleteBlock = useCanvasStore((state) => state.deleteBlock)
 
-  const selectedBlock = blocks.find((block) => block.id === selectedBlockId) ?? null
   const label = selectedBlock ? getBlockTypeDefinition(selectedBlock.type).label : null
 
   return (

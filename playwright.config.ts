@@ -11,8 +11,13 @@ const CI_WORKERS = 1
  * Desktop-first, and wide enough that the 1200px page renders at 1:1 fit-to-window
  * zoom — so a scripted 40px mouse drag is exactly 40 page pixels and coordinate
  * assertions read straight off the store. Narrow-viewport zoom has its own test.
+ *
+ * The width must clear the page plus BOTH side columns plus the canvas margins:
+ * 1200 + 240 (palette) + 304 (details panel) + 64 = 1808. It was 1600 before Stage
+ * 2 added the details panel, at which point every drag in the suite silently became
+ * a 0.83-scale drag and the coordinate assertions started failing.
  */
-const VIEWPORT = { width: 1600, height: 1000 }
+const VIEWPORT = { width: 1920, height: 1000 }
 
 /**
  * E2E always runs against the *production* build served by `vite preview`,

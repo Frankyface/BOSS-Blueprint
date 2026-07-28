@@ -5,7 +5,7 @@ import { MIN_ON_PAGE_PX, PAGE_WIDTH_PX } from '../canvas/constants.ts'
 import type { Block } from '../canvas/types.ts'
 import { BLOCK_TYPES, getBlockTypeDefinition } from '../constants/blockTypes.ts'
 
-import { useCanvasStore } from './canvasStore.ts'
+import { selectCurrentBlocks, useCanvasStore } from './canvasStore.ts'
 
 /**
  * Store actions that run the pure geometry: drag-with-snap and resize-with-clamp.
@@ -14,7 +14,7 @@ import { useCanvasStore } from './canvasStore.ts'
  */
 
 const store = () => useCanvasStore.getState()
-const blocks = () => store().blocks
+const blocks = () => selectCurrentBlocks(store())
 const blockById = (id: string): Block => {
   const found = blocks().find((block) => block.id === id)
   if (!found) throw new Error(`No block ${id} in the store`)

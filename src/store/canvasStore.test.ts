@@ -4,10 +4,10 @@ import { resetBlockIdSequence } from '../canvas/blockFactory.ts'
 import type { Block, BlockTypeId } from '../canvas/types.ts'
 import { BLOCK_TYPES, getBlockTypeDefinition } from '../constants/blockTypes.ts'
 
-import { useCanvasStore } from './canvasStore.ts'
+import { selectCurrentBlocks, useCanvasStore } from './canvasStore.ts'
 
 const store = () => useCanvasStore.getState()
-const blocks = () => store().blocks
+const blocks = () => selectCurrentBlocks(store())
 const ids = () => blocks().map((block) => block.id)
 const blockById = (id: string): Block => {
   const found = blocks().find((block) => block.id === id)

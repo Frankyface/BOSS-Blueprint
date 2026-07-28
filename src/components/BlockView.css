@@ -135,6 +135,46 @@
   white-space: nowrap;
 }
 
+.block-content__link-mark {
+  margin-left: 6px;
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+/*
+ * --- "Write it for me" copy ------------------------------------------------
+ * A generate-mode block must never be mistaken for finished copy at a glance, so
+ * it gets three cues at once: a dashed edge, a diagonal hatch, and the client's
+ * own description in italics instead of words. The hatch is a repeating-linear-
+ * gradient rather than an image so it costs nothing and scales with the page.
+ */
+.block-content--generate {
+  align-items: center;
+  padding: 8px 12px;
+  border: 2px dashed var(--boss-select);
+  border-radius: 4px;
+  background-color: var(--boss-band);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(47 109 246 / 9%) 0,
+    rgb(47 109 246 / 9%) 6px,
+    transparent 6px,
+    transparent 14px
+  );
+}
+
+.block-content--generate.block-content--heading {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.block-content__generate-text {
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--boss-text-muted);
+}
+
 /* --- Inline text editor (textarea/input, never contentEditable) ----------- */
 .block-editor {
   position: absolute;

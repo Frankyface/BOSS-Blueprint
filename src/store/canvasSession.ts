@@ -1,9 +1,9 @@
-import { emptyDocument } from '../canvas/blueprintFile.ts'
+import { documentsEqual } from '../canvas/document.ts'
 import type { CanvasDocument } from '../canvas/types.ts'
 
 import { createAutosave } from './autosave.ts'
 import type { Autosave } from './autosave.ts'
-import { getCanvasDocument, useCanvasStore } from './canvasStore.ts'
+import { documentOf, getCanvasDocument, useCanvasStore } from './canvasStore.ts'
 import { clearStoredDocument, getBrowserStorage, loadDocument, saveDocument } from './canvasStorage.ts'
 import type { LoadOutcome, SaveOutcome, StorageLike } from './canvasStorage.ts'
 import { useEditorStore } from './editorStore.ts'
@@ -41,11 +41,6 @@ export interface CanvasSessionOptions {
   /** Pass `null` for "no persistence"; omit to use the browser's localStorage. */
   readonly storage?: StorageLike | null
   readonly autosaveDelayMs?: number
-}
-
-/** The document slice is only ever replaced wholesale, so identity is equality. */
-function documentsEqual(a: CanvasDocument, b: CanvasDocument): boolean {
-  return a.blocks === b.blocks
 }
 
 function noticeForSave(outcome: SaveOutcome): StorageNotice | null {
@@ -187,12 +182,12 @@ export function startCanvasSession(options: CanvasSessionOptions = {}): () => vo
   })
 
   const unsubscribe = useCanvasStore.subscribe((state, previous) => {
-    // Selecting, deselecting and opening an editor leave `blocks` untouched, and so
-    // does any action the store treated as a no-op — none of those are undo steps
-    // and none of them change what should be on disk.
-    if (state.blocks === previous.blocks) return
+    // Selecting, deselecting, opening an editor and SWITCHING PAGES all leave the
+    // document untouched, and so does any action the store treated as a no-op —
+    // none of those are undo steps and none of them change what should be on disk.
+    if (state.pages === previous.pages && state.siteSettings === previous.siteSettings) return
 
-    const document: CanvasDocument = { blocks: state.blocks }
+    const document: CanvasDocument = documentOf(state)
 
     if (!isReplaying) {
       useEditorStore
@@ -262,10 +257,14 @@ export function startOver(): void {
   isReplaying = true
   try {
     useCanvasStore.getState().resetCanvas()
-    useEditorStore.getState().setHistory(createHistory(emptyDocument()))
+    // The fresh document itself, not an equal-looking copy: history's present must
+    // be identical to what is on screen or the next edit records a phantom step.
+    useEditorStore.getState().setHistory(createHistory(getCanvasDocument()))
   } finally {
     isReplaying = false
   }
+
+  useEditorStore.getState().setToast(null)
 
   session?.autosave.cancel()
   clearStoredDocument(session?.storage ?? null)

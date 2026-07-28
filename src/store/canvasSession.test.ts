@@ -15,7 +15,7 @@ import {
   stopCanvasSession,
   undo,
 } from './canvasSession.ts'
-import { getCanvasDocument, useCanvasStore } from './canvasStore.ts'
+import { getCanvasDocument, selectCurrentBlocks, useCanvasStore } from './canvasStore.ts'
 import { RECOVERY_KEY, STORAGE_KEY, STORAGE_WARNING_BYTES } from './canvasStorage.ts'
 import { useEditorStore } from './editorStore.ts'
 import { canRedo, canUndo } from './history.ts'
@@ -28,7 +28,7 @@ import { canRedo, canUndo } from './history.ts'
 const canvas = () => useCanvasStore.getState()
 const editor = () => useEditorStore.getState()
 const history = () => editor().history
-const blocks = (): readonly Block[] => canvas().blocks
+const blocks = (): readonly Block[] => selectCurrentBlocks(canvas())
 const undoDepth = () => history().past.length
 
 let storage: FakeStorage
@@ -255,7 +255,7 @@ describe('autosave', () => {
 
     vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
 
-    expect(storage.entries.get(STORAGE_KEY)).toBe(serialiseDocument({ blocks: blocks() }))
+    expect(storage.entries.get(STORAGE_KEY)).toBe(serialiseDocument(getCanvasDocument()))
   })
 
   it('does not write for a selection change', () => {

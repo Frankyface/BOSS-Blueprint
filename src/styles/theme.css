@@ -19,6 +19,7 @@
 
   --boss-header-height: 4rem;
   --boss-palette-width: 15rem;
+  --boss-panel-width: 19rem;
   --boss-radius: 0.5rem;
   --boss-gap: 1rem;
   /* Must equal PAGE_MARGIN_PX in src/canvas/constants.ts (32px). */

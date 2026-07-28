@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Block, BlockTypeId } from '../canvas/types.ts'
-import { useCanvasStore } from '../store/canvasStore.ts'
+import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
 
 import { BlockTextEditor } from './BlockTextEditor.tsx'
 
@@ -11,7 +11,7 @@ const store = () => useCanvasStore.getState()
 function addAndEdit(type: BlockTypeId): Block {
   const id = store().addBlock(type)
   store().startEditingBlock(id)
-  const block = store().blocks.find((candidate) => candidate.id === id)
+  const block = selectCurrentBlocks(store()).find((candidate) => candidate.id === id)
   if (!block) throw new Error('block vanished')
   return block
 }
@@ -53,7 +53,7 @@ describe('BlockTextEditor', () => {
     fireEvent.change(editor, { target: { value: 'Welcome to BOSS' } })
     fireEvent.keyDown(editor, { key: 'Enter' })
 
-    expect(store().blocks[0]?.text).toBe('Welcome to BOSS')
+    expect(selectCurrentBlocks(store())[0]?.text).toBe('Welcome to BOSS')
     expect(store().editingBlockId).toBeNull()
   })
 
@@ -65,7 +65,7 @@ describe('BlockTextEditor', () => {
     fireEvent.change(editor, { target: { value: 'Book a call' } })
     fireEvent.blur(editor)
 
-    expect(store().blocks[0]?.text).toBe('Book a call')
+    expect(selectCurrentBlocks(store())[0]?.text).toBe('Book a call')
     expect(store().editingBlockId).toBeNull()
   })
 
@@ -77,7 +77,7 @@ describe('BlockTextEditor', () => {
     fireEvent.change(editor, { target: { value: 'Never mind' } })
     fireEvent.keyDown(editor, { key: 'Escape' })
 
-    expect(store().blocks[0]?.text).toBe('')
+    expect(selectCurrentBlocks(store())[0]?.text).toBe('')
     expect(store().editingBlockId).toBeNull()
   })
 
@@ -101,6 +101,6 @@ describe('BlockTextEditor', () => {
     fireEvent.keyDown(editor, { key: 'Escape' })
     fireEvent.blur(editor)
 
-    expect(store().blocks[0]?.text).toBe('')
+    expect(selectCurrentBlocks(store())[0]?.text).toBe('')
   })
 })

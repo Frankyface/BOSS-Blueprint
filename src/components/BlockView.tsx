@@ -1,6 +1,7 @@
 import { memo, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
+import { copyModeOf, isCopyBlock, isLinked } from '../canvas/blockEdits.ts'
 import type { Block } from '../canvas/types.ts'
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 import { useBlockGesture } from '../hooks/useBlockGesture.ts'
@@ -72,6 +73,8 @@ export const BlockView = memo(function BlockView({
       data-block-type={block.type}
       data-selected={isSelected ? 'true' : 'false'}
       data-editing={isEditing ? 'true' : 'false'}
+      data-copy-mode={isCopyBlock(block) ? copyModeOf(block) : undefined}
+      data-linked={isLinked(block) ? 'true' : 'false'}
       data-z={zIndex}
       data-x={block.x}
       data-y={block.y}

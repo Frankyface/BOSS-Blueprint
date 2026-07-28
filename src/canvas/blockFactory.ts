@@ -1,5 +1,6 @@
 import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 
+import { withTypeDefaults } from './blockEdits.ts'
 import { CASCADE_STEP_PX, CASCADE_WRAP_COUNT, PAGE_WIDTH_PX } from './constants.ts'
 import { clampPosition } from './geometry.ts'
 import type { Block, BlockRect, BlockTypeId } from './types.ts'
@@ -52,9 +53,17 @@ export function nextBlockRect(type: BlockTypeId, blocks: readonly Block[]): Bloc
 
 /**
  * Build a block ready to drop into the document.
+ *
  * `text` starts empty on purpose: an empty string means "still showing the
- * placeholder", which lets the Stage 3 export tell client copy from filler.
+ * placeholder", which lets the Stage 3 export tell client copy from filler. The
+ * per-type fields (copy mode, link, menu items) are filled in by the same defaults
+ * the parser applies, so a block survives a save-and-reload byte-identical.
  */
 export function createBlock(type: BlockTypeId, blocks: readonly Block[]): Block {
-  return { id: createBlockId(), type, text: '', ...nextBlockRect(type, blocks) }
+  return withTypeDefaults({
+    id: createBlockId(),
+    type,
+    text: '',
+    ...nextBlockRect(type, blocks),
+  })
 }

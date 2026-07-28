@@ -21,10 +21,19 @@ import {
   writeStoredDesign,
 } from './support/canvas.ts'
 
-/** Matches BLUEPRINT_SCHEMA_VERSION in src/canvas/blueprintFile.ts. */
-const SCHEMA_VERSION = 1
+/** The six block types the palette offers (src/constants/blockTypes.ts). */
+const BLOCK_TYPE_COUNT = 6
 
-/** Build a small page the way a client would, leaving it mid-edit. */
+/** Matches BLUEPRINT_SCHEMA_VERSION in src/canvas/blueprintFile.ts. */
+const SCHEMA_VERSION = 2
+
+/**
+ * Build a small page the way a client would, leaving it mid-edit.
+ *
+ * ALL SIX block types on purpose: the stage-1 definition of done asks for "one of
+ * each block type … reload … identical", and an earlier version of this helper
+ * placed only four, so two types had no committed regression test at all.
+ */
 async function buildPage(page: import('@playwright/test').Page): Promise<void> {
   await addBlock(page, 'nav-bar')
   await addBlock(page, 'section')
@@ -32,6 +41,9 @@ async function buildPage(page: import('@playwright/test').Page): Promise<void> {
   const headingId = await idOfType(page, 'heading')
   await editBlockText(page, blockById(page, headingId), 'BOSS Solutions')
   await dragBy(page, blockById(page, headingId), 40, 24)
+  await addBlock(page, 'text')
+  await editBlockText(page, blockOfType(page, 'text'), 'We build small business websites.')
+  await addBlock(page, 'image')
   await addBlock(page, 'button')
   await editBlockText(page, blockOfType(page, 'button'), 'Book a call')
 }
@@ -47,7 +59,8 @@ test.describe('autosave', () => {
 
     const before = await readDocument(page)
     const domBefore = await readDomBlocks(page)
-    expect(before.blocks.length).toBeGreaterThan(3)
+    // One of every block type reached the page before the reload.
+    expect(new Set(before.blocks.map((block) => block.type)).size).toBe(BLOCK_TYPE_COUNT)
     await attachPageScreenshot(page, 'autosave-before-reload')
 
     await reloadCanvas(page)
@@ -80,9 +93,13 @@ test.describe('autosave', () => {
 
     const raw = await readStoredDesign(page)
     expect(raw).not.toBeNull()
-    const payload = JSON.parse(raw ?? '{}') as { schemaVersion?: unknown; blocks?: unknown[] }
+    const payload = JSON.parse(raw ?? '{}') as {
+      schemaVersion?: unknown
+      pages?: { blocks?: unknown[] }[]
+    }
     expect(payload.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(payload.blocks).toHaveLength(1)
+    expect(payload.pages).toHaveLength(1)
+    expect(payload.pages?.[0]?.blocks).toHaveLength(1)
   })
 
   test('does not persist the selection', async ({ page }) => {
@@ -98,7 +115,7 @@ test.describe('autosave', () => {
 
     expect(await readStoredDesign(page)).toBe(saved)
     const payload = JSON.parse(saved ?? '{}') as Record<string, unknown>
-    expect(Object.keys(payload).sort()).toEqual(['blocks', 'schemaVersion'])
+    expect(Object.keys(payload).sort()).toEqual(['pages', 'schemaVersion', 'siteSettings'])
   })
 })
 
@@ -128,7 +145,7 @@ test.describe('recovering from a bad saved design', () => {
   })
 
   test('an unknown schema version is quarantined the same way', async ({ page }) => {
-    const future = JSON.stringify({ schemaVersion: SCHEMA_VERSION + 99, blocks: [] })
+    const future = JSON.stringify({ schemaVersion: SCHEMA_VERSION + 99, pages: [] })
     await writeStoredDesign(page, STORAGE_KEY, future)
 
     await reloadCanvas(page)

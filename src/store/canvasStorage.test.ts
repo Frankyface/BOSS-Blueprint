@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { BLUEPRINT_SCHEMA_VERSION, serialiseDocument } from '../canvas/blueprintFile.ts'
-import type { Block, CanvasDocument } from '../canvas/types.ts'
+import { documentOf, testBlock as block } from '../test/documents.ts'
 import { createFakeStorage, quotaExceededError } from '../test/fakeStorage.ts'
 
 import {
@@ -13,19 +13,6 @@ import {
   payloadByteSize,
   saveDocument,
 } from './canvasStorage.ts'
-
-const block = (overrides: Partial<Block> = {}): Block => ({
-  id: 'block-1',
-  type: 'heading',
-  x: 80,
-  y: 120,
-  width: 640,
-  height: 72,
-  text: 'Welcome',
-  ...overrides,
-})
-
-const documentOf = (...blocks: Block[]): CanvasDocument => ({ blocks })
 
 describe('saveDocument', () => {
   it('writes the serialised document under the versioned key', () => {

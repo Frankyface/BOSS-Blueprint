@@ -22,6 +22,9 @@ const PERF_BLOCK_COUNT = 30
 const PERF_DRAG_STEPS = 60
 const DRAG_DISTANCE_PX = 80
 
+/** The fields every block carries, whatever its type. */
+const BASE_BLOCK_KEYS = ['height', 'id', 'text', 'type', 'width', 'x', 'y']
+
 test.describe('block canvas', () => {
   test.beforeEach(async ({ page }) => {
     await openCanvas(page)
@@ -118,11 +121,15 @@ test.describe('block canvas', () => {
 
     const document = await readDocument(page)
     expect(JSON.parse(JSON.stringify(document))).toEqual(document)
-    for (const block of document.blocks) {
-      expect(Object.keys(block).sort()).toEqual(
-        ['height', 'id', 'text', 'type', 'width', 'x', 'y'].sort(),
-      )
-    }
+
+    const [heading, image] = document.blocks
+    // Every block carries the same identity and geometry...
+    expect(Object.keys(heading ?? {})).toEqual(expect.arrayContaining(BASE_BLOCK_KEYS))
+    // ...plus exactly the extra fields its own type owns, and no others.
+    expect(Object.keys(heading ?? {}).sort()).toEqual(
+      [...BASE_BLOCK_KEYS, 'copyMode', 'generateDescription', 'lengthHint'].sort(),
+    )
+    expect(Object.keys(image ?? {}).sort()).toEqual([...BASE_BLOCK_KEYS].sort())
   })
 
   test('shrinks the page to fit a narrow window (fit-to-window zoom)', async ({ page }) => {

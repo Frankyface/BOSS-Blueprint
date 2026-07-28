@@ -11,6 +11,17 @@ import { expect, test } from '@playwright/test'
 
 export type BlockTypeId = 'section' | 'heading' | 'text' | 'image' | 'button' | 'nav-bar'
 
+export type StoredLink =
+  | { kind: 'none' }
+  | { kind: 'page'; pageId: string }
+  | { kind: 'external'; url: string }
+
+export interface StoredNavItem {
+  id: string
+  label: string
+  link: StoredLink
+}
+
 export interface StoredBlock {
   id: string
   type: BlockTypeId
@@ -19,9 +30,33 @@ export interface StoredBlock {
   width: number
   height: number
   text: string
+  copyMode?: 'real' | 'generate'
+  generateDescription?: string
+  lengthHint?: string
+  link?: StoredLink
+  items?: StoredNavItem[]
+}
+
+export interface StoredPage {
+  id: string
+  name: string
+  blocks: StoredBlock[]
+}
+
+export interface StoredSiteSettings {
+  businessName: string
+  tagline: string
+  about: string
+  vibe: string | null
+  styleNotes: string
+  colors: string[]
 }
 
 export interface StoredDocument {
+  siteSettings: StoredSiteSettings
+  pages: StoredPage[]
+  currentPageId: string
+  /** Convenience: the blocks of the page currently on screen. */
   blocks: StoredBlock[]
   selectedBlockId: string | null
   editingBlockId: string | null
@@ -29,7 +64,12 @@ export interface StoredDocument {
 
 /** Shape of the seam installed by src/store/testBridge.ts. */
 interface BlueprintTestBridge {
-  getState: () => StoredDocument & {
+  getState: () => {
+    siteSettings: StoredSiteSettings
+    pages: StoredPage[]
+    currentPageId: string
+    selectedBlockId: string | null
+    editingBlockId: string | null
     addBlock: (type: BlockTypeId) => string
     resetCanvas: () => void
   }
@@ -112,12 +152,30 @@ export async function readDocument(page: Page): Promise<StoredDocument> {
     const store = (globalThis as BridgeHost).__blueprintStore
     if (!store) throw new Error('The store test bridge is missing from this build')
     const state = store.getState()
+    const current = state.pages.find((entry) => entry.id === state.currentPageId)
+
     return {
-      blocks: state.blocks,
+      siteSettings: state.siteSettings,
+      pages: state.pages,
+      currentPageId: state.currentPageId,
+      blocks: current?.blocks ?? [],
       selectedBlockId: state.selectedBlockId,
       editingBlockId: state.editingBlockId,
     }
   })
+}
+
+/** Every block on the site, in page order — for cross-page assertions. */
+export async function readAllBlocks(page: Page): Promise<StoredBlock[]> {
+  const document = await readDocument(page)
+  return document.pages.flatMap((entry) => entry.blocks)
+}
+
+export async function readPage(page: Page, pageId: string): Promise<StoredPage> {
+  const document = await readDocument(page)
+  const found = document.pages.find((entry) => entry.id === pageId)
+  if (!found) throw new Error(`No page ${pageId} in the store`)
+  return found
 }
 
 /** Seed blocks straight through the store — used by the perf probe. */
@@ -247,15 +305,16 @@ const AUTOSAVE_WAIT_MS = 15_000
 
 /** Block until the debounced autosave has written the document currently on screen. */
 export async function waitForAutosave(page: Page): Promise<void> {
-  const expected = JSON.stringify((await readDocument(page)).blocks)
+  const document = await readDocument(page)
+  const expected = JSON.stringify({ pages: document.pages, siteSettings: document.siteSettings })
 
   await expect
     .poll(
       async () => {
         const raw = await readStoredDesign(page)
         if (raw === null) return null
-        const parsed = JSON.parse(raw) as { blocks?: unknown }
-        return JSON.stringify(parsed.blocks)
+        const parsed = JSON.parse(raw) as { pages?: unknown; siteSettings?: unknown }
+        return JSON.stringify({ pages: parsed.pages, siteSettings: parsed.siteSettings })
       },
       { timeout: AUTOSAVE_WAIT_MS },
     )
@@ -333,4 +392,111 @@ export async function expectGeometry(
   await expect(element).toHaveAttribute('data-height', String(expected.height))
 
   expect(await readBlock(page, id)).toMatchObject(expected)
+}
+
+/* ------------------------------------------------------------------------- */
+/* Pages, the details panel and the nav map — the Stage 2 vocabulary.         */
+/* ------------------------------------------------------------------------- */
+
+export function pageTabs(page: Page): Locator {
+  return page.getByTestId('page-tab')
+}
+
+export function pageTab(page: Page, name: string): Locator {
+  return pageTabs(page).filter({ hasText: name })
+}
+
+export async function pageNames(page: Page): Promise<string[]> {
+  return (await readDocument(page)).pages.map((entry) => entry.name)
+}
+
+/** Add a page the way a client does: click Add page, type a name, confirm. */
+export async function addPage(page: Page, name: string): Promise<string> {
+  await page.getByTestId('page-add').click()
+  await page.getByTestId('page-add-name').fill(name)
+  await page.getByTestId('page-add-confirm').click()
+  await expect(page.getByTestId('page-add-form')).toBeHidden()
+  return (await readDocument(page)).currentPageId
+}
+
+export async function switchToPage(page: Page, name: string): Promise<void> {
+  await pageTab(page, name).click()
+  await expect(pageTab(page, name)).toHaveAttribute('data-current', 'true')
+}
+
+export async function renamePage(page: Page, name: string): Promise<void> {
+  await page.getByTestId('page-rename').click()
+  await page.getByTestId('page-rename-name').fill(name)
+  await page.getByTestId('page-rename-confirm').click()
+  await expect(page.getByTestId('page-rename-form')).toBeHidden()
+}
+
+export async function duplicateCurrentPage(page: Page): Promise<void> {
+  await page.getByTestId('page-duplicate').click()
+}
+
+/** Delete the current page through the two-step confirmation. */
+export async function deleteCurrentPage(page: Page): Promise<void> {
+  await page.getByTestId('page-delete').click()
+  await expect(page.getByTestId('page-delete-confirm')).toBeVisible()
+  await page.getByTestId('page-delete-confirmed').click()
+  await expect(page.getByTestId('page-delete-confirm')).toBeHidden()
+}
+
+export type PanelTab = 'block' | 'site' | 'map'
+
+export async function openPanel(page: Page, tab: PanelTab): Promise<void> {
+  await page.getByTestId(`side-panel-tab-${tab}`).click()
+  await expect(page.getByTestId('side-panel')).toHaveAttribute('data-tab', tab)
+}
+
+/** Select a block on the canvas and open the Block tab of the details panel. */
+export async function inspectBlock(page: Page, target: Locator): Promise<void> {
+  await target.click()
+  await openPanel(page, 'block')
+  await expect(page.getByTestId('block-inspector')).toBeVisible()
+}
+
+/** Point a link picker at a page by NAME, using the select's visible label. */
+export async function linkToPage(page: Page, testId: string, pageName: string): Promise<void> {
+  await page.getByTestId(`${testId}-link-target`).selectOption({ label: pageName })
+}
+
+export async function linkToNothing(page: Page, testId: string): Promise<void> {
+  await page.getByTestId(`${testId}-link-target`).selectOption('none')
+}
+
+/** Pick "a web address" and commit a URL. Returns without asserting validity. */
+export async function linkToUrl(page: Page, testId: string, url: string): Promise<void> {
+  await page.getByTestId(`${testId}-link-target`).selectOption('external')
+  const field = page.getByTestId(`${testId}-link-url`)
+  await expect(field).toBeVisible()
+  await field.fill(url)
+  await field.press('Enter')
+}
+
+export function navMapEntries(page: Page): Locator {
+  return page.getByTestId('nav-map-entry')
+}
+
+/** The nav map as flat "Label → Destination" strings, in page order. */
+export async function readNavMap(page: Page): Promise<string[]> {
+  return page.getByTestId('nav-map-page').evaluateAll((sections) =>
+    sections.flatMap((section) => {
+      const heading = section.querySelector('h3')?.textContent ?? ''
+      const entries = Array.from(section.querySelectorAll('[data-testid="nav-map-entry"]'))
+      return entries.map((entry) => {
+        const label = entry.querySelector('.nav-map__label')?.textContent ?? ''
+        const target = entry.querySelector('.nav-map__target')?.textContent ?? ''
+        return `${heading}: ${label} -> ${target}`
+      })
+    }),
+  )
+}
+
+/** Commit a value into a details-panel field the way a client does. */
+export async function fillPanelField(page: Page, testId: string, value: string): Promise<void> {
+  const field = page.getByTestId(testId)
+  await field.fill(value)
+  await field.blur()
 }

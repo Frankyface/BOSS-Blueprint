@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { resetBlockIdSequence } from '../canvas/blockFactory.ts'
 import type { Block } from '../canvas/types.ts'
 
-import { useCanvasStore } from './canvasStore.ts'
+import { selectCurrentBlocks, useCanvasStore } from './canvasStore.ts'
 
 /**
  * The freeze is installed by canvasStore.ts on import, and Vitest runs with
@@ -13,6 +13,7 @@ import { useCanvasStore } from './canvasStore.ts'
  */
 
 const store = () => useCanvasStore.getState()
+const blocksNow = () => selectCurrentBlocks(store())
 
 beforeEach(() => {
   store().resetCanvas()
@@ -24,15 +25,15 @@ describe('the dev/test document freeze', () => {
     store().addBlock('heading')
     store().addBlock('section')
 
-    expect(Object.isFrozen(store().blocks)).toBe(true)
-    for (const block of store().blocks) {
+    expect(Object.isFrozen(blocksNow())).toBe(true)
+    for (const block of blocksNow()) {
       expect(Object.isFrozen(block)).toBe(true)
     }
   })
 
   it('throws on an in-place write to a block', () => {
     const id = store().addBlock('heading')
-    const block = store().blocks.find((candidate) => candidate.id === id)
+    const block = blocksNow().find((candidate) => candidate.id === id)
     expect(block).toBeDefined()
     if (!block) return
 
@@ -45,7 +46,7 @@ describe('the dev/test document freeze', () => {
 
   it('throws on an in-place push to the document', () => {
     store().addBlock('heading')
-    const blocks = store().blocks
+    const blocks = blocksNow()
 
     expect(() => {
       ;(blocks as Block[]).push({
@@ -58,7 +59,7 @@ describe('the dev/test document freeze', () => {
         text: '',
       })
     }).toThrow(TypeError)
-    expect(store().blocks).toHaveLength(1)
+    expect(blocksNow()).toHaveLength(1)
   })
 
   it('still lets every legitimate immutable action through', () => {
@@ -73,7 +74,7 @@ describe('the dev/test document freeze', () => {
     store().sendBlockBackward(second)
     store().deleteBlock(second)
 
-    expect(store().blocks).toHaveLength(1)
-    expect(store().blocks[0]).toMatchObject({ x: 120, y: 160, text: 'Frozen but editable' })
+    expect(blocksNow()).toHaveLength(1)
+    expect(blocksNow()[0]).toMatchObject({ x: 120, y: 160, text: 'Frozen but editable' })
   })
 })

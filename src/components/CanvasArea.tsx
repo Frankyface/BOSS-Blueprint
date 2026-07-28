@@ -5,7 +5,7 @@ import { PAGE_WIDTH_PX } from '../canvas/constants.ts'
 import { pageHeightForRects } from '../canvas/geometry.ts'
 import { useCanvasKeyboard } from '../hooks/useCanvasKeyboard.ts'
 import { usePageScale } from '../hooks/usePageScale.ts'
-import { useCanvasStore } from '../store/canvasStore.ts'
+import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
 
 import { BlockView } from './BlockView.tsx'
 import { CanvasToolbar } from './CanvasToolbar.tsx'
@@ -22,7 +22,8 @@ const PRIMARY_MOUSE_BUTTON = 0
  * inside it — no canvas element anywhere (see the canvas-engine decision).
  */
 export function CanvasArea() {
-  const blocks = useCanvasStore((state) => state.blocks)
+  const blocks = useCanvasStore(selectCurrentBlocks)
+  const currentPageId = useCanvasStore((state) => state.currentPageId)
   const selectedBlockId = useCanvasStore((state) => state.selectedBlockId)
   const editingBlockId = useCanvasStore((state) => state.editingBlockId)
   const selectBlock = useCanvasStore((state) => state.selectBlock)
@@ -54,6 +55,7 @@ export function CanvasArea() {
           <div
             className="canvas-page"
             data-testid="canvas-page"
+            data-page-id={currentPageId}
             data-page-scale={scale}
             data-page-width={PAGE_WIDTH_PX}
             data-page-height={pageHeight}

@@ -1,0 +1,258 @@
+/*
+ * The details panel is a fixed-width right column. It scrolls INSIDE itself
+ * (`overflow: auto` on the view, `min-height: 0` on the column) so a long settings
+ * form never makes the app shell taller than the window — the same rule that keeps
+ * the canvas viewport the only scroller.
+ */
+
+.side-panel {
+  display: flex;
+  flex: 0 0 var(--boss-panel-width);
+  flex-direction: column;
+  width: var(--boss-panel-width);
+  min-height: 0;
+  background: var(--boss-surface);
+  border-left: 1px solid var(--boss-line);
+}
+
+.side-panel__tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+  padding: 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--boss-line);
+}
+
+.side-panel__tab {
+  flex: 1 1 auto;
+  padding: 0.45rem 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--boss-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--boss-radius) var(--boss-radius) 0 0;
+  cursor: pointer;
+}
+
+.side-panel__tab[aria-selected='true'] {
+  color: var(--boss-text);
+  background: var(--boss-band);
+  border-color: var(--boss-line);
+}
+
+.side-panel__view {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.75rem;
+  overflow: auto;
+}
+
+.side-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.side-panel__subject {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--boss-text-muted);
+}
+
+.side-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--boss-line);
+}
+
+.side-panel__heading {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--boss-text);
+}
+
+.side-panel__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.side-panel__label-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text-muted);
+}
+
+.side-panel__control {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+}
+
+.side-panel__control--tall {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.side-panel__hint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--boss-text-muted);
+}
+
+.side-panel__error {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--boss-danger);
+}
+
+.side-panel__button {
+  align-self: flex-start;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.side-panel__button:disabled {
+  color: var(--boss-text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.side-panel__button--danger:not(:disabled) {
+  color: var(--boss-danger);
+  border-color: var(--boss-danger);
+}
+
+/* --- Copy mode toggle ----------------------------------------------------- */
+.copy-mode {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.copy-mode__option {
+  flex: 1 1 0;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--boss-text-muted);
+  background: var(--boss-band);
+  border: 1px solid var(--boss-line);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.copy-mode__option[aria-pressed='true'] {
+  color: var(--boss-text-invert);
+  background: var(--boss-ink);
+  border-color: var(--boss-ink);
+}
+
+/* --- Nav items ------------------------------------------------------------ */
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nav-items__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: var(--boss-band);
+  border: 1px solid var(--boss-line);
+  border-radius: var(--boss-radius);
+}
+
+/* --- Site colours --------------------------------------------------------- */
+.site-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.site-colors__slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.site-colors__swatch {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--boss-band) 0,
+    var(--boss-band) 4px,
+    var(--boss-line) 4px,
+    var(--boss-line) 8px
+  );
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+}
+
+.site-colors__slot .side-panel__control {
+  flex: 1 1 6rem;
+  width: auto;
+}
+
+/* --- Nav map -------------------------------------------------------------- */
+.nav-map__page + .nav-map__page {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--boss-line);
+}
+
+.nav-map__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.nav-map__entry {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 0.82rem;
+}
+
+.nav-map__label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.nav-map__arrow {
+  color: var(--boss-text-muted);
+}
+
+.nav-map__target {
+  color: var(--boss-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.nav-map__entry[data-link-kind='none'] .nav-map__target {
+  font-style: italic;
+}

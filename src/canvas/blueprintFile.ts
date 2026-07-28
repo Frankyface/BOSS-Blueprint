@@ -1,6 +1,7 @@
-import { BLOCK_TYPES } from '../constants/blockTypes.ts'
-
-import type { Block, BlockTypeId, CanvasDocument } from './types.ts'
+import { parseBlocks } from './blueprintBlock.ts'
+import { createPage, HOME_PAGE_NAME, normalisePageName } from './pages.ts'
+import { emptySiteSettings, parseSiteSettings } from './siteSettings.ts'
+import type { Block, CanvasDocument, Page, SiteSettings } from './types.ts'
 
 /**
  * THE `.blueprint` FILE FORMAT.
@@ -20,17 +21,35 @@ import type { Block, BlockTypeId, CanvasDocument } from './types.ts'
  * Bumped only when the document shape changes incompatibly. It travels INSIDE the
  * payload — an older build meeting a newer payload reads this field, fails safe and
  * keeps the data, which it could not do if the version only lived in the key.
+ *
+ * **2 — pages.** Version 1 was a single `{ blocks }` canvas; version 2 is
+ * `{ siteSettings, pages[] }`. Version 1 payloads are MIGRATED on read (§below),
+ * never quarantined: a client who sketched a page yesterday must find it here
+ * today. Quarantine is reserved for payloads that are corrupt or written by a
+ * version this build has never heard of.
  */
-export const BLUEPRINT_SCHEMA_VERSION = 1
+export const BLUEPRINT_SCHEMA_VERSION = 2
+
+/** Older versions this build can read by migrating them forward. */
+export const MIGRATABLE_SCHEMA_VERSIONS: readonly number[] = [1]
+
+/** The page a migrated schema-1 canvas becomes. */
+export const MIGRATED_PAGE_NAME = HOME_PAGE_NAME
 
 export interface BlueprintFile {
   readonly schemaVersion: number
-  readonly blocks: readonly Block[]
+  readonly siteSettings: SiteSettings
+  readonly pages: readonly Page[]
 }
 
 export type BlueprintParseResult =
-  | { readonly status: 'ok'; readonly document: CanvasDocument }
-  /** Unreadable: not JSON, wrong shape, or a block that fails validation. */
+  | {
+      readonly status: 'ok'
+      readonly document: CanvasDocument
+      /** The version it was written as, when that was older than this build's. */
+      readonly migratedFrom: number | null
+    }
+  /** Unreadable: not JSON, wrong shape, or a field that fails validation. */
   | { readonly status: 'corrupt'; readonly reason: string }
   /** Readable, but written by a schema this build does not understand. */
   | {
@@ -39,18 +58,11 @@ export type BlueprintParseResult =
       readonly version: number
     }
 
-const KNOWN_BLOCK_TYPES: ReadonlySet<string> = new Set(
-  BLOCK_TYPES.map((definition) => definition.id),
-)
-
-export function emptyDocument(): CanvasDocument {
-  return { blocks: [] }
-}
-
 export function serialiseDocument(document: CanvasDocument): string {
   const file: BlueprintFile = {
     schemaVersion: BLUEPRINT_SCHEMA_VERSION,
-    blocks: document.blocks,
+    siteSettings: document.siteSettings,
+    pages: document.pages,
   }
   return JSON.stringify(file)
 }
@@ -63,28 +75,88 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function isBlockTypeId(value: unknown): value is BlockTypeId {
-  return typeof value === 'string' && KNOWN_BLOCK_TYPES.has(value)
-}
-
-/** One block, field by field. `null` means "this payload cannot be trusted". */
-function parseBlock(value: unknown): Block | null {
-  if (!isRecord(value)) return null
-
-  const { id, type, x, y, width, height, text } = value
-
-  if (typeof id !== 'string' || id.length === 0) return null
-  if (!isBlockTypeId(type)) return null
-  if (!isFiniteNumber(x) || !isFiniteNumber(y)) return null
-  if (!isFiniteNumber(width) || width <= 0) return null
-  if (!isFiniteNumber(height) || height <= 0) return null
-  if (typeof text !== 'string') return null
-
-  return { id, type, x, y, width, height, text }
-}
-
 function corrupt(reason: string): BlueprintParseResult {
   return { status: 'corrupt', reason }
+}
+
+function ok(document: CanvasDocument, migratedFrom: number | null): BlueprintParseResult {
+  return { status: 'ok', document, migratedFrom }
+}
+
+function parsePage(value: unknown): Page | null {
+  if (!isRecord(value)) return null
+
+  const { id, name } = value
+  if (typeof id !== 'string' || id.length === 0) return null
+  if (typeof name !== 'string') return null
+
+  const pageName = normalisePageName(name)
+  if (pageName.length === 0) return null
+
+  const blocks = parseBlocks(value.blocks)
+  return blocks === null ? null : { id, name: pageName, blocks }
+}
+
+/** Ids are React keys and the handle every action takes — a repeat is corruption. */
+function hasDuplicates(ids: readonly string[]): boolean {
+  return new Set(ids).size !== ids.length
+}
+
+function allBlockIds(pages: readonly Page[]): readonly string[] {
+  return pages.flatMap((page) => page.blocks.map((block: Block) => block.id))
+}
+
+/** The current shape: `{ schemaVersion: 2, siteSettings, pages[] }`. */
+function parseCurrent(parsed: Record<string, unknown>): BlueprintParseResult {
+  const siteSettings = parseSiteSettings(parsed.siteSettings)
+  if (!siteSettings) return corrupt('The saved design has unreadable site settings.')
+
+  const rawPages = parsed.pages
+  if (!Array.isArray(rawPages)) return corrupt('The saved design has no list of pages.')
+  if (rawPages.length === 0) return corrupt('The saved design has no pages in it.')
+
+  const pages: Page[] = []
+  for (const candidate of rawPages) {
+    const page = parsePage(candidate)
+    if (!page) return corrupt('The saved design contains a page that could not be read.')
+    pages.push(page)
+  }
+
+  if (hasDuplicates(pages.map((page) => page.id))) {
+    return corrupt('The saved design contains duplicate page ids.')
+  }
+
+  // Site-wide, not per page: the export numbers blocks across the whole site
+  // (§4.8), so two pages sharing a block id would collide there too.
+  if (hasDuplicates(allBlockIds(pages))) {
+    return corrupt('The saved design contains duplicate block ids.')
+  }
+
+  return ok({ siteSettings, pages }, null)
+}
+
+/**
+ * MIGRATION — schema 1 (`{ blocks }`) becomes schema 2's single page named "Home".
+ *
+ * Nothing is invented and nothing is dropped: the blocks come through the same
+ * per-field validator as a current payload (which is also what fills in the new
+ * per-type defaults — copy mode `real`, unlinked buttons, nav items derived from
+ * the comma-separated labels the old build stored in `text`), and site settings
+ * start empty because version 1 had nowhere to put them.
+ */
+function parseLegacyV1(parsed: Record<string, unknown>): BlueprintParseResult {
+  const blocks = parseBlocks(parsed.blocks)
+  if (blocks === null) {
+    if (!Array.isArray(parsed.blocks)) return corrupt('The saved design has no list of blocks.')
+    return corrupt('The saved design contains a block that could not be read.')
+  }
+
+  if (hasDuplicates(blocks.map((block) => block.id))) {
+    return corrupt('The saved design contains duplicate block ids.')
+  }
+
+  const home = createPage(MIGRATED_PAGE_NAME, [], blocks)
+  return ok({ siteSettings: emptySiteSettings(), pages: [home] }, 1)
 }
 
 /**
@@ -101,34 +173,18 @@ export function parseBlueprint(raw: string): BlueprintParseResult {
 
   if (!isRecord(parsed)) return corrupt('The saved design is not a blueprint object.')
 
-  const { schemaVersion, blocks } = parsed
+  const { schemaVersion } = parsed
 
   if (!isFiniteNumber(schemaVersion)) {
     return corrupt('The saved design has no schema version.')
   }
 
-  if (schemaVersion !== BLUEPRINT_SCHEMA_VERSION) {
-    return {
-      status: 'unsupported-version',
-      version: schemaVersion,
-      reason: `The saved design was made by a different version of BOSS Blueprint (schema ${String(schemaVersion)}, this build reads ${String(BLUEPRINT_SCHEMA_VERSION)}).`,
-    }
+  if (schemaVersion === BLUEPRINT_SCHEMA_VERSION) return parseCurrent(parsed)
+  if (MIGRATABLE_SCHEMA_VERSIONS.includes(schemaVersion)) return parseLegacyV1(parsed)
+
+  return {
+    status: 'unsupported-version',
+    version: schemaVersion,
+    reason: `The saved design was made by a different version of BOSS Blueprint (schema ${String(schemaVersion)}, this build reads ${String(BLUEPRINT_SCHEMA_VERSION)}).`,
   }
-
-  if (!Array.isArray(blocks)) return corrupt('The saved design has no list of blocks.')
-
-  const parsedBlocks: Block[] = []
-  for (const candidate of blocks) {
-    const block = parseBlock(candidate)
-    if (!block) return corrupt('The saved design contains a block that could not be read.')
-    parsedBlocks.push(block)
-  }
-
-  // Ids double as React keys and as the handle every action takes, so a duplicate
-  // is a corrupt document rather than something to silently render.
-  if (new Set(parsedBlocks.map((block) => block.id)).size !== parsedBlocks.length) {
-    return corrupt('The saved design contains duplicate block ids.')
-  }
-
-  return { status: 'ok', document: { blocks: parsedBlocks } }
 }

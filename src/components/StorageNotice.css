@@ -32,6 +32,15 @@
   border-color: var(--boss-select);
 }
 
+/*
+ * A message about the DESIGN rather than about saving — blue, so a client can tell
+ * "we tidied up after that page" from "your work is not being saved" at a glance.
+ */
+.storage-notice--design {
+  background: color-mix(in srgb, var(--boss-select) 12%, var(--boss-surface));
+  border-bottom-color: var(--boss-select);
+}
+
 /* A failed save is not a friendly amber heads-up — it means work is at risk. */
 .storage-notice[data-notice-kind='save-failed'] {
   background: color-mix(in srgb, var(--boss-danger) 14%, var(--boss-surface));

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
 import { startOver } from '../store/canvasSession.ts'
-import { useCanvasStore } from '../store/canvasStore.ts'
+import { selectHasContent, useCanvasStore } from '../store/canvasStore.ts'
 
-const CONFIRM_PROMPT = 'Clear the whole page?'
+const CONFIRM_PROMPT = 'Clear the whole design?'
 
 /**
  * "Start over" behind an in-app confirmation rather than `window.confirm`.
@@ -15,7 +15,8 @@ const CONFIRM_PROMPT = 'Clear the whole page?'
  */
 export function StartOverButton() {
   const [isConfirming, setIsConfirming] = useState(false)
-  const hasBlocks = useCanvasStore((state) => state.blocks.length > 0)
+  // Every page, not just this one: "start over" clears the whole site.
+  const hasContent = useCanvasStore(selectHasContent)
 
   if (!isConfirming) {
     return (
@@ -23,7 +24,7 @@ export function StartOverButton() {
         type="button"
         className="canvas-toolbar__button"
         data-testid="toolbar-start-over"
-        disabled={!hasBlocks}
+        disabled={!hasContent}
         onClick={() => setIsConfirming(true)}
       >
         Start over

@@ -1,0 +1,130 @@
+/*
+ * The page strip sits between the app chrome and the canvas toolbar. It never
+ * scrolls with the page: like the toolbar it is `flex: 0 0 auto` inside the
+ * stage column, which keeps the canvas viewport the app's one and only scroller.
+ */
+
+.page-strip {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--boss-surface);
+  border-bottom: 1px solid var(--boss-line);
+}
+
+.page-strip__tabs {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.page-strip__tab {
+  padding: 0.35rem 0.85rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--boss-text-muted);
+  background: var(--boss-band);
+  border: 1px solid var(--boss-line);
+  border-radius: var(--boss-radius) var(--boss-radius) 0 0;
+  cursor: pointer;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-strip__tab:hover {
+  color: var(--boss-text);
+  border-color: var(--boss-line-strong);
+}
+
+.page-strip__tab[data-current='true'] {
+  color: var(--boss-text-invert);
+  background: var(--boss-ink);
+  border-color: var(--boss-ink);
+}
+
+.page-strip__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.page-strip__button {
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.page-strip__button:hover:not(:disabled) {
+  background: var(--boss-band);
+}
+
+.page-strip__button:disabled {
+  color: var(--boss-text-muted);
+  border-color: var(--boss-line);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.page-strip__button--danger:not(:disabled) {
+  color: var(--boss-danger);
+  border-color: var(--boss-danger);
+}
+
+.page-strip__button--primary:not(:disabled) {
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border-color: var(--boss-accent);
+  font-weight: 700;
+}
+
+.page-strip__form,
+.page-strip__confirm {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--boss-line);
+}
+
+.page-strip__form-label {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--boss-text-muted);
+}
+
+.page-strip__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 18rem;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+}
+
+.page-strip__confirm-prompt {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--boss-danger);
+}

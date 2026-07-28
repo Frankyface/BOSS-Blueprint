@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { BLOCK_TYPES } from '../constants/blockTypes.ts'
-import { useCanvasStore } from '../store/canvasStore.ts'
+import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
 
 import { BlockPalette } from './BlockPalette.tsx'
 
@@ -46,7 +46,8 @@ describe('BlockPalette', () => {
 
     fireEvent.click(screen.getByTestId('palette-heading'))
 
-    const { blocks, selectedBlockId } = useCanvasStore.getState()
+    const { selectedBlockId } = useCanvasStore.getState()
+    const blocks = selectCurrentBlocks(useCanvasStore.getState())
     expect(blocks).toHaveLength(1)
     expect(blocks[0]?.type).toBe('heading')
     expect(selectedBlockId).toBe(blocks[0]?.id)
@@ -59,7 +60,7 @@ describe('BlockPalette', () => {
       fireEvent.click(screen.getByTestId(`palette-${id}`))
     }
 
-    const types = useCanvasStore.getState().blocks.map((block) => block.type)
+    const types = selectCurrentBlocks(useCanvasStore.getState()).map((block) => block.type)
     expect([...types].sort()).toEqual([...EXPECTED_IDS].sort())
   })
 })
