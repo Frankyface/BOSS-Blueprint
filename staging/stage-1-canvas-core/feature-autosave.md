@@ -1,17 +1,17 @@
 # Feature: Autosave
-_Stage: stage-1-canvas-core · Status: awaiting verification_
+_Stage: stage-1-canvas-core · Status: verified done_
 
 ## Goal
 Work never disappears. The design persists in the browser automatically; reload, crash, or
 accidental tab close and the client picks up exactly where they left off.
 
 ## Success Criteria
-- [ ] Canvas state saves to localStorage, debounced (~1s after the last change)
-- [ ] Reloading the page restores the design exactly (blocks, positions, text, selection cleared)
-- [ ] Storage payload carries a `schemaVersion`; loading an unknown/corrupt payload fails safe
+- [x] Canvas state saves to localStorage, debounced (~1s after the last change)
+- [x] Reloading the page restores the design exactly (blocks, positions, text, selection cleared)
+- [x] Storage payload carries a `schemaVersion`; loading an unknown/corrupt payload fails safe
       to a fresh canvas WITHOUT overwriting the stored data (preserved under a `-recovery` key)
-- [ ] "Start over" control asks for confirmation, then clears the design and the stored state
-- [ ] Approaching the localStorage quota (large designs) shows a non-blocking warning rather
+- [x] "Start over" control asks for confirmation, then clears the design and the stored state
+- [x] Approaching the localStorage quota (large designs) shows a non-blocking warning rather
       than silently failing to save
 
 ## How We'll Verify
@@ -147,6 +147,35 @@ Status stays `awaiting verification`; the stage-close reviewer re-verifies.
 - The two new behaviours were checked for discrimination rather than assumed: removing the
   `pagehide` listener and un-scoping `startOver`'s `setNotice(null)` failed exactly those two
   tests and nothing else; both were then restored and the suite re-run green.
+
+**Stage-close review (2026-07-28):**
+Independent re-verification at `abba415` in a detached worktree, `npm ci` from scratch.
+- `npm run lint` → exit 0 · `npm test` → exit 0, **17 files / 249 tests** (14.24s) ·
+  `npm run test:coverage` → exit 0, `src/canvas/**` 100%/100%, `src/store/**` 96.24%/95.34%,
+  `canvasSession.ts` **98.76% lines** with only the `typeof window === 'undefined'` guard
+  uncovered · `npm run build` → exit 0, 214.19 kB JS.
+- **HIGH-1 (shared) RESOLVED:** e2e ×2 → 141 passed both runs; the 30 autosave/recovery/
+  start-over tests green in both, zero retries.
+- **MEDIUM-2 (pagehide flush) re-verified deterministically:** in one synchronous JS turn — no
+  timer can fire mid-probe — add block → `localStorage` read (**null**, debounce has NOT fired)
+  → `dispatchEvent(new Event('pagehide'))` → payload present with the new block. Repeated via a
+  real palette click, and via `visibilitychange` with `visibilityState='hidden'`. All three
+  engines. The `before === null` read makes it non-vacuous. `beforeunload` confirmed absent
+  (bfcache decision).
+- **MEDIUM-1 (near-quota) confirmed wired and covered** at `canvasSession.test.ts:276-281` —
+  drives an oversized document through the real store + storage adapter, asserts BOTH the
+  `near-quota` notice and that the payload still reached storage. Proven at integration level
+  (a >4 MB Playwright payload is impractical); the "non-blocking" half IS E2E-proven via the
+  `recovered`/`save-failed` notice kinds.
+- **LOW-4 confirmed in source:** `NOTICE_KINDS_RESOLVED_BY_START_OVER` (canvasSession.ts:249)
+  covers near-quota/save-failed/recovered, applied at :274 — `unavailable` survives Start over.
+  LOW-2/LOW-3 comment corrections spot-checked.
+- **Reload-restore re-proved beyond the shipped spec:** all SIX block types added, arranged,
+  text-edited through the real editor, reloaded — store and DOM `toEqual` pre-reload, selection
+  cleared, three engines. (Committed `buildPage` covers four of six — addendum assigned to the
+  Stage 2 batch so the DoD item gains a committed regression test.)
+- CI green (run `30374106775`); live 200, deployed bundle byte-identical to local build.
+- **Verdict: VERIFIED DONE.**
 
 ## Open Questions
 - ~~none yet~~ — none outstanding.

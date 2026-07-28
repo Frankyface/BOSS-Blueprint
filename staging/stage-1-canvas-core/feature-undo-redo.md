@@ -1,17 +1,17 @@
 # Feature: Undo / Redo
-_Stage: stage-1-canvas-core · Status: awaiting verification_
+_Stage: stage-1-canvas-core · Status: verified done_
 
 ## Goal
 Every canvas mutation is undoable. Clients experiment fearlessly; nothing is ever "ruined."
 
 ## Success Criteria
-- [ ] Ctrl+Z undoes and Ctrl+Y / Ctrl+Shift+Z redoes every mutating action: add, move, resize,
+- [x] Ctrl+Z undoes and Ctrl+Y / Ctrl+Shift+Z redoes every mutating action: add, move, resize,
       text edit, delete, z-order (and all Stage 2 actions once they exist — pen strokes, page
       ops, uploads)
-- [ ] Toolbar undo/redo buttons mirror the shortcuts and disable when their stack is empty
-- [ ] History holds ≥50 steps; performing a new action after undo clears the redo stack
-- [ ] A text edit is one undo step (not per keystroke)
-- [ ] Undo/redo of a 10-step scripted sequence restores state exactly (deep-equal) at every step
+- [x] Toolbar undo/redo buttons mirror the shortcuts and disable when their stack is empty
+- [x] History holds ≥50 steps; performing a new action after undo clears the redo stack
+- [x] A text edit is one undo step (not per keystroke)
+- [x] Undo/redo of a 10-step scripted sequence restores state exactly (deep-equal) at every step
 
 ## How We'll Verify
 1. Unit: history middleware tests — push/undo/redo semantics, redo-clear rule, 50-step cap,
@@ -100,6 +100,26 @@ Status stays `awaiting verification`; the stage-close reviewer re-verifies.
   `npm test` → **17 files / 249 tests passed** (12.3s) · `npm run test:coverage` → exit 0 with the
   80% gate held (`src/canvas/**` 100% lines / 100% functions, `src/store/**` 96.24% / 95.34%) ·
   `npm run build` → exit 0, 214.19 kB JS (gzip 67.57 kB).
+
+**Stage-close review (2026-07-28):**
+Independent re-verification at `abba415` in a detached worktree, `npm ci` from scratch.
+- `npm run lint` → exit 0 · `npm test` → exit 0, **17 files / 249 tests** (14.24s) ·
+  `npm run test:coverage` → exit 0, `src/store/**` 96.24% lines / 95.34% functions ·
+  `npm run build` → exit 0, 214.19 kB JS (gzip 67.57 kB).
+- **HIGH-1 (E2E reproducibility) RESOLVED, measured.** `npm run e2e` twice on a third machine:
+  exit 0, **141 passed (1.6m)** both runs, identical counts, zero retries. `test.slow()`
+  (`e2e/undo-redo.spec.ts:59`) → 90s budget; `[webkit] a 10-edit session rewinds and replays`
+  measured **27.8s** then **28.5s** — **3.24× / 3.16× headroom** (chromium 4.9s, firefox
+  6.5–7.0s). Passes on merit, not margin.
+- **LOW-1 (bookkeeping) confirmed corrected** via the Vitest JSON reporter: history 13 ✓,
+  canvasSession 35 ✓, CanvasToolbar 13 ✓ (+ canvasStore 27, geometry 47, blueprintFile 20,
+  canvasStorage 15, autosave 8, devFreeze 4, StorageNotice 4). Every corrected figure matches.
+- Criteria re-checked: `HISTORY_LIMIT = 50` (history.ts:17) applied in `pushHistory`; toolbar
+  buttons track the stacks; the 10-edit session deep-equals store AND DOM at all 21 states; a
+  committed text edit is one step; Ctrl+Z inside an open editor leaves the page alone. Green ×3
+  engines ×2 runs.
+- CI green (run `30374106775`); live 200, deployed bundle byte-identical to local build.
+- **Verdict: VERIFIED DONE.**
 
 ## Open Questions
 - ~~Implementation approach (snapshot stack vs patches)~~ — decided: snapshot stack, see Notes.

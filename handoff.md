@@ -1,42 +1,43 @@
 # Handoff — BOSS Blueprint
-_Last updated: 2026-07-28 · Current stage: stage-1-canvas-core_
+_Last updated: 2026-07-28 · Current stage: stage-2-full-sketching_
 
 ## 🎯 Goals
-Finish Stage 1: undo/redo + autosave on top of the landed block canvas, then independent
-review closes the stage and Stage 2 (full sketching) begins.
+Finish Stage 2 (full sketching): batch 2 (pen layer + image upload) and batch 3 (templates +
+design file), with independent review of every batch, then Stage 3 (export & delivery).
 
 ## 📍 Current State
-- feature-app-scaffold: **verified done** (independent review reproduced all criteria; live
-  Pages deploy byte-identical to the reviewed commit).
-- feature-block-canvas + feature-block-editing: **awaiting verification** — implemented,
-  129 unit / 75 E2E green ×3 engines, deployed; independent review pending.
-- Both Fable debate verdicts recorded (DOM/SVG canvas · download-first delivery) and binding.
-- Design assets ready in session scratchpad: export-format-draft.md (full site.json schema +
-  brief.md template, rulings applied per decisions.md) and template-content-draft.md
-  (4 templates × 3 pages, fromTemplate flag ruled in) — they feed Stages 2–3.
+- **Stage 1 CLOSED** — all 5 features `verified done` with stage-close review evidence; DoD met.
+- Stage 2 batch 1 (multi-page/nav, copy blocks, site settings) implemented on document schema
+  v2 with v1→v2 migration: 463 unit / 237 E2E ×2 green, CI green, deployed. **Awaiting
+  independent verification** (reviewer running).
+- Stage 3 fully pre-specced in parallel: docs/export-format.md (frozen v2-final),
+  docs/roundtrip-protocol.md, draft feature files incoming; template fixtures validated in
+  design-assets/templates/.
+- Live: https://frankyface.github.io/BOSS-Blueprint/ (multi-page editor).
 
 ## 📂 Files I'm Working On
-- staging/stage-1-canvas-core/feature-undo-redo.md + feature-autosave.md — next implementation.
-- staging/stage-1-canvas-core/feature-block-canvas.md / feature-block-editing.md — in review.
+- staging/stage-2-full-sketching/feature-pen-layer.md + feature-image-upload.md — batch 2 (next).
+- staging/stage-2-full-sketching/ batch-1 feature files — in independent review.
 
 ## ✅ Things I've Changed
-- 2026-07-28: Block canvas + editing landed (six block types, drag/snap/resize/text/z-order).
-- 2026-07-28: App scaffold flipped to verified done with reviewer evidence; reuseExistingServer
-  disabled (stale-server E2E hazard).
-- 2026-07-27: Debate verdicts recorded; scaffold implemented + deployed; repo created.
+- 2026-07-28: Stage 1 closed formally (statuses, criteria, overview DoD all flipped w/ evidence).
+- 2026-07-28: Stage 2 batch 1 landed (schema v2 + migration; 3 features).
+- 2026-07-28: Export format v2 + round-trip protocol + template fixtures landed in docs/.
+- 2026-07-28: Block-editing bounce fixed (chrome-scroll HIGH) + undo/autosave bounce fixed.
+- 2026-07-28: Debate verdicts recorded (DOM/SVG canvas · download-first delivery).
 
 ## ❌ Watch Out
-- ONE repo writer at a time: agents work the main tree solo; reviewers use detached worktrees;
-  never `git add -A` while an implementation agent is mid-flight (caused commit c11d426 sweep).
-- contentEditable is banned for text editing (undo-stack conflict) — binding debate mitigation.
-- The test-only store seam (`window.__blueprintStore`) must stay out of the production bundle
-  (CI builds twice; keep it that way).
+- ONE repo writer at a time; reviewers use detached worktrees; never `git add -A` mid-flight.
+- Additive document fields (e.g. batch-2 penStrokes) must NOT bump schemaVersion — extend
+  blueprintFile validation with defaults instead; version bump = migration, reserved for breaks.
+- Email relay stays LAST (Cam's directive): submit ships download-first with a stubbed
+  DeliveryRelay port; docs/export-format.md is the binding package contract.
 
 ## ➡️ Next Up
-1. Opus agent: implement feature-undo-redo.md + feature-autosave.md (+ reviewer follow-ups:
-   coverage tooling, typechecked eslint, CI hardening — list in scratchpad review verdict).
-2. Parallel Opus review agent (worktree): verify block-canvas + block-editing.
-3. On stage close: /sync-docs, then Stage 2 implementation begins (three feature batches).
+1. Batch-2 implementer (pen layer + image upload) in main repo; batch-1 reviewer in worktree.
+2. On batch-1 verdict: apply flips; then batch 3 (templates + design file — fixtures ready in
+   design-assets/templates/).
+3. Stage 2 close review → Stage 3 implementation per scratchpad stage3-specs (landing soon).
 
 ## 🔗 Pointer
-→ Current stage folder: `staging/stage-1-canvas-core/` · Active feature files: `staging/stage-1-canvas-core/feature-undo-redo.md`, `staging/stage-1-canvas-core/feature-autosave.md`
+→ Current stage folder: `staging/stage-2-full-sketching/` · Active feature files: `staging/stage-2-full-sketching/feature-pen-layer.md`, `staging/stage-2-full-sketching/feature-image-upload.md`

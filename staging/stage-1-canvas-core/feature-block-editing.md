@@ -1,5 +1,5 @@
 # Feature: Block Editing
-_Stage: stage-1-canvas-core · Status: awaiting verification_
+_Stage: stage-1-canvas-core · Status: verified done_
 
 ## Goal
 Make arranging blocks feel like PowerPoint: click to select, drag to move, handles to resize,
@@ -7,14 +7,14 @@ snap to grid, type to edit text, delete, and control stacking order. This is whe
 earns "my mom could use it."
 
 ## Success Criteria
-- [ ] Click selects a block (visible selection outline + handles); click empty canvas deselects
-- [ ] Drag moves a block with an 8px grid snap; blocks can't be dragged fully off-page
-- [ ] Corner/edge handles resize (min sizes enforced per block type)
-- [ ] Double-click a Heading/Text/Button/Nav item → inline text editing; Enter/Escape/click-away
+- [x] Click selects a block (visible selection outline + handles); click empty canvas deselects
+- [x] Drag moves a block with an 8px grid snap; blocks can't be dragged fully off-page
+- [x] Corner/edge handles resize (min sizes enforced per block type)
+- [x] Double-click a Heading/Text/Button/Nav item → inline text editing; Enter/Escape/click-away
       commits; the committed text renders on the block
-- [ ] Delete key or a toolbar button removes the selected block
-- [ ] Bring-forward / send-backward controls change stacking order visibly
-- [ ] All of the above works with mouse on the three evergreen browsers (Chromium, Firefox, WebKit)
+- [x] Delete key or a toolbar button removes the selected block
+- [x] Bring-forward / send-backward controls change stacking order visibly
+- [x] All of the above works with mouse on the three evergreen browsers (Chromium, Firefox, WebKit)
 
 ## How We'll Verify
 1. Unit: store tests for move/resize/text/delete/z-order actions incl. snap math and min-size
@@ -152,6 +152,44 @@ re-verifies. All work done against the review's own findings, nothing else touch
   long rather than slow. No assertion was weakened; that session test also dropped one redundant
   round trip per step by polling the DOM shape (which already covers count and paint order)
   instead of asserting the count separately.
+
+**Stage-close review (2026-07-28):**
+Independent re-verification at `abba415` in a detached worktree, dependencies installed from
+scratch (`npm ci`, 0 vulnerabilities). No repo file was modified.
+- `npm run lint` → exit 0, no findings · `npm test` → exit 0, **17 files / 249 tests** (14.24s) ·
+  `npm run test:coverage` → exit 0, `src/canvas/**` 100% lines / 100% functions,
+  `src/store/**` 96.24% / 95.34% against the 80% gate · `npm run build` → exit 0,
+  214.19 kB JS (gzip 67.57 kB), CSS 8.05 kB, and `grep -c` on `dist/assets/*.js` → **0** for both
+  `__blueprintStore` and `Object.freeze`.
+- `npm run e2e` run twice back to back → exit 0 both times, **141 passed (1.6m)** twice,
+  identical per spec file (app-layout 9 · autosave 30 · block-canvas 27 · block-editing 42 ·
+  shell 6 · undo-redo 27). Zero retries, zero flakes.
+- **HIGH-1 re-verified with an independent probe, proven to discriminate.** At 1366×768 with the
+  six-block repro and a 600px wheel over the canvas: `document.scrollingElement.scrollTop = 0`,
+  canvas viewport `scrollTop = 600`, header `(0,0,1366×64)`, palette `(0,64,240×704)` and toolbar
+  `(240,64,1126×47)` all fully inside the window on chromium/firefox/webkit. Re-injecting the
+  pre-fix rule at RUNTIME (`page.addStyleTag`, no repo file touched) reproduced the original
+  failure exactly — `documentScrollTop` **711 / 711 / 823**; WebKit's 823 is the original
+  reviewer's symptom to the pixel. The fix and `e2e/app-layout.spec.ts` are both real.
+- **MEDIUM-1 re-verified: the perf assertion is the genuine invariant.** The spec seeds 30
+  blocks, selects first (re-select returns identical state, canvasStore.ts:111, keeping the
+  count clean), then asserts 0 notifications after pointerdown, 0 after 60 pointermoves, exactly
+  1 after pointerup, plus the committed (160,200). Proven live with an independent subscriber:
+  20 mid-drag moves → 0 notifications; a deliberately injected `addBlock` mid-gesture → 1.
+- **LOW-1 re-verified through the UI:** heading parked at x=1176 narrowed to 96px minimum,
+  east-handle dragged with a real mouse → committed **x=1104, width=96, right edge exactly
+  1200**; `e`/`ne`/`se` outward all land at 1200 with width ≥ 96; ordinary shrink away from the
+  edge leaves x=80 untouched. All three engines.
+- LOW-2/3/6 spot-checked in source; LOW-4 deep freeze confirmed live (suite green with freeze
+  active; production bundle greps 0 for `Object.freeze`).
+- Bookkeeping corrections: `geometry.test.ts` is **47** tests at this SHA (was **39**, not 44,
+  at `77021c4`); commit `e0ccaf7` added **8** test cases from 6 `it` declarations (one
+  `it.each`); the Bounce-fixes figures (241 tests / 213.74 kB) were correct at `0aa70e2` and are
+  superseded by 249 / 214.19 kB at `abba415`.
+- CI green for this SHA (run `30374106775`, headSha `abba4153…`, both jobs success). Live URL
+  200; deployed `index-CV061eX6.js` byte-identical (SHA256 `b9f53b3f…23d5d`) to a local
+  `npm run build` of this commit.
+- **Verdict: VERIFIED DONE.**
 
 ## Open Questions
 - ~~Multi-select (marquee/shift-click)~~ — OUT for Stage 1, see Notes.

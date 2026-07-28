@@ -10,15 +10,15 @@ This stage also stands up the entire engineering skeleton (build, tests, CI, dep
 
 ## Features
 - [x] feature-app-scaffold.md — Vite/React/TS project, Vitest, Playwright, Pages deploy pipeline (verified done 2026-07-28)
-- [ ] feature-block-canvas.md — virtual page + block palette, add/render all six block types
-- [ ] feature-block-editing.md — select, drag, resize, snap, inline text edit, z-order, delete
-- [ ] feature-undo-redo.md — full history for every canvas mutation
-- [ ] feature-autosave.md — debounced localStorage persistence + restore + start-over
+- [x] feature-block-canvas.md — virtual page + block palette, add/render all six block types
+- [x] feature-block-editing.md — select, drag, resize, snap, inline text edit, z-order, delete
+- [x] feature-undo-redo.md — full history for every canvas mutation
+- [x] feature-autosave.md — debounced localStorage persistence + restore + start-over
 
 ## Definition of Done (testable checklist)
-- [ ] `npm test` and `npm run e2e` pass locally and in CI on `main`
-- [ ] Deployed GitHub Pages URL serves the app; E2E smoke passes against a production build
-- [ ] E2E: starting blank, add one of each block type, arrange them, edit their text —
+- [x] `npm test` and `npm run e2e` pass locally and in CI on `main`
+- [x] Deployed GitHub Pages URL serves the app; E2E smoke passes against a production build
+- [x] E2E: starting blank, add one of each block type, arrange them, edit their text —
       reload the browser — the page is pixel-identical in structure (same blocks, positions, text)
-- [ ] E2E: a 10-step edit sequence fully unwinds with undo and replays with redo
-- [ ] Every feature file above is `verified done` with Verification Log evidence
+- [x] E2E: a 10-step edit sequence fully unwinds with undo and replays with redo
+- [x] Every feature file above is `verified done` with Verification Log evidence
