@@ -4,9 +4,17 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client"],
+    /*
+     * `node` is here for the TEST-SUPPORT layer only (`src/test/*` reads
+     * `docs/export-format.md` from disk for Appendix A's equality tests). Product
+     * code under `src/` must stay browser-only — a Node global in a shipped module
+     * is a bug the bundler will not catch for you.
+     */
+    "types": ["vite/client", "node"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
+    /* The export schema ships as JSON and is imported by the validator (§2.2). */
+    "resolveJsonModule": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",

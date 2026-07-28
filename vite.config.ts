@@ -53,6 +53,9 @@ export default defineConfig({
         // statements while carrying the rule every text field in the app depends
         // on (review follow-up).
         'src/hooks/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
+        // The export module is pure, has no UI to hide behind, and its bugs reach
+        // every downstream artifact — same gate as the other logic layers.
+        'src/export/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
       },
     },
   },

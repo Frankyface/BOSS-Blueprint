@@ -1,5 +1,5 @@
 # Feature: site.json Generator + Validator
-_Stage: stage-3-export-delivery · Status: not started_
+_Stage: stage-3-export-delivery · Status: awaiting verification_
 
 ## Goal
 Turn the in-memory document (v2: `{ schemaVersion: 2, siteSettings, pages: [{ id, name, blocks }] }`
@@ -153,7 +153,88 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
 8. Record every command's exit code and counts below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-28 — implementer evidence (branch `stage3-export-core`)
+
+Pure modules only: no UI, no submit flow, no PNG renderer, no zip writer (those compose these
+later in the main tree). E2E deliberately not run — nothing renders yet.
+
+**Files landed**
+
+| Path | What |
+|---|---|
+| `src/export/types.ts` | the §2 `site.json` shapes |
+| `src/export/slug.ts` | §4.1 (core, page slugs with reserved + collision passes, business fallback) |
+| `src/export/ids.ts` | §4.8 ordinal minting + the schema id patterns |
+| `src/export/imageHeader.ts` | base64 decode + PNG/JPEG/WebP header dimensions + §4.6 MIME→ext |
+| `src/export/assets.ts` | §4.6 first-use `img_NNN` registry over distinct data URLs |
+| `src/export/penRoles.ts` | §4.5 role/target + the export-side RDP pass at ε = 0.75 |
+| `src/export/serialize.ts` | §7.1 normative key order, the C02 text shape, and V27's checker |
+| `src/export/siteJson.ts` | `buildExportPayload` / `buildSiteJson` — the whole §4 transform |
+| `src/export/schema/site.v1.schema.json` | §2.2 extracted verbatim (9432 B) |
+| `src/export/validate/**` | V1–V27, the FIX pass, and the pipeline |
+| `src/test/exportFixtures.ts`, `src/test/specFixtures.ts` | the §7.1-equivalent document and the spec extractors |
+
+**Commands (all run in the worktree, 2026-07-28)**
+
+| Command | Result |
+|---|---|
+| `npm ci` | 254 packages, 0 vulnerabilities |
+| `npm run lint` | clean, exit 0 |
+| `npm test` | **49 files / 876 tests passed** (export subset: 13 files / 214 tests) |
+| `npm run test:coverage` | thresholds pass — `src/export` 94.03 stmts / 100 funcs / 97.43 lines · `src/export/brief` 96.99 / 98.4 / 98.09 · `src/export/validate/rules` 94.66 / 98.56 / 96.22 |
+| `npm run build` | `tsc -b && vite build` green, `dist/assets/index-*.js` 264.09 kB |
+
+**Appendix A equality test A** — `src/export/schema/schemaSync.test.ts`:
+`[test A] §2.2 fence 9432 bytes · repo file 9432 bytes`, byte-identical. Also asserted:
+draft-07, `schemaVersion const 1`, and that `additionalProperties` appears nowhere (§6.2).
+
+**The transform reproduces §7.1.** `src/export/siteJson.test.ts` builds the worked example from
+a hand-written document with semantic internal ids and asserts
+`serializeSiteJson(buildSiteJson(fixture))` is byte-identical to §7.1 **re-serialized**, plus
+deep equality against the parsed fixture. That covers ids, slugs, heights, discriminators,
+`'' → null`, key order, indentation, pen roles and the asset manifest in one assertion.
+
+**Validator** — every rule V1–V27 is an independent pure function; `rules.test.ts` asserts each
+is silent on the §7.1 package and fires on a fixture that breaks only what it checks;
+`schemaCheck.test.ts` carries Appendix A's required `submittedAt: "yesterday"` red path proving
+`ajv-formats` is wired; `index.test.ts` proves the pipeline order (V19 before V01), that the FIX
+pass returns a corrected `ok` package, and that the brief is regenerated **after** V4's asset
+renumbering. The §7.1 package validates with **0 blocks and exactly one WARN (V22)** — expected
+and documented in §7: its stroke arrays are abridged, "V22 would WARN on marks this sparse".
+
+**Deviations and contract issues found (not fudged):**
+
+1. **`serialize(build(fixture)) === §7.1 text` is unsatisfiable as written** (this file's "How
+   We'll Verify" step 1 and the DoD). §7.1 is HAND-FORMATTED — several JSON values per line, and
+   `810.0` where any re-serialization writes `810`. This is exactly the defect Open Question 1
+   found in §7.2's hand wrapping. The implemented assertion compares against §7.1 **re-serialized
+   with `JSON.stringify(…, null, 2)`**; because `JSON.parse` preserves the fixture's key order,
+   it is just as strong and is still derived from the doc. Needs a one-line correction to this
+   file (and, if the designer prefers the literal form, a whitespace-only regeneration of §7.1).
+2. **§4.5's annotation target must exclude `section` blocks** — the spec says "the block whose
+   frame the stroke's bbox overlaps most" without qualifying it, but a full-width band always
+   wins on area: §7.1's `stk_0002` would target `blk_0001` (the section) instead of `blk_0006`
+   (the button) it demonstrably targets. §4.4's reference-text preamble settles it — "`section`
+   blocks are never referenced" — and [N7] prints this guess. Implemented with sections excluded;
+   §4.5 should say so.
+3. **Stale numbers in this file:** step 1's `pageHeight.test.ts` line still says "the 800 floor"
+   and "Home `1060 → 1144`, Contact `640 → 800`", and Notes still mentions "an 800px PNG for
+   Contact". v2.2 raised the floor to 1600 and §7.1 records both pages at 1600. The tests assert
+   the v2.2 numbers.
+4. **`fromTemplate`'s key position is undefined by the fixture** — §7.1 has no flagged block.
+   Implemented per §2.6's own table order (`id, type, z, frame, fromTemplate`, then per-type),
+   which is byte-neutral on §7.1.
+5. **A dangling `link.pageId` degrades to `{ kind: "none" }`** rather than leaking an internal id
+   (V24) or blocking a client on a bug they cannot fix. The editor's page-delete invariant makes
+   it unreachable; V2 stays implemented for hand-edited packages reaching the Stage 4 harness.
+6. **Colour case:** the app stores colours lowercase (`normaliseHexColor`), §7.1 shows uppercase.
+   The schema accepts both and the transform copies verbatim, so a real export differs from §7.1
+   in case only. Worth a sentence in §2.4 if byte-comparison against §7.1 ever matters elsewhere.
+
+**Still open (out of this branch's scope):** the E2E submit path, the round-trip gate run against
+a real zip, `designCreatedAt` (exported `null` — the caller supplies it), and the V25/V26/V27
+message wording once the submit UI exists.
 
 ## Open Questions
 - **V25 (right-overflow WARN) and V26 (blank button label / empty nav bar, client-facing
