@@ -23,9 +23,14 @@ import { MUTATIONS } from './mutations.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const GATE = path.join(ROOT, 'gate.mjs');
-const DEFAULT_SPEC = path.resolve(
-  process.env.BLUEPRINT_SPEC ?? 'C:/Users/Cam/Documents/.ClaudeCode Projects/BOSS-Blueprint/docs/export-format.md',
-);
+/**
+ * Resolved from THIS FILE's location, exactly as `gate.mjs` does — never from an
+ * absolute path off one machine. (It was hardcoded to the author's Windows
+ * checkout; it worked there and nowhere else, and the first CI run of this
+ * self-test found it: `ENOENT … /home/runner/work/…/scripts/roundtrip/C:/Users/Cam/…`.)
+ */
+const DEFAULT_SPEC = path.resolve(ROOT, '..', '..', 'docs', 'export-format.md');
+const SPEC = path.resolve(process.env.BLUEPRINT_SPEC ?? DEFAULT_SPEC);
 
 function runGate(zipPath, specPath, extraArgs = []) {
   const res = spawnSync(
@@ -46,7 +51,7 @@ function runGate(zipPath, specPath, extraArgs = []) {
 async function main() {
   const args = process.argv.slice(2);
   const specIdx = args.indexOf('--spec');
-  const specPath = specIdx >= 0 ? args[specIdx + 1] : DEFAULT_SPEC;
+  const specPath = specIdx >= 0 ? args[specIdx + 1] : SPEC;
   const keep = args.includes('--keep');
   const work = path.join(ROOT, '.selftest');
 
