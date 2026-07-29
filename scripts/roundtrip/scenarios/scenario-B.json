@@ -1,0 +1,172 @@
+{
+  "id": "B",
+  "title": "North Star Dog Grooming",
+  "notes": "R1.3 — blank start, the minimal-path control, and the smoke scenario. Zero seeded blocks, so every block is hand-placed and the nav bars are client-built (still exercises shared-nav detection). No deliberate typo, no external link, no section band, no template filler — B cannot carry template filler at all, which is exactly why R1.2b moved the untouched-filler case into Scenario A.",
+  "start": { "mode": "blank" },
+  "settings": {
+    "businessName": "North Star Dog Grooming",
+    "tagline": null,
+    "about": "A one-groomer shop on the north side of town. Baths, tidy-ups and full breed cuts, one dog at a time so nobody waits in a crate.",
+    "vibe": "playful",
+    "styleNotes": null,
+    "colors": ["#3b6fb5"]
+  },
+  "submit": { "name": "Sam Okonkwo", "email": "sam@northstardoggrooming.ca" },
+  "pageActions": [
+    { "action": "add", "name": "Pricing", "why": "Blank start ships one page; B needs Home · Pricing · Contact." },
+    { "action": "add", "name": "Contact" }
+  ],
+  "pages": [
+    {
+      "name": "Home",
+      "slug": "home",
+      "blocks": [
+        {
+          "ref": "b-home-nav",
+          "type": "navBar",
+          "origin": { "kind": "insert" },
+          "frame": [0, 0, 1200, 72],
+          "fromTemplate": false,
+          "items": [
+            { "label": "Home", "link": { "kind": "page", "page": "Home" } },
+            { "label": "Pricing", "link": { "kind": "page", "page": "Pricing" } },
+            { "label": "Contact", "link": { "kind": "page", "page": "Contact" } }
+          ]
+        },
+        {
+          "ref": "b-home-heading",
+          "type": "heading",
+          "origin": { "kind": "insert" },
+          "frame": [80, 128, 640, 72],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Grooming that dogs actually enjoy",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "b-home-intro",
+          "type": "text",
+          "origin": { "kind": "insert" },
+          "frame": [80, 240, 480, 160],
+          "fromTemplate": false,
+          "copyMode": "generate",
+          "text": "",
+          "generateDescription": "Two warm sentences introducing a small one-groomer dog grooming shop that takes one dog at a time",
+          "lengthHint": "~2 sentences"
+        },
+        {
+          "ref": "b-home-photo",
+          "type": "imageSlot",
+          "origin": { "kind": "insert" },
+          "frame": [624, 128, 496, 320],
+          "fromTemplate": false,
+          "upload": "fixture-dog.jpg",
+          "fit": "cover",
+          "description": "A freshly groomed terrier on the grooming table"
+        },
+        {
+          "ref": "b-home-cta",
+          "type": "button",
+          "origin": { "kind": "insert" },
+          "frame": [80, 448, 264, 56],
+          "fromTemplate": false,
+          "label": "See our prices",
+          "link": { "kind": "page", "page": "Pricing" }
+        }
+      ],
+      "pen": []
+    },
+    {
+      "name": "Pricing",
+      "slug": "pricing",
+      "blocks": [
+        {
+          "ref": "b-pricing-nav",
+          "type": "navBar",
+          "origin": { "kind": "insert" },
+          "frame": [0, 0, 1200, 72],
+          "fromTemplate": false,
+          "items": [
+            { "label": "Home", "link": { "kind": "page", "page": "Home" } },
+            { "label": "Pricing", "link": { "kind": "page", "page": "Pricing" } },
+            { "label": "Contact", "link": { "kind": "page", "page": "Contact" } }
+          ]
+        },
+        {
+          "ref": "b-pricing-list",
+          "type": "text",
+          "origin": { "kind": "insert" },
+          "frame": [80, 128, 640, 240],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Bath and brush from $45. Tidy-up from $60. Full breed cut from $85. Nails and ears on their own, $15.",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "b-pricing-cta",
+          "type": "button",
+          "origin": { "kind": "insert" },
+          "frame": [80, 408, 264, 56],
+          "fromTemplate": false,
+          "label": "Book a spot",
+          "link": { "kind": "page", "page": "Contact" }
+        }
+      ],
+      "pen": []
+    },
+    {
+      "name": "Contact",
+      "slug": "contact",
+      "blocks": [
+        {
+          "ref": "b-contact-nav",
+          "type": "navBar",
+          "origin": { "kind": "insert" },
+          "frame": [0, 0, 1200, 72],
+          "fromTemplate": false,
+          "items": [
+            { "label": "Home", "link": { "kind": "page", "page": "Home" } },
+            { "label": "Pricing", "link": { "kind": "page", "page": "Pricing" } },
+            { "label": "Contact", "link": { "kind": "page", "page": "Contact" } }
+          ]
+        },
+        {
+          "ref": "b-contact-details",
+          "type": "text",
+          "origin": { "kind": "insert" },
+          "frame": [80, 160, 448, 200],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "519-555-0177\n84 Norfolk Street, north entrance\nTuesday to Saturday, 8am to 4pm",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "b-contact-empty-slot",
+          "type": "imageSlot",
+          "origin": { "kind": "insert" },
+          "frame": [696, 160, 424, 288],
+          "fromTemplate": false,
+          "upload": null,
+          "fit": "cover",
+          "description": "The shopfront from the sidewalk so people can spot the blue door"
+        }
+      ],
+      "pen": [
+        {
+          "ref": "phone-circle",
+          "role": "annotation",
+          "target": "b-contact-details",
+          "color": "red",
+          "width": "bold",
+          "meaning": "A circle round the phone number — the minimal-path annotation control.",
+          "strokes": [
+            [[96, 190], [130, 180], [176, 174], [222, 174], [268, 182], [292, 192], [300, 202], [292, 212], [268, 220], [222, 226], [176, 228], [130, 226], [104, 216], [90, 204], [92, 194], [96, 190]]
+          ]
+        }
+      ]
+    }
+  ]
+}

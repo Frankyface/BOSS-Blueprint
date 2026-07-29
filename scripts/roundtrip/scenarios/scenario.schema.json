@@ -1,0 +1,225 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bossolutions.pro/schemas/roundtrip/scenario.v1.schema.json",
+  "title": "BOSS Blueprint round-trip scenario (harness-side, never shipped in a package)",
+  "description": "R1.1 — one declarative file per scenario, consumed three times: the driver executes it, manifest-diff.mjs diffs site.json against it, the evaluator receives it as the expectation list. R1.4 — a scenario that fails this schema aborts the run as INFRA before the browser opens.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "start", "settings", "submit", "pages"],
+  "properties": {
+    "id": { "type": "string", "enum": ["A", "B"] },
+    "title": { "type": "string", "minLength": 1 },
+    "notes": { "type": "string" },
+    "start": { "$ref": "#/definitions/start" },
+    "settings": { "$ref": "#/definitions/settings" },
+    "submit": { "$ref": "#/definitions/submit" },
+    "pageActions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/pageAction" }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/page" }
+    }
+  },
+  "definitions": {
+    "start": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["template", "blank"] },
+        "template": { "type": "string", "enum": ["restaurant", "trades", "portfolio", "shop"] }
+      }
+    },
+
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["businessName"],
+      "properties": {
+        "businessName": { "type": "string", "minLength": 1 },
+        "tagline": { "type": ["string", "null"] },
+        "about": { "type": ["string", "null"] },
+        "vibe": {
+          "anyOf": [
+            { "type": "string", "enum": ["modern", "classic", "playful", "bold", "warm"] },
+            { "type": "null" }
+          ]
+        },
+        "styleNotes": { "type": ["string", "null"] },
+        "colors": {
+          "type": "array",
+          "maxItems": 3,
+          "items": { "type": "string", "pattern": "^#[0-9a-f]{6}$" }
+        }
+      }
+    },
+
+    "submit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "email"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "minLength": 3 }
+      }
+    },
+
+    "pageAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action"],
+      "properties": {
+        "action": { "type": "string", "enum": ["rename", "add", "moveLeft", "moveRight", "delete"] },
+        "target": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "why": { "type": "string" }
+      }
+    },
+
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "slug", "blocks"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "deleteTemplateBlocks": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/block" }
+        },
+        "pen": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/penCluster" }
+        }
+      }
+    },
+
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["template", "insert"] },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["page", "external", "none"] },
+        "page": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "pattern": "^https?://" }
+      }
+    },
+
+    "navItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "link"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "link": { "$ref": "#/definitions/link" }
+      }
+    },
+
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "type", "origin", "frame", "fromTemplate"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "R1.4 — unique within a scenario, and it never appears in the product."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["section", "heading", "text", "imageSlot", "button", "navBar"]
+        },
+        "origin": { "$ref": "#/definitions/origin" },
+        "frame": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "integer", "multipleOf": 8 },
+          "description": "R2.4 — [x, y, w, h] in page pixels, every value on the 8px grid."
+        },
+        "fromTemplate": {
+          "type": "boolean",
+          "description": "R1.2b — the PER-BLOCK expectation. Declared on every block, so the assertion stays correct whichever way the upstream V23/band() question is ruled."
+        },
+        "expect": { "type": "string", "enum": ["untouched-filler"] },
+        "textFromFixture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["template", "blockId"],
+          "properties": {
+            "template": { "type": "string", "enum": ["restaurant", "trades", "portfolio", "shop"] },
+            "blockId": { "type": "string", "minLength": 1 }
+          },
+          "description": "R1.2b — the expected text/copyMode of an untouched filler block is READ FROM the committed template fixture, never re-typed here. A template edit can then never leave a stale duplicate in the harness."
+        },
+        "copyMode": { "type": "string", "enum": ["real", "generate"] },
+        "text": { "type": "string" },
+        "generateDescription": { "type": ["string", "null"] },
+        "lengthHint": { "type": ["string", "null"] },
+        "upload": { "type": ["string", "null"] },
+        "fit": { "type": "string", "enum": ["cover", "contain"] },
+        "description": { "type": ["string", "null"] },
+        "label": { "type": "string", "minLength": 1 },
+        "link": { "$ref": "#/definitions/link" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": { "$ref": "#/definitions/navItem" }
+        },
+        "background": { "type": ["string", "null"] }
+      }
+    },
+
+    "penCluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "role", "target", "color", "width", "strokes"],
+      "properties": {
+        "ref": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "role": { "type": "string", "enum": ["annotation", "imageSketch"] },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The block `ref` this cluster is expected to resolve onto (§4.5)."
+        },
+        "color": { "type": "string", "enum": ["red", "ink", "blue", "green"] },
+        "width": { "type": "string", "enum": ["fine", "bold"] },
+        "meaning": { "type": "string" },
+        "strokes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

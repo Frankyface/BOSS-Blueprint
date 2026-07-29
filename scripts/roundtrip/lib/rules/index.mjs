@@ -43,7 +43,7 @@ import { v7BriefCrossChecks, n13OverflowMarker } from './brief.mjs';
  * @param {object} opts { schema, options, internalIds }
  * @returns {ReadonlyArray<object>}
  */
-export function runAllChecks(pkg, { schema, options, internalIds, canonical }) {
+export function runAllChecks(pkg, { schema, options, internalIds, canonical, manifest = null }) {
   const ctx = { strictConventions: options.strictConventions };
   const site = pkg.site;
   const results = [];
@@ -94,7 +94,7 @@ export function runAllChecks(pkg, { schema, options, internalIds, canonical }) {
   results.push(runOrSkip('C04', site, () => penTargetCheck(site, ctx)));
 
   // ---- Protocol §2 step 4 — expected-manifest diff (Stage 4) ---------------
-  results.push(manifestStep(options));
+  results.push(manifestStep(options, manifest));
 
   return Object.freeze(results);
 }
@@ -113,24 +113,41 @@ function unparseable(id) {
   });
 }
 
-function manifestStep(options) {
+/**
+ * Stage 4 wired the real step 4 in behind `--scenario` (the flag that is the inverse
+ * of Stage 3's `--no-manifest`). `manifest` is the result of `manifest-diff.mjs`,
+ * computed by the caller because the diff reads the app's template fixtures and is
+ * therefore async; the rule inventory itself stays pure.
+ */
+function manifestStep(options, manifest) {
   if (options.noManifest) {
     return check({
       id: 'M04',
-      title: 'expected-manifest diff skipped by --no-manifest (protocol §2 step 4, Stage 4 work)',
+      title: 'expected-manifest diff skipped by --no-manifest (protocol §2 step 4)',
       ref: 'roundtrip-protocol §2.4',
       cls: 'STEP',
       skipped: true,
     });
   }
+  if (manifest === null) {
+    return check({
+      id: 'M04',
+      title: 'expected-manifest diff (protocol §2 step 4) needs a scenario file',
+      ref: 'roundtrip-protocol §2.4',
+      cls: 'WARN',
+      problems: [
+        'pass --scenario <file> to run the sketch-fidelity diff, or --no-manifest to acknowledge the skip',
+      ],
+    });
+  }
   return check({
     id: 'M04',
-    title: 'expected-manifest diff (protocol §2 step 4) is not implemented in this gate',
-    ref: 'roundtrip-protocol §2.4',
-    cls: 'WARN',
-    problems: [
-      'sketch-fidelity diff against a scenario file is Stage 4 work — pass --no-manifest to acknowledge, ' +
-        'or run the Stage 4 gate for scenario A/B',
-    ],
+    title: 'expected-manifest diff: the export records what the scenario told the client to do',
+    ref: 'roundtrip-protocol §2.4 / feature-roundtrip-harness R1.1',
+    cls: 'BLOCK',
+    problems: manifest.problems,
+    detail:
+      `scenario ${manifest.scenarioId}: ${manifest.matched.length} block(s) matched within ` +
+      `±${manifest.tolerancePx}px` + (manifest.notes.length > 0 ? ` · ${manifest.notes.join(' · ')}` : ''),
   });
 }

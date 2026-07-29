@@ -10,6 +10,11 @@ node scripts/roundtrip/gate.mjs --package <downloaded.zip> --no-manifest
 It implements **`docs/roundtrip-protocol.md` §2 steps 1–3** and replays every
 machine-checkable rule of **`docs/export-format.md` v2.4 (FROZEN) §5 (V1–V27)** against a real zip.
 
+**Step 4 landed with Stage 4** (`staging/stage-4-roundtrip-launch/feature-roundtrip-harness.md`):
+pass `--scenario <file>` and the gate additionally runs the expected-manifest diff
+(`manifest-diff.mjs`), the check that proves the UI **recorded** what the client did.
+`--no-manifest` still skips it; passing neither flag reports `M04` as a WARN.
+
 **It imports no app code.** Everything is re-derived from the spec and from the package
 bytes, which is the whole point: a gate that called `src/export/validate` would agree with
 the app by construction and could never catch a validator bug. The JSON Schema is
@@ -29,9 +34,10 @@ Required:
   --package <zip>        the export package to gate
 
 Options:
-  --no-manifest          skip protocol §2 step 4 (expected-manifest diff, Stage 4 work).
-                         Without it the step is still skipped but reported as a WARN.
-  --scenario <file>      reserved for step 4; not implemented here (reports SKIP).
+  --no-manifest          skip protocol §2 step 4 (the expected-manifest diff).
+                         Without it, and without --scenario, M04 is reported as a WARN.
+  --scenario <file>      run protocol §2 step 4 against this scenario file. The scenario is
+                         ajv-validated against scenarios/scenario.schema.json first.
   --spec <file>          path to docs/export-format.md. Default: <script>/../../docs/export-format.md
   --schema <file>        use this JSON Schema file instead of extracting from the spec.
   --internal-ids <file>  newline- or JSON-array-delimited list of the app's internal ids,
@@ -144,7 +150,7 @@ invariant** and treats a violation as a real defect.
 
 | id | class | check |
 |---|---|---|
-| `M04` | STEP/WARN | expected-manifest diff — **not implemented** (Stage 4). `SKIP` with `--no-manifest`, `WARN` without. |
+| `M04` | BLOCK | expected-manifest diff against the scenario file: page count / names / slugs / order; per-page block multiset by type; per block copyMode, text (verbatim, typo and all), generateDescription, lengthHint, label, resolved link target, assetId presence, fit, description and `fromTemplate`; frames within ±24px per edge; section bands full width and behind every content block; pen stroke count per page plus each cluster's role and resolved target; asset count, mimeTypes, first-use numbering and long edge; `siteSettings` verbatim; `submission.client`; and the untouched-filler count. `SKIP` with `--no-manifest`, `WARN` with neither flag. |
 
 ### V7's eleven sub-checks
 
@@ -316,9 +322,12 @@ decodes two 1200×1600 PNGs).
 
 Things this gate deliberately does **not** or **cannot** prove:
 
-1. **Protocol §2 step 4 (expected-manifest diff) is not implemented.** It needs the scenario
-   file and is Stage 4 work. `--no-manifest` reports it as `SKIP`; without the flag it is a
-   `WARN` so nobody forgets. `--scenario` is accepted and reserved.
+1. **Protocol §2 step 4 needs a scenario file, so it only runs for a scripted run.** The
+   "chaos client" (protocol §1.1) has no script to diff against and therefore no M04 — its
+   verdict is advisory and never blocks. The diff also reads `src/templates/` to resolve the
+   expected text of an untouched filler block (R1.2b): the one place the gate deliberately
+   reads app source, because the alternative is a second copy of the template's words in the
+   harness, which is exactly the drift R1.6 forbids.
 2. **`generateBrief(site.json) === brief.md` is not replayed.** The gate cross-checks the
    brief *against* `site.json` (V7's eleven sub-checks); it does not regenerate it. Appendix A
    **equality test B** remains a Stage 3 unit test — a gate that reimplemented the generator
@@ -377,6 +386,10 @@ Things this gate deliberately does **not** or **cannot** prove:
    npm i -D adm-zip@^0.6.0 pngjs@^7 jpeg-js@^0.4
    ```
 
+   **Done 2026-07-29**, as part of Stage 4. Before that the gate was not runnable from the
+   repo root at all (`ERR_MODULE_NOT_FOUND: adm-zip`) — this drop-in step had never been
+   carried out.
+
    `ajv` and `ajv-formats` are already required by `feature-site-json-generator.md`, so they
    will be present as app deps. **Use `adm-zip@^0.6.0` or later** — `<0.6.0` carries
    GHSA-xcpc-8h2w-3j85 (crafted zip → 4 GB allocation), which is exactly the input class a
@@ -414,7 +427,9 @@ Things this gate deliberately does **not** or **cannot** prove:
 ## 6. File map
 
 ```
-gate.mjs                     CLI entry, report printing, exit code
+gate.mjs                     CLI entry, report printing, exit code + gate-report.json
+manifest-diff.mjs            protocol §2 step 4 (Stage 4)
+scenario-load.mjs            scenario ajv validation + cross-checks (Stage 4, R1.4)
 extract-schema.mjs           §2.2 schema extractor / Appendix A test A runner
 lib/args.mjs                 flag parsing + usage text
 lib/report.mjs               CheckResult model, PASS/WARN/FAIL/SKIP rendering, tallies

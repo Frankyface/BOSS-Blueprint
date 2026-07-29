@@ -25,5 +25,10 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true
   },
-  "include": ["site.config.ts", "vite.config.ts", "playwright.config.ts"]
+  "include": [
+    "site.config.ts",
+    "vite.config.ts",
+    "playwright.config.ts",
+    "playwright.roundtrip.config.ts"
+  ]
 }

@@ -1,0 +1,34 @@
+{
+  "note": "R5.5 — the regression corpus for the zero-questions rules. `mustFail` are real clarifying questions; `mustPass` are rhetorical near-misses a builder legitimately writes. A rule change is only permitted alongside a new entry here, a docs/decisions.md entry and a full rerun; the corpus is what stops a loosening from going unnoticed.",
+  "mustFail": [
+    { "text": "Which colour would you like for the buttons?", "why": "2a lead — which … you" },
+    { "text": "Is this what you wanted?", "why": "2a lead — `is` was NOT in the protocol's original set (ruling 6)" },
+    { "text": "Are you happy for me to proceed?", "why": "2a lead — `are` was NOT in the protocol's original set (ruling 6)" },
+    { "text": "Does your business have a logo I should use?", "why": "2a lead — `does` does not match \\b(do)\\b (ruling 6)" },
+    { "text": "You want me to use the green?", "why": "2a reverse — you → want (ruling 6 added this direction)" },
+    { "text": "Would you prefer the gallery above or below the contact details?", "why": "2a lead — would … you" },
+    { "text": "Could you send me the logo file?", "why": "2a lead — could … you" },
+    { "text": "How should your services be ordered?", "why": "2a lead — how … your" },
+    { "text": "Let me know if you want a different layout.", "why": "2b — let me know" },
+    { "text": "Please confirm the phone number.", "why": "2b — please confirm" },
+    { "text": "Please clarify which photo belongs on the Our Work page.", "why": "2b — please clarify" },
+    { "text": "I need more information about the third service.", "why": "2b — need more information" },
+    { "text": "Before I proceed, I would like to check the nav order.", "why": "2b — before i proceed" },
+    { "text": "Awaiting your go-ahead on the hero image.", "why": "2b — awaiting your" },
+    { "text": "I am unable to proceed without the missing photo.", "why": "2b — unable to proceed without" },
+    { "text": "Which option do you prefer for the gallery?", "why": "2b — which option do you" },
+    { "text": "The nav markup is `<a href=\"/contact\">Contact</a>` — is that what you meant?", "why": "the deliberate control for step 3: stripping the inline code span must not take the QUESTION with it" }
+  ],
+  "mustPass": [
+    { "text": "Here's how you can run it locally.", "why": "second person, no question mark" },
+    { "text": "Why did I choose a two-column hero? Because the sketch splits the band down the middle.", "why": "interrogative lead, but it is about ME, not you" },
+    { "text": "What does the annotation mean? I read it as make this heading large.", "why": "rhetorical, no second-person address" },
+    { "text": "The client wrote «Do you deliver?» on the contact page, and I kept it verbatim.", "why": "guillemet-quoted client copy is stripped before the scan (step 4)" },
+    { "text": "The heading reads \"Can you dig it?\" exactly as written.", "why": "straight-quoted span is stripped before the scan (step 4)" },
+    { "text": "I did not need to ask which page the button targets.", "why": "no question mark, no phrase" },
+    { "text": "Everything you need to change later is listed in BUILD_NOTES.md.", "why": "second person, no question" },
+    { "text": "See BUILD_NOTES.md for the two calls I made on your behalf.", "why": "second person, no question" },
+    { "text": "```\nDo you want more pages? # a comment inside a code block\n```\nThe build is finished.", "why": "fenced blocks are removed first (step 2)" },
+    { "text": "Should the hero be full width? The sketch says yes, so it is.", "why": "interrogative lead with no second-person address — rhetorical" }
+  ]
+}

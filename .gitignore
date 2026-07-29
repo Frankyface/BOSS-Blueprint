@@ -5,6 +5,12 @@ node_modules/
 dist/
 dist-ssr/
 
+# Round-trip runs. The run root lives OUTSIDE the repo by default
+# (feature-roundtrip-harness.md R3.1) — this line is belt-and-braces for anyone who
+# points ROUNDTRIP_RUNS_DIR back inside it.
+roundtrip-runs/
+.roundtrip-dryrun/
+
 # Test artifacts
 coverage/
 playwright-report/

@@ -24,6 +24,18 @@ export const PREVIEW_HOST = '127.0.0.1'
 export const PREVIEW_BASE_URL = `http://${PREVIEW_HOST}:${PREVIEW_PORT}${BASE_PATH}`
 
 /**
+ * The live GitHub Pages deploy — the round trip's `deployed` target.
+ *
+ * `preview` is the hermetic, CI-able regression target; `deployed` runs once for the
+ * ship gate because the Stage 4 DoD says "the REAL deployed UI"
+ * (`docs/roundtrip-protocol.md` §10.1). The harness asserts the deployed bundle IS the
+ * commit under test before it spends a builder budget on it
+ * (`feature-roundtrip-harness.md` R3.6) — a stale Pages deploy would otherwise produce
+ * a spectacular, meaningless FAIL.
+ */
+export const DEPLOYED_BASE_URL = `https://frankyface.github.io${BASE_PATH}`
+
+/**
  * WHERE A FINISHED PACKAGE GOES.
  *
  * Download-first delivery (`docs/decisions.md` 2026-07-27 debate #2) makes this a
