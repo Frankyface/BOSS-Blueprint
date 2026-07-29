@@ -1732,6 +1732,111 @@ re-run 6–11 unchanged. Auth, deployed-bundle precondition, CLI baseline and al
 are green.
 
 
+### 2026-07-29 — GAUNTLET at `159775d`: smoke PASSES (first ever), A-preview NEAR MISS 96.93 on the S3 floor — the length check is block-type-blind
+
+**Two runs at HEAD `159775d`, clean tree throughout. Run 1 PASSED; run 2 is a scored FAIL, so the
+sequence stopped there** per the standing binding. Runs 3–4 (`A --target deployed`, `B --target
+preview`) and the shipgate were **not attempted**. **Status stays `awaiting verification`.**
+
+| # | Run | Run dir (`C:\bp-runs\…`) | Verdict | Elapsed |
+|---|---|---|---|---|
+| 1 | smoke (B, preview) | `2026-07-29T16-34-02-308Z_B_159775d` | **SMOKE-PASS 47** ✅ | **4.27 min** |
+| 2 | A, preview | `2026-07-29T16-39-00-677Z_A_159775d` | **NEAR MISS 96.93** ❌ | 14.48 min |
+| 3–5 | A-deployed, B-preview, shipgate | — | not attempted | — |
+
+**`SMOKE_BUDGET_MIN` is now VALIDATED END-TO-END for the first time.** The smoke ran every segment
+through SEG-6 and returned a pass in **4.27 min against a 12-minute budget**, `smokeBudgetBreached:
+false`. Earlier entries recorded 4.2–4.7 min as a *floor* because the run always stopped at a gate;
+this one did not. **S4 also scored 15/15 with `floorMet: true`** (home `thirdDelta 0`, contact
+`thirdDelta 1`), so Option C is confirmed against a live build, and the ±1 tolerance is doing real
+but bounded work rather than waving everything through.
+
+**Run 2 — the near miss, and it is one item.** Scenario A on Opus, all six segments green
+(SEG-1 40.1 s · SEG-2 0.7 s · SEG-3 665.7 s · SEG-4 0.045 s · SEG-5 4.6 s · SEG-6-eval 154.5 s).
+
+**All eight hard gates PASS.** Score 96.93/100 — comfortably over the 85 threshold. The verdict is
+a FAIL purely because one floor missed:
+
+| Dim | Points | Max | Floor |
+|---|---|---|---|
+| S1 | 24.4 | 25 | met |
+| S2 | 20.0 | 20 | met |
+| S3 | **15.0** | 15 | **MISSED** |
+| S4 | 15.0 | 15 | met |
+| S5 | 15.0 | 15 | met |
+| S6 | 7.5 | 10 | met |
+| **Total** | **96.9** | 100 | |
+
+**S3 scored FULL MARKS from the judge and still missed its floor** — the two halves disagree. The
+judge scored the copy 15/15; the deterministic sanity half (`allSane: false`) failed one of three
+GENERATE items, and the floor is `S3_MIN_ITEM_SCORE` — every item must be sane.
+
+**The failing item is a HEADING, and it did exactly what it was told.**
+
+| | value |
+|---|---|
+| block | `blk_0026`, page `our-work`, **`type: heading`** |
+| brief said | «**A one-line invitation** to browse our project photos» |
+| `lengthHint` | **null** — the brief emitted none for this block |
+| builder wrote | "Have a look around the yards we've built." — **41 characters**, one line |
+| check applied | frame estimate: 640×72 → **240 chars**, band **72–720** |
+| result | 41 < 72 → `ok: false`, "copy length 41 characters is outside the frame estimate band 72–720" |
+
+**Mechanism — `estimateFrameChars` is block-type-blind.** It is pure pixel arithmetic:
+
+```
+perLine = floor(frame.w / FRAME_CHAR_WIDTH_PX)
+lines   = floor(frame.h / FRAME_LINE_HEIGHT_PX)
+estimate = perLine * lines
+```
+
+There is no `block.type` in it, so a 640×72 **heading** frame is costed with **body-text metrics**
+and assumed to hold ~240 characters. Rendered at heading size it holds roughly one line. The
+minimum band edge (72 chars) is therefore **above** what a correct one-line heading can contain,
+and the builder was penalised for obeying a description that explicitly said "one-line".
+
+The contrast inside the same run confirms it is heading-specific: the other two GENERATE blocks are
+`type: text` — `blk_0006` carried a `lengthHint` ("~2 sentences") and passed on the sentence rule;
+`blk_0021` had no hint and passed the frame estimate (297 chars in a 93–930 band). **Only the
+heading failed, and only via the fallback.**
+
+**Routing — NOT where the report auto-routes it.** The report says "brief copy-list generation; V5
+/ description-field coaching if the description itself was vague". **The description was not
+vague** — "a one-line invitation" is about as specific a length signal as prose gets. Three
+candidate fixes, in different places, and I did not choose between them:
+
+- **(a) Evaluator** — make `estimateFrameChars` block-type-aware (heading frames costed at heading
+  metrics, or headings floored at one line). Harness fix, no product change.
+- **(b) Brief generator** — emit a `lengthHint` for heading blocks, or whenever the description
+  carries an explicit length phrase ("one-line", "a few words"). **Product** change (Stage 3).
+- **(c) S3 sanity** — exclude `type: heading` from the length band entirely; headings are short by
+  nature and the judge already scores their quality (it gave 15/15 here).
+
+Per the binding a scored FAIL routes to evidence and a stop, and this is a scoring-rule question of
+the same shape as the last two — **it needs a ruling before anything is touched.**
+
+**Also recorded, no action taken.** BUILD_NOTES triage: **121 entries, 1 package-defect candidate**,
+flagged **FRICTION**. The candidate reads *"treated as context only — it contradicts the About text,
+so none of it was used"* — the builder noticing the client's typed placeholder text contradicted
+the About copy, which is judgment working, not a defect. **2 permission denials** again (H2 passed,
+so R5.6's note is informational). Both parked per the standing instruction.
+
+**Nothing was weakened.** No threshold, scan rule, scenario, prompt, rubric or manifest was edited
+after either run. Both runs: `invalid: false`, `cached: false`, `credentialScrubbed: true`,
+`purity.ok: true` (CLI 2.1.220 vs the 2.1.220 baseline), all seven rule hashes byte-identical at
+start and end, `git.clean: true`. Run 2's builder model is `claude-opus-5`, the gating model — not
+the smoke's haiku.
+
+**Evidence:** `staging/stage-4-roundtrip-launch/evidence/2026-07-29-gauntlet-A-preview-NEARMISS/`
+— `run-manifest.json`, `report.md` (gate + score tables), `evaluate.json` (the three S3 items with
+the failing one in full), `verdict.txt`, and R9.2's two sketch/shot pairs for scenario A under
+`pairs/` (home and our-work, the latter being the page that carries `blk_0026`).
+
+**To resume:** rule on (a), (b) or (c) for the heading length check; record it in
+`docs/decisions.md`; then re-run 6–11 unchanged. Everything else is green — smoke passes, all eight
+hard gates pass on scenario A, five of six dimensions meet their floors, and the score is 96.93.
+
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.

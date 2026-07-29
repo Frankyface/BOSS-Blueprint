@@ -1,0 +1,657 @@
+{
+  "gates": {
+    "H4": {
+      "ok": true,
+      "problems": []
+    },
+    "H5": {
+      "ok": true,
+      "problems": []
+    },
+    "H6": {
+      "ok": true,
+      "problems": [],
+      "checked": 13
+    },
+    "H7": {
+      "ok": true,
+      "problems": []
+    }
+  },
+  "dimensions": {
+    "S1": {
+      "pages": [
+        {
+          "slug": "home",
+          "score": 1,
+          "expected": [
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "heading:outdoor spac",
+            "image:*",
+            "text:*",
+            "link:get a free q",
+            "heading:why folks pi",
+            "text:we beleive e",
+            "link:leave us a g"
+          ],
+          "built": [
+            "link:skip to cont",
+            "text:home",
+            "link:home",
+            "text:services",
+            "link:services",
+            "text:our work",
+            "link:our work",
+            "text:contact",
+            "link:contact",
+            "link:cedar & ston",
+            "image:",
+            "heading:outdoor spac",
+            "image:a finished f",
+            "text:we're a two-",
+            "link:get a free q",
+            "heading:why folks pi",
+            "text:we beleive e",
+            "link:leave us a g",
+            "text:cedar & ston",
+            "text:home",
+            "text:services",
+            "text:our work",
+            "text:contact",
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "text:hello@cedars",
+            "link:hello@cedars",
+            "link:519-555-0142",
+            "text:© 2026 cedar"
+          ]
+        },
+        {
+          "slug": "services",
+          "score": 0.9090909090909091,
+          "expected": [
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "heading:what we do",
+            "text:*",
+            "image:*",
+            "text:patios & wal",
+            "text:retaining wa",
+            "text:this band is",
+            "text:seasonal mai"
+          ],
+          "built": [
+            "link:skip to cont",
+            "text:home",
+            "link:home",
+            "text:services",
+            "link:services",
+            "text:our work",
+            "link:our work",
+            "text:contact",
+            "link:contact",
+            "link:cedar & ston",
+            "image:",
+            "heading:what we do",
+            "text:every job st",
+            "image:two crew mem",
+            "text:patios & wal",
+            "text:retaining wa",
+            "text:full backyar",
+            "text:seasonal mai",
+            "text:cedar & ston",
+            "text:home",
+            "text:services",
+            "text:our work",
+            "text:contact",
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "text:hello@cedars",
+            "link:hello@cedars",
+            "link:519-555-0142",
+            "text:© 2026 cedar"
+          ]
+        },
+        {
+          "slug": "our-work",
+          "score": 1,
+          "expected": [
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "heading:recent proje",
+            "image:*",
+            "image:*",
+            "heading:*"
+          ],
+          "built": [
+            "link:skip to cont",
+            "text:home",
+            "link:home",
+            "text:services",
+            "link:services",
+            "text:our work",
+            "link:our work",
+            "text:contact",
+            "link:contact",
+            "link:cedar & ston",
+            "image:",
+            "heading:recent proje",
+            "image:aerial view ",
+            "image:a perennial ",
+            "heading:have a look ",
+            "text:cedar & ston",
+            "text:home",
+            "text:services",
+            "text:our work",
+            "text:contact",
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "text:hello@cedars",
+            "link:hello@cedars",
+            "link:519-555-0142",
+            "text:© 2026 cedar"
+          ]
+        },
+        {
+          "slug": "contact",
+          "score": 1,
+          "expected": [
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "heading:let's talk a",
+            "text:hello@cedars",
+            "link:instagram"
+          ],
+          "built": [
+            "link:skip to cont",
+            "text:home",
+            "link:home",
+            "text:services",
+            "link:services",
+            "text:our work",
+            "link:our work",
+            "text:contact",
+            "link:contact",
+            "link:cedar & ston",
+            "image:",
+            "heading:let's talk a",
+            "text:hello@cedars",
+            "link:hello@cedars",
+            "link:519-555-0142",
+            "link:instagram",
+            "text:cedar & ston",
+            "text:home",
+            "text:services",
+            "text:our work",
+            "text:contact",
+            "link:home",
+            "link:services",
+            "link:our work",
+            "link:contact",
+            "text:hello@cedars",
+            "link:hello@cedars",
+            "link:519-555-0142",
+            "text:© 2026 cedar"
+          ]
+        }
+      ],
+      "mean": 0.9772727272727273,
+      "points": 24.431818181818183,
+      "floorMet": true,
+      "floor": {
+        "mean": 0.85,
+        "page": 0.75
+      }
+    },
+    "S3": {
+      "items": [
+        {
+          "page": "home",
+          "blockId": "blk_0006",
+          "ok": true,
+          "problems": [],
+          "written": "We're a two-crew landscaping company in Guelph, designing and building patios, walkways and full backyards since 2016. Tell us how you want to use your yard and we'll draw up the plan, price it, and build it properly.",
+          "length": {
+            "ok": true,
+            "rule": "lengthHint",
+            "unit": "sentences",
+            "measured": 2,
+            "min": 1,
+            "max": 3
+          }
+        },
+        {
+          "page": "services",
+          "blockId": "blk_0021",
+          "ok": true,
+          "problems": [],
+          "written": "Every job starts with a site visit. We walk the yard with you, take our own measurements, and talk through how you actually want to use the space. A few days later you get a written quote with a fixed price, the materials listed and a start window — no hourly guessing, and no pressure to sign it.",
+          "length": {
+            "ok": true,
+            "rule": "frame estimate",
+            "unit": "characters",
+            "measured": 297,
+            "min": 93,
+            "max": 930,
+            "estimate": 310
+          }
+        },
+        {
+          "page": "our-work",
+          "blockId": "blk_0026",
+          "ok": false,
+          "problems": [
+            "copy length 41 characters is outside the frame estimate band 72–720"
+          ],
+          "written": "Have a look around the yards we've built.",
+          "length": {
+            "ok": false,
+            "rule": "frame estimate",
+            "unit": "characters",
+            "measured": 41,
+            "min": 72,
+            "max": 720,
+            "estimate": 240
+          }
+        }
+      ],
+      "allSane": false,
+      "points": 0,
+      "note": "S3 points come from the evaluator half"
+    },
+    "S4": {
+      "items": [
+        {
+          "page": "home",
+          "blockId": "blk_0005",
+          "empty": false,
+          "wantThird": 0,
+          "wantHalf": 1,
+          "docHeight": 1286,
+          "thirdDelta": 0,
+          "ok": true
+        },
+        {
+          "page": "services",
+          "blockId": "blk_0016",
+          "empty": false,
+          "wantThird": 0,
+          "wantHalf": 1,
+          "docHeight": 1444,
+          "thirdDelta": 1,
+          "ok": true
+        },
+        {
+          "page": "our-work",
+          "blockId": "blk_0024",
+          "empty": false,
+          "wantThird": 0,
+          "wantHalf": 0,
+          "docHeight": 1027,
+          "thirdDelta": 0,
+          "ok": true
+        },
+        {
+          "page": "our-work",
+          "blockId": "blk_0025",
+          "empty": true,
+          "wantThird": 0,
+          "wantHalf": 1,
+          "docHeight": 1027,
+          "thirdDelta": 1,
+          "ok": true
+        }
+      ],
+      "fraction": 1,
+      "points": 15,
+      "floorMet": true,
+      "floor": 0.8
+    },
+    "S5": {
+      "perPage": [
+        {
+          "slug": "home",
+          "dominants": [
+            {
+              "rgb": [
+                47,
+                82,
+                51
+              ],
+              "share": 0.34434940383618456
+            },
+            {
+              "rgb": [
+                251,
+                250,
+                247
+              ],
+              "share": 0.3009072058061172
+            },
+            {
+              "rgb": [
+                31,
+                51,
+                35
+              ],
+              "share": 0.18565059616381546
+            },
+            {
+              "rgb": [
+                251,
+                251,
+                249
+              ],
+              "share": 0.05965785381026439
+            },
+            {
+              "rgb": [
+                245,
+                245,
+                242
+              ],
+              "share": 0.007179885951270088
+            },
+            {
+              "rgb": [
+                181,
+                101,
+                67
+              ],
+              "share": 0.005914981855883877
+            },
+            {
+              "rgb": [
+                186,
+                108,
+                75
+              ],
+              "share": 0.005723172628304821
+            },
+            {
+              "rgb": [
+                203,
+                133,
+                98
+              ],
+              "share": 0.005147744945567652
+            }
+          ],
+          "nonGrayscale": 5,
+          "nearest": [
+            {
+              "hex": "#2f5233",
+              "deltaE": 0
+            },
+            {
+              "hex": "#d9c7a7",
+              "deltaE": 15.462705943847837
+            }
+          ]
+        },
+        {
+          "slug": "services",
+          "dominants": [
+            {
+              "rgb": [
+                251,
+                250,
+                247
+              ],
+              "share": 0.427797783933518
+            },
+            {
+              "rgb": [
+                239,
+                230,
+                214
+              ],
+              "share": 0.23708217913204063
+            },
+            {
+              "rgb": [
+                31,
+                51,
+                35
+              ],
+              "share": 0.16533702677747
+            },
+            {
+              "rgb": [
+                251,
+                251,
+                249
+              ],
+              "share": 0.052456140350877194
+            },
+            {
+              "rgb": [
+                162,
+                176,
+                159
+              ],
+              "share": 0.03897045244690674
+            },
+            {
+              "rgb": [
+                149,
+                163,
+                148
+              ],
+              "share": 0.0063019390581717455
+            },
+            {
+              "rgb": [
+                122,
+                138,
+                125
+              ],
+              "share": 0.006075715604801478
+            },
+            {
+              "rgb": [
+                140,
+                154,
+                140
+              ],
+              "share": 0.0054155124653739615
+            }
+          ],
+          "nonGrayscale": 3,
+          "nearest": [
+            {
+              "hex": "#2f5233",
+              "deltaE": 10.87257586972314
+            },
+            {
+              "hex": "#d9c7a7",
+              "deltaE": 9.09963624110813
+            }
+          ]
+        },
+        {
+          "slug": "our-work",
+          "dominants": [
+            {
+              "rgb": [
+                251,
+                250,
+                247
+              ],
+              "share": 0.3999285946121389
+            },
+            {
+              "rgb": [
+                31,
+                51,
+                35
+              ],
+              "share": 0.23149626744563453
+            },
+            {
+              "rgb": [
+                251,
+                251,
+                249
+              ],
+              "share": 0.07351509250243428
+            },
+            {
+              "rgb": [
+                136,
+                190,
+                96
+              ],
+              "share": 0.02462836741317754
+            },
+            {
+              "rgb": [
+                239,
+                230,
+                214
+              ],
+              "share": 0.01916260954235638
+            },
+            {
+              "rgb": [
+                59,
+                92,
+                53
+              ],
+              "share": 0.010120090879584551
+            },
+            {
+              "rgb": [
+                51,
+                85,
+                45
+              ],
+              "share": 0.009094449853943525
+            },
+            {
+              "rgb": [
+                47,
+                82,
+                51
+              ],
+              "share": 0.008685491723466407
+            }
+          ],
+          "nonGrayscale": 6,
+          "nearest": [
+            {
+              "hex": "#2f5233",
+              "deltaE": 0
+            },
+            {
+              "hex": "#d9c7a7",
+              "deltaE": 9.09963624110813
+            }
+          ]
+        },
+        {
+          "slug": "contact",
+          "dominants": [
+            {
+              "rgb": [
+                251,
+                250,
+                247
+              ],
+              "share": 0.5827636576102834
+            },
+            {
+              "rgb": [
+                31,
+                51,
+                35
+              ],
+              "share": 0.20836692959392347
+            },
+            {
+              "rgb": [
+                239,
+                230,
+                214
+              ],
+              "share": 0.12834940111013732
+            },
+            {
+              "rgb": [
+                251,
+                250,
+                248
+              ],
+              "share": 0.05897750511247444
+            },
+            {
+              "rgb": [
+                47,
+                82,
+                51
+              ],
+              "share": 0.006380368098159509
+            },
+            {
+              "rgb": [
+                225,
+                225,
+                222
+              ],
+              "share": 0.00100496640373941
+            },
+            {
+              "rgb": [
+                69,
+                84,
+                69
+              ],
+              "share": 0.0009056383289512124
+            },
+            {
+              "rgb": [
+                179,
+                192,
+                179
+              ],
+              "share": 0.0007186678352322524
+            }
+          ],
+          "nonGrayscale": 3,
+          "nearest": [
+            {
+              "hex": "#2f5233",
+              "deltaE": 0
+            },
+            {
+              "hex": "#d9c7a7",
+              "deltaE": 9.09963624110813
+            }
+          ]
+        }
+      ],
+      "colourDeclared": true,
+      "colourMet": true,
+      "styled": true,
+      "points": 7,
+      "floorMet": true,
+      "deltaEMax": 12
+    }
+  },
+  "scenario": "A"
+}
