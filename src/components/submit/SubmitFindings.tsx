@@ -50,9 +50,18 @@ export function SubmitFindings() {
               className="submit__finding"
               data-testid="submit-finding"
               data-rule={finding.rule}
-              role="alert"
             >
-              <span className="submit__finding-message">{messageOf(finding)}</span>
+              {/*
+               * `role="alert"` lives on the MESSAGE, not on the `<li>` (review
+               * follow-up F7). A role on the list item replaces its implicit
+               * `listitem`, which takes the list apart for a screen reader: the
+               * `<ul>` stops reporting how many things need fixing and each row
+               * stops saying which of them it is. The urgency belongs to the
+               * sentence anyway — the row also carries a button.
+               */}
+              <span className="submit__finding-message" role="alert">
+                {messageOf(finding)}
+              </span>
               {jump !== undefined && (
                 <button
                   type="button"

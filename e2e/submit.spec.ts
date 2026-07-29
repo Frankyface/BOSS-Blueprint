@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 import { blockById, editBlockText, openCanvas, readDocument } from './support/canvas.ts'
 import {
   capturePackage,
+  entryBytes,
   openCanvasWithStub,
   expectedEntries,
   fillHoneypot,
@@ -10,6 +11,7 @@ import {
   openSubmit,
   readEntry,
   runPackageGate,
+  seedFixturePhoto,
   seedSubmitDesign,
   sendButton,
   submitFixturePages,
@@ -38,6 +40,9 @@ test.describe('the full journey', () => {
   test.beforeEach(async ({ page }) => {
     await openCanvas(page)
     await seedSubmitDesign(page, { pages: submitFixturePages({ withBlockers: true }) })
+    // A real photo in the slot, so the package this journey ships carries a real
+    // `assets/` entry and the gate at the end reads real bytes (F2).
+    await seedFixturePhoto(page)
   })
 
   test('gates the form, blocks, fixes, warns, downloads, and passes the round-trip gate', async ({
@@ -67,6 +72,14 @@ test.describe('the full journey', () => {
     await expect(page.getByTestId('submit-view')).toHaveAttribute('data-screen', 'blocked')
     const findings = page.getByTestId('submit-finding')
     await expect(findings).toHaveCount(2)
+
+    // A client who pressed Send and stayed put has no idea anything happened, so
+    // focus moves to the first finding — asserted, not assumed (F1).
+    await expect(findings.first()).toBeFocused()
+    // …and the list is still a list: the urgency lives on the message, not on the
+    // <li>, so a screen reader still reports "2 items" (F7).
+    await expect(findings.first().getByRole('alert')).toBeVisible()
+    await expect(findings.first()).toHaveJSProperty('tagName', 'LI')
     await expect(findings.filter({ hasText: 'Tell us what to write here' })).toBeVisible()
     await expect(findings.filter({ hasText: 'This text box is empty' })).toBeVisible()
     for (const rule of ['V05', 'V19']) {
@@ -103,7 +116,23 @@ test.describe('the full journey', () => {
     const site = JSON.parse(siteJsonText) as SiteJsonShape
 
     expect(captured.entries).toEqual(expectedEntries(site))
-    expect(captured.entries).toEqual(['site.json', 'brief.md', 'pages/01-home.png', 'pages/02-contact.png'])
+
+    // The uploaded photo reached the archive as a real staged file (F2): one
+    // asset, numbered and named by §4.6, and its bytes are in the zip. The path
+    // is read off `site.json` rather than hard-coded because the extension
+    // follows whatever MIME the engine's own encoder produced on ingest.
+    expect(site.assets).toHaveLength(1)
+    const assetPath = site.assets[0]?.path ?? ''
+    expect(assetPath).toMatch(/^assets\/img_001\.(jpg|png|webp)$/)
+    expect(entryBytes(captured.path, assetPath).length).toBeGreaterThan(0)
+
+    expect(captured.entries).toEqual([
+      'site.json',
+      'brief.md',
+      'pages/01-home.png',
+      'pages/02-contact.png',
+      assetPath,
+    ])
     expect(captured.entries.some((entry) => entry.includes('\\') || entry.startsWith('./'))).toBe(false)
 
     /* -------- §1 file conventions, on the shipped bytes --------------------- */

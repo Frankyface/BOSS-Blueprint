@@ -9,7 +9,8 @@ import type { Download, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { unzipSync, zipSync } from 'fflate'
 
-import { dismissStartSurfaces, type StoredPage } from './canvas.ts'
+import { blockById, dismissStartSurfaces, type StoredPage } from './canvas.ts'
+import { makePhotoFixture, photoIn, uploadInto } from './media.ts'
 
 /**
  * E2E vocabulary for the SUBMIT GATE — the app's ending.
@@ -351,6 +352,30 @@ export function submitFixturePages(options: FixtureOptions = {}): StoredPage[] {
       penStrokes: [],
     },
   ]
+}
+
+/** The photo the fixture's slot is filled with. Small: this is not a size test. */
+export const FIXTURE_PHOTO = { name: 'shopfront at first light.jpg', width: 640, height: 420 }
+
+/**
+ * Fill the fixture's image slot with a REAL photo, through the real file input
+ * (review follow-up F2).
+ *
+ * The fixture used to ship an EMPTY slot, so every package the journey produced
+ * had no `assets/` entry at all — which meant §4.6's manifest rules, V04's
+ * asset-reference fix pass and V21's "the manifest matches the bytes" check were
+ * proven only by unit tests against synthetic data URLs. With a photo in it, the
+ * gate run at the end of the journey reads real, engine-encoded, ingest-compressed
+ * bytes out of the shipped zip.
+ *
+ * Seeded through the UI rather than through the store bridge on purpose: the
+ * compression-on-ingest step is what produces the data URL the export stages, and
+ * a hand-written one would skip it.
+ */
+export async function seedFixturePhoto(page: Page): Promise<void> {
+  const slot = blockById(page, 'home-photo')
+  await uploadInto(slot, await makePhotoFixture(page, FIXTURE_PHOTO))
+  await expect(photoIn(slot)).toBeVisible()
 }
 
 export async function seedSubmitDesign(page: Page, options: SeedOptions): Promise<void> {
