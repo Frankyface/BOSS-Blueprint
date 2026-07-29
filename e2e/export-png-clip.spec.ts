@@ -56,22 +56,34 @@ test('the block paints out to column 1199 and is cut there', async ({ page }) =>
   const clipped = await renderOrFail(page, 'page-clip')
   const control = await renderOrFail(page, 'page-clip-control')
 
-  const probes = [
-    { x: CLIP_PROBE.insideX, y: CLIP_PROBE.y },
-    { x: CLIP_PROBE.lastColumnX, y: CLIP_PROBE.y },
+  // Each column is sampled down the bar's height, not at one row — see CLIP_PROBE.
+  const columns = [
+    { label: 'inside the overflow (x=1150)', x: CLIP_PROBE.insideX },
+    { label: 'the last on-page column (x=1199)', x: CLIP_PROBE.lastColumnX },
   ]
+  const probes = columns.flatMap(({ x }) => CLIP_PROBE.ys.map((y) => ({ x, y })))
 
   const clippedPixels = await samplePixels(page, clipped.base64, probes)
   const controlPixels = await samplePixels(page, control.base64, probes)
 
-  for (const [index, pixel] of clippedPixels.entries()) {
-    expect(pixel, `clipped probe ${String(index)}`).toBeDefined()
-    if (pixel) expect(luma(pixel), `clipped probe ${String(index)} should be block ink`).toBeLessThan(INK_MAX_LUMA)
-  }
+  expect(clippedPixels).toHaveLength(probes.length)
+  expect(controlPixels).toHaveLength(probes.length)
 
+  columns.forEach(({ label }, column) => {
+    const start = column * CLIP_PROBE.ys.length
+    const lumas = clippedPixels
+      .slice(start, start + CLIP_PROBE.ys.length)
+      .map((pixel) => luma(pixel))
+
+    // THE DARKEST ROW is the bar's fill; a white label can only lighten a row.
+    expect(Math.min(...lumas), `${label} should be block ink, rows read ${lumas.map((value) => value.toFixed(1)).join(', ')}`).toBeLessThan(INK_MAX_LUMA)
+  })
+
+  // The control page is the same page minus the block: every one of those exact
+  // pixels must be paper, which is what makes "it is dark there" mean anything.
   for (const [index, pixel] of controlPixels.entries()) {
     expect(pixel, `control probe ${String(index)}`).toBeDefined()
-    if (pixel) expect(luma(pixel), `control probe ${String(index)} should be paper`).toBeGreaterThan(PAPER_MIN_LUMA)
+    expect(luma(pixel), `control probe ${String(index)} should be paper`).toBeGreaterThan(PAPER_MIN_LUMA)
   }
 })
 

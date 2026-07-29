@@ -257,9 +257,27 @@ export const PEN_PROBE = { x: 300, onStrokeY: 760, clearY: 900 } as const
 /** Where the clip fixture's overflowing nav bar sits — sampled by the clip spec. */
 export const OVERFLOW_BLOCK = { x: 1000, y: 400, width: 400, height: 80 } as const
 
-/** A y inside the overflowing block, and two x's the clip rule is asserted at. */
+/**
+ * Two x's the clip rule is asserted at, and a COLUMN of y's inside the
+ * overflowing nav bar rather than a single one.
+ *
+ * A column, because the bar is dark fill with WHITE LABELS on it, and where the
+ * glyphs land is a function of the platform's fonts. A single probe at the bar's
+ * vertical middle — which is exactly the text baseline — read luma 17 (pure
+ * `--boss-ink`) on Windows and 103 on ubuntu CI, where a different font put an
+ * anti-aliased glyph edge on that pixel. That is not the clip rule failing; it
+ * is the probe measuring the wrong thing.
+ *
+ * The question the spec actually asks is "does the bar's FILL reach this
+ * column", so it samples several rows and takes the darkest: a glyph can cover
+ * any one row, but it cannot cover the whole height of the bar.
+ */
 export const CLIP_PROBE = {
-  y: OVERFLOW_BLOCK.y + OVERFLOW_BLOCK.height / 2,
+  ys: [
+    OVERFLOW_BLOCK.y + 8,
+    OVERFLOW_BLOCK.y + OVERFLOW_BLOCK.height / 2,
+    OVERFLOW_BLOCK.y + OVERFLOW_BLOCK.height - 8,
+  ],
   insideX: 1150,
   lastColumnX: PAGE_WIDTH - 1,
 } as const
