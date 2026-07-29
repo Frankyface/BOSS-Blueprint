@@ -89,34 +89,41 @@ const baselineFileFor = (name: string, browserName: string): string =>
   join(SNAPSHOT_DIR, `${name}-${browserName}-${process.platform}.png`)
 
 /**
- * SKIP, LOUDLY, WHEN THIS PLATFORM HAS NO BASELINE YET.
+ * SKIP, LOUDLY, WHEN THIS DEVELOPER'S PLATFORM HAS NO BASELINE YET — BUT NEVER
+ * IN CI.
  *
  * A per-engine baseline is a screenshot of one operating system's font
- * rasterisation, so `win32` bytes can never stand in for `linux` bytes — which
- * means the baselines cannot be produced anywhere except on the platform that
- * will be compared against them. The renderer's six baselines were authored on
- * Windows; CI is ubuntu.
+ * rasterisation, so `win32` bytes can never stand in for `linux` bytes: the
+ * files can only be produced on the platform that will be compared against
+ * them. `win32` and `linux` are both committed. A third platform (a contributor
+ * on macOS) has none, and Playwright's default `updateSnapshots: 'missing'`
+ * would write one and FAIL that run — turning "your OS is not baselined yet"
+ * into what looks like a visual regression.
  *
- * Playwright's default `updateSnapshots: 'missing'` would write the Linux file
- * and FAIL that run, so the honest options were "CI red until someone commits
- * Linux baselines" or "skip the comparison that has nothing to compare against,
- * and say so at the top of its voice". This is the second: the test is skipped,
- * an annotation lands on it, and a GitHub Actions warning surfaces it in the run
- * summary so it cannot rot unnoticed.
+ * So off CI the comparison is skipped, with an annotation and a warning loud
+ * enough that it cannot rot unnoticed.
  *
- * PRODUCING THE MISSING BASELINES is a one-click job: run the
- * `update-visual-baselines` workflow (`.github/workflows/deploy.yml`), download
- * its artifact, commit the files. That job passes `--update-snapshots=all`,
- * which is exactly the case this gate must NOT skip — otherwise the job that
- * exists to create baselines could never create them.
+ * IN CI IT IS A HARD FAILURE, on purpose. CI runs ubuntu and ubuntu baselines
+ * exist, so the only ways to reach this branch there are a deleted baseline or a
+ * new engine added without one — and both must go red rather than quietly
+ * skipping the regression check that is the whole point of the spec.
  *
- * The gate is deliberately narrow: a baseline that EXISTS and does not match is
- * still a hard failure, on every platform.
+ * PRODUCING BASELINES for a new platform is a one-click job: run the
+ * `update-visual-baselines` workflow (`.github/workflows/deploy.yml`) on a
+ * runner of that platform, download its artifact, commit the files. That job
+ * passes `--update-snapshots=all`, which is exactly the case this gate must NOT
+ * skip — otherwise the job that exists to create baselines could never create
+ * them.
+ *
+ * A baseline that EXISTS and does not match is a hard failure everywhere.
  */
 function skipWithoutBaseline(testInfo: TestInfo, name: string, browserName: string): void {
   const isUpdatingRun =
     testInfo.config.updateSnapshots === 'all' || testInfo.config.updateSnapshots === 'changed'
   if (isUpdatingRun || existsSync(baselineFileFor(name, browserName))) return
+
+  // In CI a missing baseline is a real defect, not an unbaselined workstation.
+  if (process.env.CI) return
 
   const missing = `${name}-${browserName}-${process.platform}.png`
   const detail =
