@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { App } from './App.tsx'
+import { installPngExportTestBridge } from './export/png/pngTestBridge.ts'
 import { startCanvasSession } from './store/canvasSession.ts'
 import { installStoreTestBridge } from './store/testBridge.ts'
 
@@ -15,6 +16,7 @@ if (!rootElement) {
 }
 
 installStoreTestBridge()
+installPngExportTestBridge()
 
 // Before the first render, so a restored design paints in one go rather than
 // flashing an empty page — and so React never sees a document that has no history.

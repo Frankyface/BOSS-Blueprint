@@ -3,14 +3,25 @@ import { displayText, isShowingPlaceholder, parseNavItems } from '../canvas/bloc
 import type { Block, BlockLink } from '../canvas/types.ts'
 
 import { ImageSlot } from './ImageSlot.tsx'
+import { ImageSlotFace } from './ImageSlotFace.tsx'
 
 const LINKED_GLYPH = '↪'
 const EXTERNAL_GLYPH = '↗'
 
 const GENERATE_PROMPT_PLACEHOLDER = 'Tell us what this should say…'
 
+/**
+ * Who is rendering this block. `edit` is the live canvas; `export` is the Stage 3
+ * PNG export root, which mounts these same components at 1:1 with no wiring
+ * (`src/export/png/exportRoot.tsx`). The two modes differ in exactly one place —
+ * an image slot's upload affordances — which is the whole reason the flag exists
+ * rather than a parallel set of export-only components that could drift.
+ */
+export type BlockRenderMode = 'edit' | 'export'
+
 interface BlockContentProps {
   block: Block
+  mode?: BlockRenderMode
 }
 
 /**
@@ -52,15 +63,18 @@ function LinkMark({ link }: { link: BlockLink }) {
  * reads as a page at a glance, and readable placeholder copy until the client
  * types their own.
  */
-export function BlockContent({ block }: BlockContentProps) {
+export function BlockContent({ block, mode = 'edit' }: BlockContentProps) {
   const text = displayText(block)
   const placeholderFlag = isShowingPlaceholder(block) ? 'true' : 'false'
 
   if (isGenerateBlock(block)) return <GenerateFace block={block} />
 
   // The image slot owns its own upload wiring, so it is a component rather than
-  // markup — everything else here stays a pure function of the block.
-  if (block.type === 'image') return <ImageSlot block={block} />
+  // markup — everything else here stays a pure function of the block. The export
+  // render takes the face without the wiring (§4.3: no editor chrome).
+  if (block.type === 'image') {
+    return mode === 'export' ? <ImageSlotFace block={block} /> : <ImageSlot block={block} />
+  }
 
 
   if (block.type === 'section') {

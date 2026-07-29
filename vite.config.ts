@@ -40,8 +40,11 @@ export default defineConfig({
         'src/**/*.test.{ts,tsx}',
         'src/main.tsx',
         'src/test/**',
-        // Dev/E2E-only seam: folded out of the production bundle entirely.
+        // Dev/E2E-only seams: folded out of the production bundle entirely.
         'src/store/testBridge.ts',
+        'src/export/png/pngTestBridge.ts',
+        // Committed PNG bytes, not code.
+        'src/export/png/fixtures/**',
       ],
       thresholds: {
         'src/canvas/**': { lines: COVERAGE_MINIMUM, functions: COVERAGE_MINIMUM },
