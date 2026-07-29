@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      update_visual_baselines:
+        description: >-
+          Regenerate the export-visual baselines for THIS runner's platform
+          (ubuntu) and upload them as an artifact. Skips the normal CI + deploy.
+        type: boolean
+        default: false
 
 # Least privilege at the top; the Pages write + OIDC token the deploy needs are
 # granted on the deploy job alone, so the job that runs third-party npm code and
@@ -22,6 +29,10 @@ env:
 jobs:
   build:
     name: Lint, test, build, E2E
+    # A baseline-regeneration dispatch is not a release: it must not deploy, and
+    # `deploy` needs this job, so skipping here skips the deploy with it. On a
+    # push `inputs` is empty, which is falsy, so the normal path is untouched.
+    if: ${{ !inputs.update_visual_baselines }}
     runs-on: ubuntu-latest
     # 25, not 15. The E2E suite runs SERIALLY here (workers: 1, retries: 2, three
     # engines) and it grew with the UX-hardening batch to 154 tests × 3 = 462. The
@@ -107,6 +118,82 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+
+  # ---------------------------------------------------------------------------
+  # BASELINE FACTORY — manual, and the only job allowed to write screenshots.
+  #
+  # A per-engine visual baseline is a picture of one operating system's font
+  # rasterisation, so the six `-win32` files committed with the renderer cannot
+  # serve ubuntu CI. They can only be produced ON ubuntu, which is what this job
+  # is: run the export-visual spec with `--update-snapshots=all`, hand back the
+  # `-linux` files as an artifact, and let a human commit them. Until they are
+  # committed, `e2e/export-visual.spec.ts` skips the comparison with a loud
+  # warning rather than failing the main job (see `skipWithoutBaseline` there).
+  #
+  # It stays manual on purpose. A job that regenerates its own baselines on every
+  # push cannot detect a visual regression — it would simply bless it.
+  # ---------------------------------------------------------------------------
+  update-visual-baselines:
+    name: Regenerate export visual baselines (ubuntu)
+    if: ${{ inputs.update_visual_baselines }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (E2E, with test hooks)
+        run: npm run build:e2e
+
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: |
+          version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium firefox webkit
+
+      # `=all` rather than the bare flag so the mode is explicit in the log, and
+      # because `skipWithoutBaseline` keys off exactly this value to know that a
+      # missing baseline is the POINT of this run and must not be skipped.
+      - name: Write the Linux baselines
+        run: npx playwright test e2e/export-visual.spec.ts --update-snapshots=all
+
+      # `always()`: Playwright's exit code on a snapshot-writing run is not the
+      # thing we came for — the files are. Upload them either way so a red run
+      # still hands back whatever it managed to produce.
+      - name: Upload the new baselines
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baselines-linux
+          path: e2e/export-visual.spec.ts-snapshots/*-linux.png
+          if-no-files-found: error
+          retention-days: 7
 
   deploy:
     name: Deploy to GitHub Pages

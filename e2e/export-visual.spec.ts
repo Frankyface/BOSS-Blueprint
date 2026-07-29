@@ -1,4 +1,8 @@
-import type { Browser, BrowserType, Page } from '@playwright/test'
+import { existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import type { Browser, BrowserType, Page, TestInfo } from '@playwright/test'
 import { chromium, expect, firefox, test, webkit } from '@playwright/test'
 
 import { openCanvas } from './support/canvas.ts'
@@ -78,8 +82,57 @@ async function showExportedPng(page: Page, base64: string, size: { width: number
   return image
 }
 
+/** Where Playwright keeps this spec's baselines, and how it names them. */
+const SNAPSHOT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'export-visual.spec.ts-snapshots')
+
+const baselineFileFor = (name: string, browserName: string): string =>
+  join(SNAPSHOT_DIR, `${name}-${browserName}-${process.platform}.png`)
+
+/**
+ * SKIP, LOUDLY, WHEN THIS PLATFORM HAS NO BASELINE YET.
+ *
+ * A per-engine baseline is a screenshot of one operating system's font
+ * rasterisation, so `win32` bytes can never stand in for `linux` bytes — which
+ * means the baselines cannot be produced anywhere except on the platform that
+ * will be compared against them. The renderer's six baselines were authored on
+ * Windows; CI is ubuntu.
+ *
+ * Playwright's default `updateSnapshots: 'missing'` would write the Linux file
+ * and FAIL that run, so the honest options were "CI red until someone commits
+ * Linux baselines" or "skip the comparison that has nothing to compare against,
+ * and say so at the top of its voice". This is the second: the test is skipped,
+ * an annotation lands on it, and a GitHub Actions warning surfaces it in the run
+ * summary so it cannot rot unnoticed.
+ *
+ * PRODUCING THE MISSING BASELINES is a one-click job: run the
+ * `update-visual-baselines` workflow (`.github/workflows/deploy.yml`), download
+ * its artifact, commit the files. That job passes `--update-snapshots=all`,
+ * which is exactly the case this gate must NOT skip — otherwise the job that
+ * exists to create baselines could never create them.
+ *
+ * The gate is deliberately narrow: a baseline that EXISTS and does not match is
+ * still a hard failure, on every platform.
+ */
+function skipWithoutBaseline(testInfo: TestInfo, name: string, browserName: string): void {
+  const isUpdatingRun =
+    testInfo.config.updateSnapshots === 'all' || testInfo.config.updateSnapshots === 'changed'
+  if (isUpdatingRun || existsSync(baselineFileFor(name, browserName))) return
+
+  const missing = `${name}-${browserName}-${process.platform}.png`
+  const detail =
+    `No ${process.platform} baseline for ${missing}. Visual comparison SKIPPED — ` +
+    'run the update-visual-baselines workflow and commit its artifact.'
+
+  testInfo.annotations.push({ type: 'missing-visual-baseline', description: detail })
+  // GitHub Actions workflow command: puts the skip in the run summary, not just the log.
+  console.warn(`::warning title=Missing visual baseline::${detail}`)
+
+  test.skip(true, detail)
+}
+
 test.describe('per-engine visual baselines', () => {
-  test('the home page export matches this engine’s baseline', async ({ page }) => {
+  test('the home page export matches this engine’s baseline', async ({ page, browserName }, testInfo) => {
+    skipWithoutBaseline(testInfo, 'export-home', browserName)
     await seedAndOpen(page)
     const result = await renderOrFail(page, 'page-home')
 
@@ -89,7 +142,8 @@ test.describe('per-engine visual baselines', () => {
     })
   })
 
-  test('the gallery page export matches this engine’s baseline', async ({ page }) => {
+  test('the gallery page export matches this engine’s baseline', async ({ page, browserName }, testInfo) => {
+    skipWithoutBaseline(testInfo, 'export-gallery', browserName)
     await seedAndOpen(page)
     const result = await renderOrFail(page, 'page-gallery')
 
