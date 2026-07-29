@@ -61,10 +61,19 @@ function ColorSlot({ index, color }: ColorSlotProps) {
   }
 
   /**
-   * A name, a short hex or a full hex all commit as the same six-digit code
-   * (`parseColorInput`) — and the field is put straight so the client can see what
-   * was stored, which is also how they learn what the tool understood.
+   * Store the six-digit code, and put the field straight to it — which is also
+   * how the client learns what the tool understood from what they typed.
+   *
+   * Both inputs end here: the picker has no half-way state (choosing IS
+   * committing) and the text field arrives via `commit` once it has a colour.
    */
+  const keep = (hex: string) => {
+    setError(null)
+    setDraft(hex)
+    setSiteColor(index, hex)
+  }
+
+  /** A name, a short hex or a full hex all commit as the same six-digit code. */
   const commit = () => {
     const value = draft.trim()
 
@@ -80,16 +89,7 @@ function ColorSlot({ index, color }: ColorSlotProps) {
       return
     }
 
-    setError(null)
-    setDraft(hex)
-    setSiteColor(index, hex)
-  }
-
-  /** The picker has no half-way state: choosing is committing. */
-  const pick = (hex: string) => {
-    setError(null)
-    setDraft(hex)
-    setSiteColor(index, hex)
+    keep(hex)
   }
 
   return (
@@ -102,7 +102,7 @@ function ColorSlot({ index, color }: ColorSlotProps) {
         aria-label={`Pick preferred colour ${String(index + 1)}`}
         value={color.length > 0 ? color : EMPTY_SWATCH_VALUE}
         onChange={(event) => {
-          pick(event.target.value)
+          keep(event.target.value)
         }}
       />
       <input
