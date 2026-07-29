@@ -815,6 +815,58 @@ run, and nothing below is ticked above:
    guard is absent at 1440×900. Both features land **before** the three clean runs per the
    stage's build order, and the driver needs no change when they do.
 
+**Independent review (2026-07-29) — MECHANICAL LAYER ONLY; the three live gating runs remain
+the stage DoD.** Detached worktree at fb7eaf6, no tracked edits; npm ci clean at root and in
+scripts/roundtrip. `npm test` **1523/89** incl. `vitest run scripts/` **154/8**; lint, tsc,
+build, coverage exit 0; e2e ×2 spaced 625/2/0 each. CI green; the deployed bundle name matches
+the local HEAD build, so R3.6's freshness precondition would pass today.
+
+**Segment dry runs, run by the reviewer.** Scenario A driver → 1 passed (34.5s), 20-frame
+filmstrip incl. its own tour-dismissal step, driver-report.json recording **tourPresent:
+true, tourFirstStep 1, tourStepCount 5** — the fb7eaf6 fix works against the shipped tour.
+Gate A → **GATE PASSED — 37 pass, 1 warn, 0 fail, 0 skip, exit 0**, M04: 33 blocks within
+±24px, the single WARN being V23 on the untouched filler R1.2b requires (driver independently
+recorded the submit gate showing exactly one filler item, package shipped). Scenario B →
+1 passed (13.7s), fillerWarn.shown false; gate → **38/0/0/0, exit 0**, M04: 11 blocks.
+Scenario A verified to carry all SIX block types, both copy modes, 3 uploads + 1 empty slot,
+both pen roles, exactly one untouched-filler; the deliberate typo appears once, only in
+scenario-A.json.
+
+**Mock-builder pipeline** → **SMOKE-FAIL 30.81, exit 1, all eight hard gates H1–H8 PASS**;
+S1 23.8/25 — reproducing the built log to the decimal; run-manifest records invalid:false,
+cached:true, no drift, start+end hashes for all six rule files. **ship-gate.mjs REFUSES on six
+independent axes** (run count, dirty worktree, cached segment, non-PASS verdict, mixed
+commits, wrong leg set).
+
+**Anti-weakening proven to bite via untracked mutants:** thresholds weakened 3 ways + a
+prompt mentioning questions → 5 failed, each naming its constant, plus the sha mismatch and
+the prompt tripwire. prompt.txt sha pin verified (294 B, LF). R2.2 driver-purity proven by
+planting a helper with banned APIs → 12 green → 3 failed naming the file → restored.
+**Sandbox assertions exercised directly:** ancestor walk ABORTS from %LOCALAPPDATA% (names
+C:\Users\Cam\.claude\settings.json) and from inside the repo (names CLAUDE.md); clean from
+C:\Users\Public\boss-blueprint\roundtrip-runs (all dry runs rooted there). Sterile dir lists
+exactly [.credentials.json, settings.json]; planted agents/leak.md aborts naming the
+offender; api-key fallback copies nothing; credential NEVER logged (grep across a whole run
+dir returns nothing). Allowlist has no npx/npm and a mutated npx entry is caught. Child env
+is exactly {PATH, SystemRoot, USERPROFILE, CLAUDE_CONFIG_DIR}, closed.
+**R5 scan rules verified by RUNNING them:** "Is this what you wanted?" → 2a-lead; "You want
+me to use the green?" → 2a-reverse; 17 mustFail / 10 mustPass corpus incl. the inline-code
+control and four rhetorical near-misses.
+
+**Findings raised (routed to the pre-flight batch):** (H) the eight 2026-07-28 rulings still
+lack decisions.md entries and the protocol §1.2/§3.1/§4.2 are unamended — R5.3/R10.1 make
+that a precondition for run 1; (H) evaluator session purity never asserted + its
+listing/auth/exit not recorded in run-manifest; (M) R7.3 evidence citation is shape-only;
+(M) S3 misses R8.2's length rule and findWrittenCopy reads longest-on-page; (M) four
+R10.1-class constants unpinned; (M) the Public run root is world-readable (operator note +
+scrub); (M) empty score arrays make floors vacuously "met"; (L) stale filmstrip counts,
+post-click tour frame, SMOKE_BUDGET_MIN unenforced, stale Notes item 2, jpeg-js in
+devDependencies.
+
+**Status: VERIFIED (MECHANICAL).** No Success Criterion ticked; the remaining gate is the
+three live runs + shipgate + timed smoke + evidence copy (How-We'll-Verify 6–11), preceded by
+the pre-flight batch above.
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.

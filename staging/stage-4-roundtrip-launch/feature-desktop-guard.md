@@ -1,5 +1,5 @@
 # Feature: Desktop Guard
-_Stage: stage-4-roundtrip-launch · Status: awaiting verification_
+_Stage: stage-4-roundtrip-launch · Status: verified done_
 
 ## Goal
 Below a small-viewport threshold, tell the client the truth once — **"Blueprint works best on a
@@ -31,26 +31,26 @@ set at 1280 it would quietly become the excuse not to fix it. Guard at 1024, fix
 belongs (see Cross-references).
 
 ## Success Criteria
-- [ ] At any viewport matching the threshold, a notice appears with the headline **"Blueprint
+- [x] At any viewport matching the threshold, a notice appears with the headline **"Blueprint
       works best on a computer"** and one plain sentence explaining that looking around works
       fine but dragging, resizing and drawing need a bigger screen
-- [ ] **It does not block reading.** With the notice showing: the canvas scrolls, existing blocks
+- [x] **It does not block reading.** With the notice showing: the canvas scrolls, existing blocks
       render and are hit-testable, page tabs switch, `document.elementFromPoint()` over the canvas
       returns a canvas element, no element is `inert` or `aria-hidden`, no control is `disabled`
       because of the notice, and there is no backdrop
-- [ ] The notice occupies **≤ 25% of viewport height**, is `position: fixed`, and the scroll
+- [x] The notice occupies **≤ 25% of viewport height**, is `position: fixed`, and the scroll
       container gains matching bottom padding so no content is permanently hidden underneath it
-- [ ] Dismissible ("Got it"); dismissal persists for the tab session (survives reload) and
+- [x] Dismissible ("Got it"); dismissal persists for the tab session (survives reload) and
       **does not** persist into a new session/tab — this is a warning about a real risk, not a
       cookie banner
-- [ ] It reacts live: shrinking the window past the threshold shows it without a reload; growing
+- [x] It reacts live: shrinking the window past the threshold shows it without a reload; growing
       past the threshold hides it
-- [ ] It never appears at desktop sizes — asserted at 1024×768, 1280×800 and 1440×900
-- [ ] The onboarding tour is suppressed while the guard is showing (one piece of first-run chrome
+- [x] It never appears at desktop sizes — asserted at 1024×768, 1280×800 and 1440×900
+- [x] The onboarding tour is suppressed while the guard is showing (one piece of first-run chrome
       at a time; guard has precedence — feature-onboarding-tour.md rule 3)
-- [ ] Announced as `role="status"` / `aria-live="polite"`, keyboard-dismissible, and **not** a
+- [x] Announced as `role="status"` / `aria-live="polite"`, keyboard-dismissible, and **not** a
       dialog: no `aria-modal`, no focus trap, no focus steal
-- [ ] Zero JavaScript errors at every tested viewport
+- [x] Zero JavaScript errors at every tested viewport
 
 ## Behaviour rules
 1. **Detection** is `window.matchMedia(GUARD_QUERY)` with a `change` listener — not a resize
@@ -175,6 +175,37 @@ port range in `TIME_WAIT` (see feature-onboarding-tour.md's log for the detail).
 **Not run — round-trip precondition (How We'll Verify §4).** The client driver and
 `playwright.roundtrip.config.ts` do not exist yet (`scripts/roundtrip/` holds the package gate
 only); that check belongs to `feature-roundtrip-harness.md` R2.3 and stays open here.
+
+**Independent review (2026-07-29):** re-ran everything in a detached worktree pinned at
+fb7eaf6, no tracked edits. Same suite numbers as the tour entry (1523/89 unit, e2e ×2 spaced
+625/2/0 each, lint/tsc/build/coverage all exit 0). CI green; live deploy HTTP 200; deployed
+bundle + CSS carry the guard copy, key, query string and --boss-guard-inset.
+
+Independent probes (own config, 3 engines, deleted after). **Viewport matrix, each
+cross-checked against window.matchMedia(GUARD_QUERY) so a CSS-only regression cannot pass:**
+390×844 shown · 768×1024 shown · 1023×800 shown · 1024×768 hidden · 1280×800 hidden ·
+1440×900 hidden. Coarse pointer at 1180×820 with hasTouch → shown on all three engines.
+
+**The real 390px layout, on a 2-page sketch built at 1440 and carried down:** app-shell
+data-small-viewport=true; canvas page non-zero width AND height; columns genuinely STACK with
+the stage first (stage y=316 < palette < panel), panel full width; header overflow-x auto
+with scrollWidth > clientWidth so Submit scrolls into reach; inert 0, aria-modal 0, no
+aria-hidden ancestor over the canvas; palette / pen / Add page / Submit / help control all
+still enabled; hit-test at the visible stage centre resolves inside canvas-area, not the
+banner.
+
+**Size and occlusion, measured:** banner 117.2px at 844 viewport = **13.9% ≤ 25%**; computed
+position: fixed; --boss-guard-inset equals the measured height to the pixel; canvas-viewport
+padding-bottom ≥ banner height; inset cleared when the banner goes.
+
+**Dismissal, tested harder than the shipped spec:** Got it writes
+sessionStorage[boss-blueprint:guard:v1]=dismissed, localStorage null; same tab survives
+reload; a NEW TAB in the same context is warned again. Live resize both directions incl. the
+1023→shown / 1024→hidden boundary. Tour precedence re-confirmed: at 390 the tour is absent
+with its flag still null — suppressed, not spent — and returns on the SAME step when the
+window grows.
+
+**No defects found. Status: VERIFIED DONE.**
 
 ## Open Questions
 1. **Is the coarse-pointer clause worth it?** It adds a second condition and one more E2E case,

@@ -181,6 +181,42 @@ product; both runs are clean when spaced.
 the client driver do not exist yet; `scripts/roundtrip/` currently holds the package gate only.
 That step belongs to `feature-roundtrip-harness.md` (R2.3) and stays open here.
 
+**Independent review (2026-07-29):** re-ran everything in a detached worktree pinned at
+fb7eaf6, no tracked edits. `npm ci` clean · eslint exit 0 · tsc -b exit 0 · `npm test`
+**1523 passed / 89 files** · `npx vitest run scripts/` **154 / 8** · coverage exit 0 (87.2%
+stmt, 80.27% branch, 85.61% func, 88.3% line) · build exit 0 · `npm run e2e` **×2, spaced:
+625 passed / 2 skipped / 0 failed** each. CI green at fb7eaf6 (run 30429321874); live deploy
+HTTP 200; the deployed bundle carries all five pointers, the storage key, the help control and
+the reduced-motion rule. A live probe against the deployed build confirms the tour auto-starts
+at `palette`, 5 steps, guard absent at 1440×900.
+
+Independent browser probes (13 tests × 3 engines, own config, deleted after): first-visit
+ordering on BOTH blank AND template paths (picker → no bubble, flag null; coach → no bubble;
+resolved → step 1 of 5, flag written) · all five data-tour anchors resolve to exactly ONE
+visible element · pointer-events pass-through re-proved (layer none, bubble auto,
+elementFromPoint at canvas centre inside canvas-area; a Heading added, double-clicked, typed
+and COMMITTED in the store with the bubble up; aria-modal 0, inert 0) · Escape, Skip AND Got
+it each persist through reload and a new tab · fresh context re-shows at step 1 · help control
+reopens at step 1, takes focus, flag stays dismissed · ≤95-word claim independently recounted:
+**93** · reduced-motion pair has teeth (reduce → 0s, no-preference → non-zero) · guard
+suppression correct both directions: mid-tour step 3 → 390×844 hides → 1440×900 returns
+**step 3, target pen-tool**.
+
+**One defect found, and it bounces this feature.** After a Submit round trip the tour does NOT
+return as five pointers. Reproduced ×3 engines: open tour → step 2 → Submit (correctly
+suppressed) → submit-back → the bubble returns as step **1 of 1** targeting `submit`. Cause:
+OnboardingTour.tsx's steps useMemo (keyed [isShowing, openCount]) runs during the render where
+isShowing flips true — before React commits the re-mounted palette/canvas/panel/pen targets —
+so liveTourSteps(document) reads the still-committed Submit DOM where only the header's
+data-tour="submit" survives. Help control heals it (openCount bump), reload heals it, nothing
+else does. Guard path unaffected (unmounts nothing — verified as control). The existing unit
+test misses it by asserting presence only. Fix: read live steps in a post-commit
+useLayoutEffect into state; assert step/count in the Submit unit test. Also LOW-1: the log's
+"≤2-sentence budget per pointer" claim is backed by a word-count test, and pointer 2 is three
+sentences — restate or count sentences.
+
+**Status: BOUNCE on criterion 2** — one scoped fix plus one regression assertion.
+
 ## Open Questions
 1. **Stepped bubbles or all five at once?** Five simultaneous callouts read faster but clutter a
    1440×900 layout and would overlap the canvas. **Recommendation:** stepped, with "1 of 5" and a
