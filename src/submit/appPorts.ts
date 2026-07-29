@@ -20,7 +20,10 @@
  * browser any other way.
  */
 
-import { createNoopRelay, type DeliveryRelay } from '../export/delivery/relay.ts'
+import { BOSS_RELAY } from '../../site.config.ts'
+import { createConfiguredRelay } from '../export/delivery/formRelay.ts'
+import type { RelayConfig } from '../export/delivery/relayConfig.ts'
+import type { DeliveryRelay } from '../export/delivery/relay.ts'
 import { renderPagePng, RENDER_HICCUP_MESSAGE } from '../export/png/index.ts'
 import type { PageRenderBytes } from '../export/zip/buildPackage.ts'
 import { APP_LADDER_PORTS } from '../export/zip/ladder.ts'
@@ -47,6 +50,12 @@ async function renderRealPage(pageId: string): Promise<PageRenderBytes> {
 interface StubOverrides {
   readonly renderPage?: SubmitPorts['renderPage']
   readonly relay?: DeliveryRelay
+  /**
+   * A relay CONFIG rather than a relay, so the live-relay E2E exercises the whole
+   * production path — config validation, adapter construction, the degrade ladder,
+   * fetch, status mapping — instead of a fake that proves only itself.
+   */
+  readonly relayConfig?: RelayConfig
 }
 
 function stubOverrides(search?: string): StubOverrides {
@@ -55,6 +64,20 @@ function stubOverrides(search?: string): StubOverrides {
 
   const requested = new URLSearchParams(search ?? window.location.search).get('submit-stub')
 
+  if (requested === 'relay-live') {
+    return {
+      /*
+       * SAME ORIGIN, so `page.route` intercepts it with no CORS and no preflight
+       * (Playwright does not reliably intercept preflight OPTIONS). `http:` to
+       * localhost is exactly the case `relayConfig.ts` permits, and nothing
+       * outside this folded-away branch ever names this path.
+       */
+      relayConfig: {
+        endpoint: `${window.location.origin}${import.meta.env.BASE_URL}__relay-e2e`,
+        credential: 'e2e-not-a-real-key',
+      },
+    }
+  }
   if (requested === 'render-fail') {
     return {
       renderPage: () =>
@@ -95,12 +118,16 @@ export function createAppSubmitPorts(options: AppPortOptions): SubmitPorts {
       // it again" can re-issue the very same package rather than regenerate one.
       downloadBlob(fileName, new Blob([bytes.slice()], { type: ZIP_MIME }))
     },
+    /*
+     * WITH `BOSS_RELAY` EMPTY — how it ships — `createConfiguredRelay` returns
+     * the very same `createNoopRelay({ log })` this line used to construct
+     * directly. Nothing about submit changes until Cam pastes an endpoint in.
+     */
     relay:
       overrides.relay ??
-      createNoopRelay({
-        log: (message, payload) => {
-          options.log(message, payload)
-        },
+      createConfiguredRelay(overrides.relayConfig ?? BOSS_RELAY, {
+        fetch: (input, init) => fetch(input, init),
+        log: options.log,
       }),
     ladder: APP_LADDER_PORTS,
     onProgress: options.onProgress,

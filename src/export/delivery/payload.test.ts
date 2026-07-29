@@ -7,7 +7,11 @@ import { buildSiteJson } from '../siteJson.ts'
 import { finding, type Finding } from '../validate/types.ts'
 
 import { encodeBase64 } from './base64.ts'
-import { buildNotificationPayload, type PayloadInput } from './payload.ts'
+import {
+  buildNotificationPayload,
+  demoteNotificationPayload,
+  type PayloadInput,
+} from './payload.ts'
 
 /**
  * THE DEGRADE LADDER — full → compressed → metadata-only. The identity block is
@@ -85,6 +89,58 @@ describe('the degrade ladder', () => {
       expect(payload.packageFileName).toBe('blueprint_bluebird-bakery_3f2a9c1e.zip')
       expect(payload.warnings.map((warning) => warning.rule)).toEqual(['V15', 'V23'])
     }
+  })
+})
+
+describe('the honeypot', () => {
+  it('defaults to empty — the only value a real submission has', () => {
+    expect(buildNotificationPayload(input(), 1_000_000).honeypot).toBe('')
+  })
+
+  it('is carried through every rung, so the relay can refuse on any of them', () => {
+    for (const limit of [1_000_000, 12_000, 1]) {
+      const payload = buildNotificationPayload({ ...input(), honeypot: 'spam' }, limit)
+
+      expect(payload.honeypot).toBe('spam')
+    }
+  })
+})
+
+describe('demoteNotificationPayload', () => {
+  it('sheds the brief on the way to `compressed`', () => {
+    const payload = demoteNotificationPayload(buildNotificationPayload(input(), 1_000_000), 'compressed')
+
+    expect(payload.variant).toBe('compressed')
+    expect(payload.brief).toBeNull()
+    expect(payload.siteJsonGzipBase64).not.toBeNull()
+  })
+
+  it('sheds both on the way to `metadata-only`', () => {
+    const payload = demoteNotificationPayload(buildNotificationPayload(input(), 1_000_000), 'metadata-only')
+
+    expect(payload.variant).toBe('metadata-only')
+    expect(payload.brief).toBeNull()
+    expect(payload.siteJsonGzipBase64).toBeNull()
+  })
+
+  it('leaves the source object untouched', () => {
+    const source = buildNotificationPayload(input(), 1_000_000)
+
+    demoteNotificationPayload(source, 'metadata-only')
+
+    expect(source.variant).toBe('full')
+    expect(source.brief).not.toBeNull()
+    expect(source.siteJsonGzipBase64).not.toBeNull()
+  })
+
+  it('never promotes — a shed brief cannot be invented back', () => {
+    const compressed = buildNotificationPayload(input(), 12_000)
+    expect(compressed.variant).toBe('compressed')
+
+    expect(demoteNotificationPayload(compressed, 'full')).toBe(compressed)
+
+    const metadata = buildNotificationPayload(input(), 1)
+    expect(demoteNotificationPayload(metadata, 'compressed')).toBe(metadata)
   })
 })
 

@@ -33,7 +33,12 @@ wired LAST, per Cam. Submit is fully functional without it.
       (BLOCK / FIX / WARN), V23 filler warning, always-on download, two-step completion UX,
       spam honeypot, and the `DeliveryRelay` port with its no-op implementation
 - [ ] feature-notification-relay.md — **deferred, wired LAST** (not in this stage's DoD): the
-      real relay behind the port, degrade ladder full → compressed → metadata-only
+      real relay behind the port, degrade ladder full → compressed → metadata-only.
+      **2026-07-29: built and mock-verified, status `awaiting verification`** — a provider-agnostic
+      form-POST adapter shipped CONFIG-GATED and OFF (`BOSS_RELAY` in `site.config.ts`). With the
+      empty config the app binds the same `NoopRelay` and makes zero network calls, asserted in
+      three engines. Cam's account + one real submission is the only thing outstanding (`help.md`).
+      Stage 3's DoD and its `verified done` features are untouched by this
 
 **Build order** (dependencies, not preference): site-json-generator → brief-generator →
 package-zip; png-renderer runs in parallel from the start (it is the long-tail risk); submit-gate

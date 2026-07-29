@@ -3,6 +3,13 @@
  * Kept in one place so the GitHub Pages base path can never drift between them.
  */
 
+/**
+ * TYPE ONLY — erased by `verbatimModuleSyntax`, so this file stays runtime-free.
+ * That matters: `vite.config.ts` imports this module at config time in Node, and
+ * a real import here would drag the export pipeline into the build config.
+ */
+import type { RelayConfig } from './src/export/delivery/relayConfig.ts'
+
 /** GitHub Pages project sites are served from `/<repo-name>/`. */
 export const BASE_PATH = '/BOSS-Blueprint/'
 
@@ -59,3 +66,42 @@ export const BOSS_SITE_URL = 'https://bossolutions.pro'
  * change with no code around it.
  */
 export const BOSS_SUBMIT_EMAIL = 'cammer3034@gmail.com'
+
+/**
+ * THE NOTIFICATION RELAY — OFF, and shipped off on purpose.
+ *
+ * Delivery is download-first (`docs/decisions.md` 2026-07-27 debate #2): the zip
+ * reaches the client's disk before anything here runs, and the client emails it
+ * to `BOSS_SUBMIT_EMAIL` themselves. This relay is a kilobyte-scale TEXT
+ * notification to Cam on top of that — "a package exists, here is who made it" —
+ * and the product is fully functional without it.
+ *
+ * WHILE `endpoint` AND `credential` ARE BOTH EMPTY, NOTHING CHANGES: the app
+ * binds the same no-op stub Stage 3 shipped, makes no request, and the completion
+ * screen says nothing about a notification. That is asserted, in three browser
+ * engines, by `e2e/notification-relay.spec.ts`.
+ *
+ * TO TURN IT ON (`help.md` carries the same steps in Cam's words):
+ *   1. create a free account with any text-only form relay — Web3Forms,
+ *      FormSubmit (ajax), Formspree, EmailJS — and point it at the inbox you want;
+ *   2. paste its POST endpoint into `endpoint` and its public key into
+ *      `credential`;
+ *   3. if that provider names its fields differently, add `fields`; if it demands
+ *      extra constants (EmailJS wants `service_id` and `template_id`), add
+ *      `staticFields`; if it nests the human fields under one key (EmailJS's
+ *      `template_params`), set `nestFieldsUnder` to that key.
+ *   4. `npm run build`, push, submit once, check the inbox.
+ *
+ * The key is a PUBLIC FORM KEY — its only power is "submit to this one form",
+ * which is why this class of provider works from a static page at all. It will be
+ * visible in this public repo and in the shipped bundle. That is the model, not a
+ * leak; it does mean somebody could use it to send you form spam, so lean on the
+ * provider's rate limit and rotate the key if that ever happens.
+ *
+ * A typo cannot break submit: a config that is touched but unusable falls back to
+ * the same no-op stub and logs why (`src/export/delivery/formRelay.ts`).
+ */
+export const BOSS_RELAY: RelayConfig = {
+  endpoint: '',
+  credential: '',
+}

@@ -187,6 +187,13 @@ export async function runSubmit(input: SubmitInput, ports: SubmitPorts): Promise
     packageFileName: built.fileName,
     packageBytes: built.bytes.length,
     warnings: report.warns,
+    /*
+     * Carried, not stored: the honeypot never enters `site.json`, but the relay
+     * needs it to forward the provider's own bot-check field and to refuse a
+     * send outright. Nothing reaches here with it filled — the store refuses
+     * first — which is precisely why it is worth passing.
+     */
+    honeypot: input.lead.quill,
   })
 
   /*

@@ -48,6 +48,15 @@ export interface NotificationPayload {
   readonly packageFileName: string
   readonly packageBytes: number
   readonly warnings: readonly PayloadWarning[]
+  /**
+   * The submit form's honeypot, carried so the relay can BOTH forward it to the
+   * provider's own bot-check field and refuse to send when it is non-empty. The
+   * store already refuses a tripped honeypot before the pipeline starts
+   * (`src/store/submitStore.ts`); this is the belt to that pair of braces, and it
+   * is the one field here that does not come from `site.json` — a honeypot value
+   * has no business in a package a builder will read.
+   */
+  readonly honeypot: string
   /** `full` only — the build prompt verbatim, so Cam can read it without the zip. */
   readonly brief: string | null
   /** `full` and `compressed` — gzipped `site.json`, base64. */
@@ -60,6 +69,8 @@ export interface PayloadInput {
   readonly packageFileName: string
   readonly packageBytes: number
   readonly warnings: readonly Finding[]
+  /** Defaults to `''` — the only value a real client's submission ever has. */
+  readonly honeypot?: string
 }
 
 /** Deterministic gzip: no filename, no OS byte drift, and a zeroed mtime. */
@@ -91,6 +102,7 @@ export function buildNotificationPayload(
     packageFileName: input.packageFileName,
     packageBytes: input.packageBytes,
     warnings: input.warnings.map((warning) => ({ rule: warning.rule, message: warning.message })),
+    honeypot: input.honeypot ?? '',
   } as const
 
   const gzip = gzipSiteJson(input.site)
@@ -112,4 +124,31 @@ export function buildNotificationPayload(
   if (measure(compressed) <= limitBytes) return compressed
 
   return { ...base, variant: 'metadata-only', brief: null, siteJsonGzipBase64: null }
+}
+
+/**
+ * Step an existing payload DOWN the ladder — the same shedding order, applied to
+ * a payload that has already been built.
+ *
+ * The relay needs this because the budget that decides the rung is the PROVIDER's
+ * limit on the request body, which is not known here and is measured against the
+ * assembled request, not against this object (`feature-notification-relay.md`
+ * Notes). Returning a new object rather than rebuilding from the site means the
+ * gzip is computed once per submission, not once per rung.
+ *
+ * Descent only: a `compressed` payload has already discarded its brief, so there
+ * is nothing to promote it back with. Asking for a higher rung returns the
+ * payload unchanged rather than inventing one.
+ */
+export function demoteNotificationPayload(
+  payload: NotificationPayload,
+  variant: PayloadVariant,
+): NotificationPayload {
+  if (variant === 'compressed' && payload.variant === 'full') {
+    return { ...payload, variant, brief: null }
+  }
+  if (variant === 'metadata-only' && payload.variant !== 'metadata-only') {
+    return { ...payload, variant, brief: null, siteJsonGzipBase64: null }
+  }
+  return payload
 }

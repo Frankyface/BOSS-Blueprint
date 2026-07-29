@@ -385,3 +385,34 @@ transcript; the new one catches any non-builtin leak) · **Rejected:** allowlist
 without names (a swapped skill would pass), skipping purity when the CLI has builtins (gives
 up the leak check entirely) · **Revisit if:** a CLI upgrade changes the builtin set — the
 manifest is version-keyed and a mismatch is a loud PRECONDITION, never a silent pass.
+
+## 2026-07-29 — Relay adapter: one provider-agnostic form-POST module, shipped OFF
+**Chose:** the real `DeliveryRelay` is ONE generic form-POST adapter
+(`src/export/delivery/formRelay.ts`) parameterised by a config record — endpoint, credential,
+field NAMES, `staticFields`, `nestFieldsUnder`, byte budget — with **no provider named anywhere
+in the code**; it ships CONFIG-GATED via `BOSS_RELAY` in `site.config.ts` with both strings
+EMPTY, in which state the app binds the identical Stage 3 `NoopRelay` and makes zero network
+calls; a touched-but-invalid config also falls back to the stub and logs why; the degrade ladder
+is measured against the REAL request body (subject + rendered message + static fields), not the
+payload object, and the `metadata-only` rung is posted unconditionally; `fetch` is an injected
+port so `src/export/**` still reaches for no global; `keepalive: true`, which is also the honest
+reason the budget is 64 kB · **Because:** Cam has not created an account (`help.md`), so naming a
+provider would be a guess and four per-provider modules would mean three dead on arrival; every
+free tier the debate surveyed (Web3Forms, FormSubmit-ajax, Formspree, EmailJS REST) is the same
+shape — POST to a fixed endpoint, JSON body, public form key IN the body, 2xx = accepted — so a
+config record spans the whole class; and the feature is deferred precisely because the shipped
+no-relay path carries the Stage 3 DoD, the live gauntlet and the round-trip runs, which makes
+"nothing changes until two strings are pasted" the load-bearing property, asserted in three
+engines by recording every request the page makes · **Mechanism note (not a spec change):** the
+verdict binds *gzipped `site.json`, base64*, not `CompressionStream`; `payload.ts` already gzips
+with `fflate.gzipSync({ mtime: 0 })` — synchronous, deterministic, byte-stable, available in
+jsdom and all three engines and already inflate-tested — so it stays. Swapping tested
+deterministic code for an async browser API jsdom lacks would be a regression dressed as
+compliance · **Rejected:** per-provider adapters (3 of 4 untested by construction), a serverless
+proxy (a backend by another name), retry on failure (a 4xx is a config fault that will not fix
+itself; a 5xx retry from a page about to close buys little — revisit only if Cam sees real
+misses), letting the relay ever carry the zip (debate #2 settled it) · **Verification honesty:**
+implemented and MOCK-verified only. No notification has reached an inbox; the feature stays
+`awaiting verification` until Cam pastes his provider values and runs one real submission ·
+**Revisit if:** the provider Cam picks needs a shape this config cannot express (header-borne
+credential, multipart, signed request) — that is a new config field, not a rewrite.
