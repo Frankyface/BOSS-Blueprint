@@ -1,6 +1,20 @@
 # Round-Trip Test Harness — Protocol v1
 
-_BOSS Blueprint · Stage 4's gating instrument · drafted 2026-07-28 · consumes export-format-draft.md (schemaVersion 1)_
+_BOSS Blueprint · Stage 4's gating instrument · drafted 2026-07-28 · **amended 2026-07-29 (v1.1)**
+· consumes export-format-draft.md (schemaVersion 1)_
+
+> **v1.1 — the eight rulings of 2026-07-28, plus one of 2026-07-29, applied in place.** Nine
+> ambiguities and self-contradictions in v1 were ruled while the harness was specified and are
+> now written into the sections they affect: §0/§3.1 the run root lives outside the repo
+> (ruling 2), §1.2 the Home Section bands are declared (3), one untouched template filler block
+> (4) and exactly one unlinked Contact button (8), §3.1 the sterile config dir's single
+> credential (1) and the `npx`/`npm` denial (5), §3.3 the built site is served by the committed
+> `static-server.mjs`, §4.2 the extended interrogative set and the reverse-order clause (6) plus
+> the first-person-offer clause (2026-07-29), and §0 the deployed-bundle freshness
+> precondition (7). Every one has a `docs/decisions.md` entry; the amendments landed **before the
+> first gating run**, because §4.4 and the harness's R10.2 both forbid changing a scan rule once
+> a verdict exists. Each amended passage is marked **[AMENDED …]** so the original reading stays
+> visible rather than being quietly replaced.
 
 This document specifies the fully automated protocol that decides whether v1 ships: a fake
 client sketches a real business site through the **real deployed UI**, submits, the package
@@ -50,10 +64,21 @@ Orchestrator: `scripts/roundtrip/run.mjs` (Node, matches the repo stack), invoke
 its status + artifacts into the run directory and the orchestrator halts at the first
 failed hard gate (later segments are pointless and would burn tokens). Exit code 0 ⇔ PASS.
 
-**Run directory** (the archived evidence, one per run):
+**Run directory** (the archived evidence, one per run).
+
+**[AMENDED 2026-07-29 — ruling 2: the run root lives OUTSIDE the repo.]** v1 said here that
+`roundtrip-runs/` is gitignored (i.e. inside the repo) while §3.1 said the sandbox sits outside
+the repo tree so no ancestor `CLAUDE.md` can leak. Both cannot be true, and the in-repo reading
+puts this project's own `CLAUDE.md` in the builder's ancestor chain, destroying the zero-context
+premise. **The root is `%LOCALAPPDATA%\boss-blueprint\roundtrip-runs\` by default, overridable
+with `ROUNDTRIP_RUNS_DIR`**; the `.gitignore` line stays as belt-and-braces for anyone who
+overrides it back into the repo, and §3.1's ancestor walk is the real guard because it runs
+wherever the root points. Operator note: the default sits under the user profile, so a personal
+`~/.claude/settings.json` is an ancestor and the run correctly aborts as PRECONDITION — point
+`ROUNDTRIP_RUNS_DIR` at a **private** directory with a clean ancestor chain.
 
 ```
-roundtrip-runs/<UTC-timestamp>_<scenario>_<gitsha7>/
+<runsRoot>/<UTC-timestamp>_<scenario>_<gitsha7>/
 ├── run-manifest.json        # segment statuses, timings, versions, model ids, verdict
 ├── client/                  # SEG-1: playwright trace.zip, video, per-step screenshots
 ├── package.zip              # exactly as downloaded
@@ -68,7 +93,8 @@ roundtrip-runs/<UTC-timestamp>_<scenario>_<gitsha7>/
 └── verdict.txt              # PASS | FAIL <score> — the one-line answer
 ```
 
-`roundtrip-runs/` is gitignored (zips + videos are heavy). The Verification Log entry in
+Run directories are heavy (zips + videos) and are never committed; `.gitignore` carries
+`roundtrip-runs/` for the override case. The Verification Log entry in
 `staging/stage-4-roundtrip-launch/feature-roundtrip.md` records the run path, the verdict
 line, the score table, and copies `report.md` + 2 representative side-by-side screenshots
 into `staging/stage-4-roundtrip-launch/evidence/` (small, committed).
@@ -81,6 +107,17 @@ into `staging/stage-4-roundtrip-launch/evidence/` (small, committed).
 - **`deployed` target (ship gate only):** the live GitHub Pages URL
   (`https://frankyface.github.io/BOSS-Blueprint/`). Proves the value chain on the REAL
   deployed UI, per the Stage 4 DoD wording. Network-dependent, so it gates ship, not CI.
+
+**[AMENDED 2026-07-29 — ruling 7: the `deployed` leg carries a freshness precondition.]** v1 had
+nothing stopping a run against a stale Pages deploy. Before SEG-1 on `--target deployed`: run
+`npm run build` at HEAD, read the hashed entry filename out of `dist/index.html`, fetch the
+deployed `index.html`, and assert it references the **same** `assets/index-<hash>.js`. A mismatch
+**aborts as PRECONDITION** ("deployed bundle is not HEAD — wait for the Pages deploy"), is never
+written to `verdict.txt`, and is invisible to the ship gate — it is never a product FAIL. Both
+filenames and the fetched URL go in `run-manifest.json`, and `git status --porcelain` must be
+empty for any gating run. Rationale worth keeping: the 2026-07-28 UX audit found the live deploy
+had no Submit control, no image upload and no pen at all; a `deployed` leg against that build
+would have burned a full builder budget to produce a spectacular, meaningless FAIL.
 
 The v1 ship verdict requires: Scenario A PASS on `preview`, Scenario A PASS on `deployed`,
 Scenario B PASS on `preview` — all three as clean uninterrupted runs (§8).
@@ -125,10 +162,28 @@ guard, template nav rewiring, and it mirrors the realistic client path — decis
 | submit form | name `Riley Hodgson`, email `riley@cedarstonelandscaping.ca` |
 
 **Pages (4 — satisfies "3+"), final state after edits.** The driver renames/edits template
-pages and adds one, ensuring every template-seeded block it keeps gets touched (clears
-`fromTemplate`; two seeded filler blocks are deliberately left untouched on no page — i.e.
-all kept blocks are edited, so the placeholder-leak WARN path is exercised in Scenario B
-instead, see 1.3).
+pages and adds one.
+
+**[AMENDED 2026-07-29 — ruling 4: exactly ONE untouched template filler block.]** v1 said every
+kept block is edited and deferred the placeholder-leak WARN path to Scenario B. That is
+unsatisfiable: **B is a blank start with zero seeded blocks and cannot carry template filler at
+all**, so V23's WARN, the brief's [N12] filler narration and the submit gate's
+WARN-ships-anyway path never ran end to end in either scenario. Scenario A therefore leaves
+**exactly one copy-bearing `fromTemplate` text block on Services completely unedited**. The
+driver asserts the submit gate raised the V23 WARN, listed that block, and **still shipped**
+(WARN never blocks); the manifest diff asserts `fromTemplate` per block from the scenario file;
+the expected text is read from the committed template fixture, never re-typed into the scenario.
+H6 and the evaluator both carve `fromTemplate: true` blocks out — a builder that keeps, drops or
+placeholders filler is not failing a hard gate.
+
+**[AMENDED 2026-07-29 — ruling 3: the Home `section` bands are DECLARED, not invented.]** v1's
+page listing omitted section blocks entirely while the coverage checklist claimed all six block
+types. The trades template already seeds them (Home carries a hero band and a services band, all
+full width), so Scenario A **declares the template's Home bands explicitly and keeps them** — no
+client action beyond leaving them in place. The manifest diff asserts both export with
+discriminator `section`, at full page width, with **no section painting in front of a content
+block** (a nav bar legitimately paints furthest back, so "index 0" would fail every correct
+template start). Coverage of all six types is now asserted rather than asserted-about.
 
 1. **Home** (`/`) — nav bar (Home · Services · Our Work · Contact, all wired); hero section:
    heading REAL `Outdoor spaces you'll actually use` (full-width-ish, top); text GENERATE —
@@ -160,14 +215,21 @@ instead, see 1.3).
    `A one-line invitation to browse our project photos`.
 4. **Contact** (`/contact`) — nav (identical); heading REAL `Let's talk about your yard`;
    text REAL `hello@cedarstonelandscaping.ca\n519-555-0142\nMon–Sat 7am–6pm` (newlines
-   preserved); button `Get a free quote` → Contact-page… no — this one is the deliberate
-   **unlinked** control: button `Instagram` with link left as None (exercises the brief's
-   unlinked-flag path and the builder's obvious-target judgment).
+   preserved); **exactly ONE button: `Instagram`, link `none`** — the deliberate unlinked
+   control, which exercises the brief's unlinked-flag path and the builder's obvious-target
+   judgment.
+   **[AMENDED 2026-07-29 — ruling 8.]** v1's bullet contradicted itself mid-sentence ("button
+   `Get a free quote` → Contact-page… no — this one is the deliberate **unlinked** control"),
+   leaving it unclear whether the page carried one button or two. It carries one: internal links
+   are already covered by the Home hero CTA and external by the Google-review button, so the
+   `none` path is the only thing this page adds. §6.3 never penalises an inert-vs-guessed target
+   for a `none` link when BUILD_NOTES records the call — this button is exactly that case.
 
-Coverage checklist this scenario hits: all six block types · both copy modes (3 GENERATE,
-7+ REAL) · lengthHint present and absent · 3 uploaded images + 1 empty-with-description
-slot · both fits · both pen roles · internal, external, and none links · identical navs
-(shared-nav path) · template start with fromTemplate clearing · a verbatim-typo trap.
+Coverage checklist this scenario hits: all six block types (the Home bands are the `section`
+half — ruling 3) · both copy modes (3 GENERATE, 7+ REAL) · lengthHint present and absent ·
+3 uploaded images + 1 empty-with-description slot · both fits · both pen roles · internal,
+external, and none links · identical navs (shared-nav path) · template start with fromTemplate
+clearing **and exactly one untouched filler block** (ruling 4) · a verbatim-typo trap.
 
 **Fixture images** — `scripts/roundtrip/fixtures/fixture-{patio,wall,garden}.jpg`, each
 1600×1200 JPEG, generated once by `scripts/roundtrip/fixtures/make-fixtures.mjs` (sharp;
@@ -283,9 +345,21 @@ Isolation mechanics (Windows):
 
 - `CLAUDE_CONFIG_DIR` → `<runDir>/builder/claude-home/` — a bare, harness-generated config
   dir. No user `~/.claude/CLAUDE.md`, no rules files, no MCP servers, no memory, no
-  project CLAUDE.md anywhere above the sandbox (the sandbox lives under `roundtrip-runs/`,
-  outside the repo tree, so no ancestor CLAUDE.md can leak — **verify this in the harness**:
-  assert no `CLAUDE.md` exists in any ancestor of the sandbox).
+  project CLAUDE.md anywhere above the sandbox. The run root lives outside the repo tree
+  (§0, ruling 2), and the guard that actually enforces this is mechanical: **walk from
+  `builder/sandbox/` to the filesystem root and abort as PRECONDITION if any ancestor holds
+  `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md` or `.claude/settings.json`**, printing the
+  offending path. The walk runs for the builder sandbox AND the evaluator sandbox, every run,
+  before either session starts.
+- **[AMENDED 2026-07-29 — ruling 1: how the isolated session authenticates.]** v1 never said,
+  and a bare config dir has no credentials, so the session cannot start at all. The sterile dir
+  gets **exactly one** credential: preferred `cli-credentials` (copy the CLI's credentials file
+  from the real config dir), fallback `api-key-env` (pass `ANTHROPIC_API_KEY` through and copy
+  nothing), neither available → abort as PRECONDITION. After creation the **recursive** listing
+  must be exactly `settings.json` plus at most that one file — a nested `claude-home/agents/**`
+  fails it too. `run-manifest.json` records the method, the source path and the listing; the
+  credential's **contents are never read, printed or archived**, and every copy is deleted from
+  the run tree when the run ends, pass or fail (`credentialScrubbed` in the manifest).
 - `claude-home/settings.json` grants the scoped allowlist (this is how we avoid the
   banned skip-permissions flag):
 
@@ -295,12 +369,24 @@ Isolation mechanics (Windows):
       "allow": [
         "Read", "Glob", "Grep", "Write", "Edit",
         "Bash(mkdir *)", "Bash(dir *)", "Bash(ls *)", "Bash(copy *)", "Bash(cp *)",
-        "Bash(node *)", "Bash(npx serve*)", "Bash(npx http-server*)"
+        "Bash(node *)"
       ],
-      "deny": ["WebFetch", "WebSearch", "Bash(curl *)", "Bash(git *)", "Bash(npm install*)"]
+      "deny": [
+        "WebFetch", "WebSearch", "Bash(curl *)", "Bash(git *)",
+        "Bash(npm *)", "Bash(npx *)", "Bash(pip *)", "Bash(powershell *)"
+      ]
     }
   }
   ```
+
+  **[AMENDED 2026-07-29 — ruling 5: `npx` and `npm` are DENIED, not allowed.]** v1 allowed
+  `Bash(npx serve*)` / `Bash(npx http-server*)` while declaring the build hermetic — but `npx`
+  fetches from the npm registry on a cold cache, so the allowlist contradicted its own
+  network-denial rationale. Both are dropped from allow and added to deny; a unit test asserts
+  no generated allow entry matches `/^Bash\((npx|npm)\b/`. The builder never needs to serve the
+  site: §5 does that with the committed, dependency-free `static-server.mjs`, which also removes
+  the harness's own network dependency. `Bash(node *)` stays so the builder can self-check with
+  a loopback one-liner.
 
   Network is denied: the build must be hermetic (deterministic, no context leak via
   fetched pages). Consequence: empty-slot placeholders are locally generated (inline SVG /
@@ -346,12 +432,16 @@ Wording rules (binding on the harness):
 
 Per the brief's own Definition of Done: a static multi-page site in `./site/`, one page
 per slug, homepage at `index.html`, runnable by opening `index.html` or a single stated
-command, `BUILD_NOTES.md` at the build root. SEG-5 serves `site/` with a plain static
-server (`npx http-server -p 4173 ./site`); if BUILD_NOTES declares a different run
-command, SEG-5 honors it only if it is on a tiny allowlist (`npx http-server` / `npx
-serve` / plain files); anything needing installs or builds fails H3 as "not
-static-friendly" (the brief said dependency-light — this is a brief-compliance failure,
-classified builder-judgment).
+command, `BUILD_NOTES.md` at the build root.
+
+**[AMENDED 2026-07-29 — ruling 5's consequence.]** SEG-5 **always** serves `site/` with the
+committed, dependency-free `scripts/roundtrip/static-server.mjs` (node:http, correct MIME types,
+`/` → `index.html`, `/<slug>` → `<slug>.html` fallback; which resolution each page needed is
+recorded in `crawl.json`). v1 named `npx http-server -p 4173 ./site` and a tiny run-command
+allowlist — that would have put the harness itself on the npm registry, the same hole ruling 5
+closed on the builder side. If BUILD_NOTES declares a run command that requires an install or a
+build step, H3 fails as "not static-friendly" (the brief said dependency-light — a
+brief-compliance failure, classified builder deviation).
 
 ---
 
@@ -364,12 +454,38 @@ classified builder-judgment).
    which makes any attempt to ask unambiguous.
 2. **Final-message scan** (the only place a `-p` session can address the user): take the
    final assistant text. Strip fenced code blocks, inline code, and «…»/"…" quoted spans
-   (client copy may legitimately contain `?`). Then FAIL H2 if any remaining sentence:
-   - ends in `?` AND contains a second-person interrogative lead
-     (`\b(do|would|could|can|should|shall|which|what|where|who|how)\b.*\byou(r)?\b`), or
-   - matches the phrase list: `let me know`, `please (clarify|confirm|provide|specify)`,
+   (client copy may legitimately contain `?`; a quoted span is capped at 400 characters so one
+   stray quote mark cannot swallow the rest of the message). Then FAIL H2 if any remaining
+   sentence:
+   - **2a** — ends in `?` (after stripping trailing `*_)]"` decoration) AND matches **any** of
+     three clauses, or
+   - **2b** — matches the phrase list: `let me know`, `please (clarify|confirm|provide|specify)`,
      `need (more|additional) (info|information|details)`, `before i (proceed|continue)`,
      `awaiting (your|further)`, `unable to proceed without`, `which (option|one) (do you|would you)`.
+
+   **[AMENDED 2026-07-29 — ruling 6 (2026-07-28) and the offer clause (2026-07-29). Both landed
+   BEFORE the first gating run, because §8 and the harness's R10.2 forbid changing a scan rule
+   once a verdict exists.]** v1's rule 2a was a single clause,
+   `\b(do|would|could|can|should|shall|which|what|where|who|how)\b.*\byou(r)?\b` — and `\b(do)\b`
+   does not match "does", so "Is this what you wanted?", "Are you happy for me to proceed?",
+   "Does your business have a logo?" and "You want me to use the green?" **all passed H2 as
+   written**. Rule 2a is now three clauses, each pinned as data in `thresholds.mjs` and swept by
+   the `scan-corpus.json` regression corpus:
+
+   | Clause | Rule | Catches |
+   |---|---|---|
+   | 2a-lead | `\b(<lead>)\b[^?]*\byou(r\|rs)?\b`, lead = the 24-word set `do does did would could can may might should shall will is are was were which what where when who whom whose why how` | "Is this what you wanted?" |
+   | 2a-reverse | `\byou(r\|rs)?\b[^?]*\b(want\|prefer\|like\|need\|confirm\|decide\|choose\|pick)\b` | "You want me to use the green?" |
+   | 2a-offer | `\b(should i\|shall (i\|we)\|want me to\|anything else)\b` | "Should I add a favicon?" · "Want me to swap the hero photo?" · "Anything else?" |
+
+   The offer clause exists because the first two both require the word `you` somewhere, so every
+   offer the builder makes about **itself** slipped through. It is deliberately four literal
+   forms rather than a general "lead → I" clause, which would swallow the rhetorical
+   self-questions a builder legitimately writes ("Why did I choose a two-column hero?" — a
+   `mustPass` corpus row). It still requires the `?`: it is part of 2a, not 2b.
+
+   Every hit is written to `builder/scan-report.json` with the offending sentence, the rule id
+   and its character offset.
 3. **Completion cross-check:** `BUILD COMPLETE` sentinel present as the final line AND
    `site/index.html` exists AND `BUILD_NOTES.md` exists (H8). A session that stopped
    without the sentinel is scanned rule-2 first (it probably stalled on a question); if no
@@ -569,6 +685,11 @@ timeout; orchestrator hard-stops the run at 60 min per segment.
 ---
 
 ## 10. Open questions (with recommendations)
+
+_All six recommendations below were adopted (decisions.md 2026-07-28, "Round-trip harness
+protocol adopted"). They are a different list from the nine v1 ambiguities ruled 2026-07-28 /
+2026-07-29 and applied in place above — those are marked **[AMENDED …]** at the sections they
+affect and have one decisions entry each._
 
 1. **Live-deploy leg** — network-flaky for CI. **Rec:** required once for the ship gate
    (the DoD says "real deployed UI"), never for regression; regression uses `vite preview`

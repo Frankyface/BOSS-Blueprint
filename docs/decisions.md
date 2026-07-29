@@ -242,6 +242,98 @@ only contract frictions; freezing before integration ends the amendment churn wi
 re-serialization, weakening the byte-exact discipline that caught real defects five times) ·
 **Revisit if:** the round-trip test demands it — via the frozen-contract change process only.
 
+## 2026-07-28 — Round-trip harness ruling 1: one credential, method recorded
+_(Ruled 2026-07-28 while specifying the harness; recorded here 2026-07-29 in the pre-run doc
+pass that R5.3/R10.1 make a precondition for gating run 1.)_
+**Chose:** the sterile `CLAUDE_CONFIG_DIR` gets **exactly one** credential — `cli-credentials`
+(copy the CLI credentials file) preferred because Cam's setup uses CLI auth, `api-key-env`
+(pass `ANTHROPIC_API_KEY` through, copy nothing) as fallback, neither available → abort as
+PRECONDITION; the dir asserts to `settings.json` + at most that one file on its RECURSIVE
+listing; the method and source path — **never the contents** — go in `run-manifest.json` ·
+**Because:** a bare config dir has no auth, so the isolated session cannot start at all, and
+the protocol never said how it logs in — a fresh implementer stops dead there · **Rejected:**
+copying the whole real config dir (destroys the zero-context premise), leaving it unspecified ·
+**Revisit if:** the CLI's credential storage moves out of a file. → harness R3.3/R3.4
+
+## 2026-07-28 — Round-trip harness ruling 2: the run root lives OUTSIDE the repo
+**Chose:** run root defaults to `%LOCALAPPDATA%\boss-blueprint\roundtrip-runs\` (override
+`ROUNDTRIP_RUNS_DIR`); the `.gitignore` line for `roundtrip-runs/` stays as belt-and-braces;
+the ancestor walk (R3.2) is the real guard and runs wherever the root points ·
+**Because:** protocol §0 said `roundtrip-runs/` is gitignored (inside the repo) and §3.1 said
+the sandbox sits outside the repo tree so no ancestor `CLAUDE.md` can leak — these cannot both
+be true, and the inside-the-repo reading silently puts this project's own `CLAUDE.md` in the
+builder's ancestor chain, destroying the entire premise · **Rejected:** in-repo with a
+`.claudeignore`-style dodge (no such mechanism for ancestor walks) · **Revisit if:** never —
+the ancestor assertion makes the location a preference rather than a load-bearing choice.
+**Operator consequence, found in practice:** the ruled default sits under the user profile, so
+`C:\Users\Cam\.claude\settings.json` is an ancestor and the run correctly aborts as
+PRECONDITION. Point `ROUNDTRIP_RUNS_DIR` at a **private** directory with a clean ancestor chain
+(a dedicated drive root or a non-profile private folder); `C:\Users\Public\...` has a clean
+chain but is world-readable, which is why the post-run credential scrub exists. → R3.1/R3.2
+
+## 2026-07-28 — Round-trip harness ruling 3: Scenario A declares the Home Section bands
+**Chose:** Scenario A declares the trades template's two Home `section` bands explicitly and
+keeps them; the manifest diff asserts the `section` discriminator, full width, and that no
+section paints in front of a content block · **Because:** the scenario claimed "all six block
+types" while placing no `section` at all, and section bands are load-bearing for the brief's
+DoD item 2 and §4.4 row grouping · **Rejected:** having the driver INSERT a band (the template
+already seeds them — inventing one would test a path no client takes), asserting index 0 (a nav
+bar legitimately paints furthest back, so that would fail every correct template start) ·
+**Revisit if:** the template stops seeding bands. → R1.2a
+
+## 2026-07-28 — Round-trip harness ruling 4: exactly one untouched template filler block
+**Chose:** Scenario A leaves exactly one copy-bearing `fromTemplate` text block on Services
+completely unedited; the driver asserts the submit gate showed the V23 filler WARN and **still
+shipped**; the manifest diff asserts the flag per block from the scenario file; the expected
+text is read from the committed template fixture, never re-typed; H6 and the evaluator both
+carve those blocks out · **Because:** protocol §1.2 deferred the WARN path to Scenario B, but B
+is a blank start with zero seeded blocks and cannot carry template filler at all — so V23's
+WARN, the brief's [N12] filler narration and the WARN-ships-anyway path had never run end to
+end · **Rejected:** a blanket "true on one, false on the rest" assertion (untrue while
+`band()` set the flag — since fixed upstream) · **Revisit if:** V23's scope changes. → R1.2b, R8.5
+
+## 2026-07-28 — Round-trip harness ruling 5: `npx`/`npm` denied to the builder
+**Chose:** `Bash(npx serve*)` and `Bash(npx http-server*)` are dropped from the builder
+allowlist entirely and `Bash(npx *)` / `Bash(npm *)` added to deny; SEG-5 serves the built site
+with the committed, dependency-free `static-server.mjs`; a unit test asserts no generated allow
+entry matches `/^Bash\((npx|npm)\b/` · **Because:** the allowlist contradicted its own
+network-denial rationale — `npx` fetches from the npm registry on a cold cache, so a "hermetic"
+build could reach the network through its own serving command · **Rejected:** allowing `npx`
+with a warmed cache (unverifiable per machine), letting the builder skip self-checking
+(`Bash(node *)` covers a loopback one-liner) · **Revisit if:** never without a decisions entry —
+this is the hermeticity boundary. → R3.5, R6.1
+
+## 2026-07-28 — Round-trip harness ruling 6: the extended interrogative set
+**Chose:** rule 2a's lead set is extended to 24 words (adds `does did may might will is are was
+were when whom whose why`) and gains a second, reverse-order clause `you → (want|prefer|like|
+need|confirm|decide|choose|pick)`; both live in `thresholds.mjs` as pinned data, with corpus
+rows · **Because:** the protocol's set was
+`(do|would|could|can|should|shall|which|what|where|who|how)` and `\b(do)\b` does not match
+"does" — so "Is this what you wanted?", "Are you happy for me to proceed?" and "You want me to
+use the green?" ALL passed the zero-questions gate as written · **Rejected:** leaving it and
+triaging by hand (R5.5 forbids waving a hit through), fixing it after a run (changing a scan
+rule once a verdict exists is exactly what R5.5/R10.2 forbid — hence "before run 1") ·
+**Revisit if:** only with a fresh decisions entry and a full rerun. → R5.3
+
+## 2026-07-28 — Round-trip harness ruling 7: the deployed leg needs a freshness precondition
+**Chose:** for `--target deployed`, build at HEAD, read the hashed entry filename out of
+`dist/index.html`, fetch the deployed `index.html` and assert the same `assets/index-<hash>.js`;
+mismatch aborts as **PRECONDITION**, is never written to `verdict.txt`, and is invisible to
+`ship-gate.mjs`; `git status --porcelain` must also be empty · **Because:** nothing stopped a
+run against a stale Pages deploy, and the 2026-07-28 UX audit found the live build had no Submit
+control, no image upload and no pen at all — that leg would have burned a full builder budget to
+produce a spectacular, meaningless FAIL · **Rejected:** scoring a stale deploy as a product FAIL,
+sleeping-and-retrying (hides the real state) · **Revisit if:** hosting stops content-hashing.
+→ R3.6
+
+## 2026-07-28 — Round-trip harness ruling 8: Contact carries exactly one, unlinked button
+**Chose:** Scenario A's Contact page has exactly one button — `Instagram`, link `none` ·
+**Because:** protocol §1.2's page-4 bullet contradicted itself mid-sentence ("button `Get a free
+quote` → Contact-page… no — this one is the deliberate **unlinked** control"); internal links
+are already covered by the Home hero CTA and external by the Google-review button, so the `none`
+path is the only thing that page adds · **Rejected:** two buttons (duplicates coverage the Home
+page already has) · **Revisit if:** the unlinked-flag brief path changes. → R1.2c, R8.4
+
 ## 2026-07-28 — Recorded from batch-3 review: semantic internal ids + picker-from-storage
 **Chose:** (1) template/page/block internal ids stay semantic (`home`, `rest-home-hero-title`)
 — the export remaps every id at package time (§4.8), so readable ids cost the package nothing
@@ -252,3 +344,23 @@ Blank, place nothing, reload → the picker re-offers, because there is nothing 
 promotes them to the decision log per review LOW-3 · **Rejected:** `page-`prefixed generated
 ids (worse selectors), a persisted picker-dismissed flag (a second source of truth that can
 disagree with the design) · **Revisit if:** n/a.
+
+## 2026-07-29 — Zero-questions rule 2a gains a first-person-offer clause (before run 1)
+**Chose:** rule 2a gets a third clause matching four literal offer forms — `should i`,
+`shall (i|we)`, `want me to`, `anything else` — in any sentence that already ends in `?`,
+pinned in `thresholds.mjs` as `FIRST_PERSON_OFFER_SET` with five `mustFail` and four `mustPass`
+corpus rows. Also pinned in the same pass: the S3 length rule's constants
+(`S3_LENGTH_MIN_RATIO` 0.3, `S3_LENGTH_MAX_RATIO` 3, `FRAME_CHAR_WIDTH_PX` 8,
+`FRAME_LINE_HEIGHT_PX` 24, `S3_SENTENCE_HINT_TOLERANCE` 1), which implement R8.2's
+already-specified but never-implemented length check · **Because:** both existing 2a clauses
+require the word `you` somewhere, so every offer a builder makes about ITSELF — "Should I add a
+favicon?", "Want me to swap the hero photo?", "Anything else?" — passed H2 untouched. In `-p`
+print mode none of those can be answered, which is the same argument ruling 6 used, applied to
+the direction it missed. Landing it **before any gating run exists** is mandatory: R5.5/R10.2
+forbid changing a scan rule once a verdict exists · **Rejected:** a general "lead → I" clause
+(it swallows the rhetorical self-questions a builder legitimately writes — "Why did I choose a
+two-column hero?" — which the corpus keeps in `mustPass`); adding these to 2b's no-question-mark
+phrase list (too broad). **Cost accepted knowingly:** a rhetorical "Should I have used a table?
+No — the sketch shows cards." now fails H2, and R5.5 allows no hand-waving; the honest place to
+pay that is here, before any verdict exists · **Revisit if:** only with a fresh decisions entry
+and a full rerun. → R5.3 2a clause 3, R8.2 S3
