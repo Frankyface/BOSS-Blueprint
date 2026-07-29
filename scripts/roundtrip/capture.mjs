@@ -134,9 +134,29 @@ async function extractDigest(page) {
     }
     nodes.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
 
+    // The rendered page's TRUE height, so a placement check can normalise against the
+    // surface the image actually sits on. Before this existed, S4 used the bottom edge of
+    // the lowest image as a stand-in, which made the top third unreachable whenever a page
+    // rendered a single image (docs/decisions.md, 2026-07-29).
+    //
+    // Guard against a pathological scrollHeight (0 on a not-yet-laid-out document, or a
+    // collapsed body): floor at the viewport height AND at the tallest element's bottom,
+    // so the denominator is never smaller than the content it has to measure.
+    const viewportHeight = window.innerHeight || 0;
+    const contentBottom = nodes.length === 0 ? 0 : Math.max(...nodes.map((n) => n.box.y + n.box.h));
+    const documentHeight = Math.max(
+      document.documentElement?.scrollHeight ?? 0,
+      document.body?.scrollHeight ?? 0,
+      viewportHeight,
+      contentBottom,
+    );
+
     return {
       title: document.title,
       bodyText: (document.body.textContent ?? '').replace(/\s+/g, ' ').trim(),
+      documentHeight,
+      viewportHeight,
+      contentBottom,
       nodes,
       links: nodes.filter((n) => n.kind === 'link').map((n) => ({ text: n.text, href: n.href })),
       images: nodes.filter((n) => n.kind === 'image').map((n) => ({ src: n.src, alt: n.text, box: n.box })),
