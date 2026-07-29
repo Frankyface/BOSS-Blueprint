@@ -1011,6 +1011,87 @@ is supposed to look like in the evidence.
 is complete, so the remaining gate is now only How-We'll-Verify 6–11: the three live runs, the
 shipgate, the timed smoke, and the evidence copy.
 
+### 2026-07-29 — LIVE RUN ATTEMPTED AND BLOCKED: three aborts, no verdict, nothing ticked
+
+**Attempt at How-We'll-Verify 6–11. It got no further than the timed smoke, and no product
+verdict exists.** All three attempts aborted before SEG-6; every `run-manifest.json` carries an
+`error` block and no `verdict`, so none is a scored run and `ship-gate.mjs` ignores all three
+(R3.6, R9.4). **Nothing in this entry is evidence about the product**, and no Success Criterion is
+ticked. Recorded per protocol §8.5 — one line per iteration, pass or fail.
+
+**Operator setup.** `ROUNDTRIP_RUNS_DIR=C:\bp-runs`, created empty; the ancestor walk from
+`builder/sandbox/` to the drive root is clean (no `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md` or
+`.claude/settings.json` above it), which is why R3.2 never fired. Main tree at `52fecbe`;
+`git status --porcelain` was empty before, between and after every attempt, and each manifest
+independently records `git.clean: true`. **R3.6's freshness precondition PASSES today:**
+`npm run build` at HEAD emits `assets/index-B4kZM208.js` and the live Pages `index.html`
+references the same filename. `managedPolicy: []` and `credentialScrubbed: true` on all three.
+
+| # | Run dir (`C:\bp-runs\…`) | Segments | Abort | Elapsed |
+|---|---|---|---|---|
+| 1 | `2026-07-29T10-48-33-883Z_B_52fecbe` | SEG-1 ok 43.8 s · SEG-2 ok 1.3 s | **INFRA** `spawn claude ENOENT` (SEG-3, 29 ms) | 0.76 min |
+| 2 | `2026-07-29T10-53-42-804Z_B_52fecbe` | — | **INFRA** SEG-1: Playwright could not start (1.7 s) | 0.03 min |
+| 3 | `2026-07-29T10-56-34-241Z_B_52fecbe` | SEG-1 ok 20.3 s · SEG-2 ok 0.6 s | **PRECONDITION** "the builder session was not sterile" (SEG-3, 4.3 s) | 0.42 min |
+
+**The smoke never completed, so `SMOKE_BUDGET_MIN` has still never been measured against a real
+builder.** Attempts 1 and 2 were fixed operationally (no repo file touched, no rule file touched);
+attempt 3's blocker is a rule question and is where this stopped, per R10.2/R10.7.
+
+**BLOCKER A — the CLI's OAuth token is expired, machine-wide (operator action, Cam only).**
+Attempt 3's builder transcript is five events: `init` → `api_retry` ×2 → `assistant` → `result`,
+whose text is `Failed to authenticate. API Error: 401 OAuth access token has expired.
+Re-authenticate to continue.` This is **not** a sterile-copy artefact: the same `claude -p` probe
+run against the REAL config dir in a neutral cwd returns the identical 401, and
+`C:\Users\Cam\.claude\.credentials.json` was last written 2026-07-02. So R3.4's `cli-credentials`
+method faithfully copied a credential that is dead at source. Re-authenticating is an interactive
+OAuth flow and is Cam's to perform; it was not attempted here. `api-key-env` is not a workaround
+as specified — R3.4 only falls back to it when **no** credentials file is found, and one is.
+
+**BLOCKER B — R4.6's purity predicate is unsatisfiable on Claude Code 2.1.190 (needs a ruling).**
+The abort names `14 skills`, `5 agents`, `27 slash_commands`. **The sandbox is not leaking; those
+are the CLI's own built-ins, which ship inside the binary and no `CLAUDE_CONFIG_DIR` can remove.**
+Measured contrast, same machine, same binary:
+
+| init field | sterile sandbox (attempt 3) | real config dir (probe) |
+|---|---|---|
+| `mcp_servers` | 0 | 0 |
+| `plugins` | **0** | 1 |
+| `agents` | **5** — `claude, Explore, general-purpose, Plan, statusline-setup` | 16 (adds `claude-ads:*`) |
+| `skills` | **14** — `deep-research, design-sync, update-config, verify, debug, code-review, simplify, batch, fewer-permission-prompts, loop, schedule, claude-api, run, run-skill-generator` | 99 |
+| `slash_commands` | **27** (the 14 + `clear, compact, config, context, heapdump, init, reload-skills, review, security-review, usage, insights, goal, team-onboarding`) | 114 |
+
+99 skills → 14, 114 commands → 27, 16 agents → 5, 1 plugin → 0, and `memory_paths.auto` resolves
+**inside** the run's own `claude-home/` — the isolation R3.3/R3.7 promises is demonstrably working.
+What R4.6 asserts, as implemented, is that those arrays are *empty*, which this CLI can never
+satisfy. **Amending the predicate to "no non-built-in skills/agents/commands" is a rule change
+touching a Success Criterion, so it needs Cam's sign-off plus a `docs/decisions.md` entry
+(R10.7, CLAUDE.md) — it was NOT made here.**
+
+**Why the mechanical review missed it: the purity check had only ever judged a transcript the
+harness wrote itself.** `runMockBuilder` (`run.mjs:330`) emits
+`{ type:'system', subtype:'init', model:'mock-builder', mcp_servers:[], plugins:[], agents:[], skills:[] }`,
+so `--mock-builder` satisfies `assertSessionPurity` by construction — the same
+agrees-with-itself failure mode the gate's own README rejects for `src/export/validate`.
+
+**Three further harness defects found, none of them the product's:**
+
+| # | Finding | Evidence | Routes to |
+|---|---|---|---|
+| 1 | **The harness cannot start the CLI on Windows.** `runSession` spawns `command = 'claude'` with `shell: false`; the npm shim is `claude` (bash) + `claude.cmd`. Measured: `spawn('claude')` → **ENOENT**; `spawn('claude.cmd')` → **EINVAL** (Node's post-CVE-2024-27980 `.cmd` guard). Not the env scrub — `ENV_ALLOWLIST` already carries `PATHEXT` and `COMSPEC`. Worked around operationally by prepending the directory holding the real `claude.exe` (same 2.1.190 binary the `claude` command resolves to) to `PATH`; nothing in the repo was changed. | attempt 1 | harness — `claude-session.mjs` binary resolution |
+| 2 | **R4.6's memory assertion is checking fields this CLI does not emit.** It tests `project_memory` / `memory_files` / `claude_md_files`; 2.1.190 emits `memory_paths`. The half of R4.6 that proves "no project memory" therefore passes **vacuously** — the exact class MEDIUM-6 already fixed for empty score arrays (R10.7). No actual leak occurred: the emitted `memory_paths.auto` is inside the sterile dir. | attempt 3 init event | harness — `assertSessionPurity` |
+| 3 | **Purity is asserted AFTER the session returns, so it cannot fail fast.** `runSession` completes, *then* `assertSessionPurity` runs. This was free here only because auth died in 4.3 s; with working auth each attempt would spend a full Opus builder budget (§9: ≈ $10–25, 25–45 min) and *then* abort as PRECONDITION. The check should run on the `init` event as it streams. | `run.mjs:203-212` | harness — orchestrator |
+
+**Environmental, not a defect:** attempt 2 died because port 4173 was held by a **concurrent**
+`vite preview` from another session's review worktree (`%TEMP%\bp-review-wt11`, `npm run e2e`,
+started 10:50:30Z), and `playwright.roundtrip.config.ts` sets `reuseExistingServer: false`. That
+process was left alone — it belonged to a live run — and attempt 3 started once it exited. Worth
+knowing for the next operator: **the round trip needs sole use of port 4173 for its whole run.**
+
+**Nothing was weakened to get past any of this.** No threshold, scan rule, scenario, prompt or
+rubric was edited; the rule-file hashes are identical at start and end of all three runs
+(`invalid: false`, `ruleDrift: []`). **Status stays `awaiting verification`.** The live legs
+resume when Blocker A is cleared by Cam and Blocker B is ruled.
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.
