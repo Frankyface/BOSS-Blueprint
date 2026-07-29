@@ -1,0 +1,139 @@
+/*
+ * THE LAYER IS TRANSPARENT TO THE POINTER. Everything else here is decoration;
+ * this is the feature.
+ *
+ * `pointer-events: none` on the layer and `auto` on the bubble alone means there
+ * is no backdrop between the client and their design — a click at the canvas
+ * centre reaches the canvas, not the tour. There is deliberately no dimming, no
+ * scroll lock and no focus trap to go with it.
+ */
+.onboarding-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.onboarding-tour__bubble {
+  position: fixed;
+  width: 18rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.85rem 1rem 0.9rem;
+  pointer-events: auto;
+  color: var(--boss-text-invert);
+  background: var(--boss-ink);
+  border-radius: var(--boss-radius);
+  border-left: 4px solid var(--boss-accent);
+  box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--boss-ink) 45%, transparent);
+  transition: opacity 140ms ease-out;
+}
+
+.onboarding-tour__bubble:focus-visible {
+  outline: 2px solid var(--boss-accent);
+  outline-offset: 2px;
+}
+
+.onboarding-tour__counter {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--boss-accent);
+}
+
+.onboarding-tour__title {
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.onboarding-tour__body {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--boss-text-invert) 82%, transparent);
+}
+
+.onboarding-tour__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.onboarding-tour__skip,
+.onboarding-tour__next {
+  padding: 0.3rem 0.75rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.onboarding-tour__skip {
+  color: color-mix(in srgb, var(--boss-text-invert) 80%, transparent);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--boss-text-invert) 35%, transparent);
+}
+
+.onboarding-tour__skip:hover,
+.onboarding-tour__skip:focus-visible {
+  color: var(--boss-text-invert);
+  border-color: var(--boss-text-invert);
+}
+
+.onboarding-tour__next {
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border: 1px solid var(--boss-accent);
+}
+
+.onboarding-tour__next:hover,
+.onboarding-tour__next:focus-visible {
+  background: color-mix(in srgb, var(--boss-accent) 84%, var(--boss-surface));
+}
+
+/* The help control that brings the whole thing back, permanently in the header. */
+.tour-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text-invert);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--boss-text-invert) 40%, transparent);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tour-help:hover,
+.tour-help:focus-visible {
+  border-color: var(--boss-accent);
+}
+
+.tour-help__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-tour__bubble {
+    transition: none;
+  }
+}

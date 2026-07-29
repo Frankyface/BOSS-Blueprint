@@ -1,0 +1,62 @@
+/*
+ * A fixed strip along the bottom edge — never a sheet, never a dimmed overlay.
+ *
+ * `max-height: 25vh` is a hard promise rather than a hope about how the copy
+ * wraps: on the narrowest phone the strip still leaves three quarters of the
+ * window for the design, and if a text-scaling setting ever pushed the content
+ * past that, the strip scrolls inside itself rather than eating the page.
+ */
+.desktop-guard {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-height: 25vh;
+  overflow-y: auto;
+  padding: 0.7rem 0.85rem;
+  color: var(--boss-text-invert);
+  background: var(--boss-ink);
+  border-top: 3px solid var(--boss-accent);
+  box-shadow: 0 -0.5rem 1.5rem color-mix(in srgb, var(--boss-ink) 35%, transparent);
+}
+
+.desktop-guard__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.desktop-guard__headline {
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.desktop-guard__body {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--boss-text-invert) 82%, transparent);
+}
+
+.desktop-guard__dismiss {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  padding: 0.4rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border: 1px solid var(--boss-accent);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.desktop-guard__dismiss:hover,
+.desktop-guard__dismiss:focus-visible {
+  background: color-mix(in srgb, var(--boss-accent) 84%, var(--boss-surface));
+}

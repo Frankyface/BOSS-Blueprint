@@ -1,6 +1,8 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
+import { seedTourDismissed } from './chrome.ts'
+
 /**
  * Shared E2E vocabulary for the block canvas.
  *
@@ -169,9 +171,19 @@ export async function dismissStartSurfaces(page: Page): Promise<void> {
 export interface OpenCanvasOptions {
   /** Leave the picker and coach card up — for the specs that are about them. */
   readonly keepStart?: boolean
+  /**
+   * Leave the first-run tour armed — for `e2e/onboarding-tour.spec.ts`, which is
+   * the one spec that is about it. Every other spec opens a browser that has
+   * already seen it, exactly as a returning client does.
+   */
+  readonly keepTour?: boolean
 }
 
 export async function openCanvas(page: Page, options: OpenCanvasOptions = {}): Promise<void> {
+  // Before the first navigation: the tour decides whether to auto-start on its
+  // first effect, so seeding after `goto` would be a race.
+  if (!options.keepTour) await seedTourDismissed(page)
+
   const response = await page.goto('./')
   expect(response?.status()).toBe(200)
   await expect(page.getByTestId('canvas-page')).toBeVisible()

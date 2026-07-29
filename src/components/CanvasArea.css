@@ -17,6 +17,13 @@
   justify-content: center;
   align-items: flex-start;
   padding: var(--boss-page-margin);
+  /*
+   * …plus however tall the desktop guard's fixed banner is right now (it publishes
+   * `--boss-guard-inset` on <html> while it is up). Without this the bottom of the
+   * page would be permanently underneath it — a notice that says "you can still
+   * read your sketch" must not be the thing covering the end of it.
+   */
+  padding-bottom: calc(var(--boss-page-margin) + var(--boss-guard-inset, 0px));
   overflow: auto;
 }
 

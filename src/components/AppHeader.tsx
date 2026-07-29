@@ -1,6 +1,7 @@
 import { SubmitButton } from './submit/SubmitButton.tsx'
 
 import { DesignFileControls } from './DesignFileControls.tsx'
+import { TourHelpButton } from './TourHelpButton.tsx'
 
 import './AppHeader.css'
 
@@ -16,6 +17,8 @@ export function AppHeader() {
       </span>
       <h1 className="app-header__title">{APP_NAME}</h1>
       <p className="app-header__tagline">{APP_TAGLINE}</p>
+      {/* The tour's permanent way back in, before the whole-design actions. */}
+      <TourHelpButton />
       {/* Whole-design actions, deliberately away from the per-block toolbar. */}
       <DesignFileControls />
       {/* The ending. Last in the row because it is the last thing you do. */}

@@ -37,7 +37,13 @@ export function PenControls() {
   }
 
   return (
-    <div className="pen-controls" role="group" aria-label={PEN_GROUP_LABEL} data-pen-mode={mode}>
+    <div
+      className="pen-controls"
+      role="group"
+      aria-label={PEN_GROUP_LABEL}
+      data-pen-mode={mode}
+      data-tour="pen-tool"
+    >
       <button
         type="button"
         className="canvas-toolbar__button pen-controls__toggle"

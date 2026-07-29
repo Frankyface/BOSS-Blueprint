@@ -30,6 +30,23 @@ describe('BlockPalette', () => {
     }
   })
 
+  /**
+   * UX audit N1: the sentence that explains the palette used to be its last line,
+   * below six buttons and off the bottom of a laptop window. It now sits between
+   * the heading and the blocks, where the eye lands before the first click.
+   */
+  it('explains how to add a block between the heading and the blocks', () => {
+    render(<BlockPalette />)
+
+    const heading = screen.getByRole('heading', { level: 2, name: 'Blocks' })
+    const notice = screen.getByTestId('palette-notice')
+    const list = screen.getByRole('list')
+
+    expect(notice).toHaveTextContent('Click a block to drop it on the page')
+    expect(heading.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(notice.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('offers every block type as an enabled control', () => {
     render(<BlockPalette />)
 

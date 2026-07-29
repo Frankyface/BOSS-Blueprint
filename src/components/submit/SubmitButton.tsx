@@ -20,6 +20,7 @@ export function SubmitButton() {
       type="button"
       className="submit-open"
       data-testid="submit-open"
+      data-tour="submit"
       aria-expanded={screen !== 'closed'}
       onClick={open}
     >

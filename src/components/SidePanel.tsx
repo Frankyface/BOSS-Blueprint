@@ -32,7 +32,13 @@ export function SidePanel() {
   const [tab, setTab] = useState<PanelTab>('block')
 
   return (
-    <aside className="side-panel" aria-label={PANEL_LABEL} data-testid="side-panel" data-tab={tab}>
+    <aside
+      className="side-panel"
+      aria-label={PANEL_LABEL}
+      data-testid="side-panel"
+      data-tab={tab}
+      data-tour="side-panel"
+    >
       <div className="side-panel__tabs" role="tablist" aria-label={PANEL_LABEL}>
         {TABS.map((entry) => (
           <button
