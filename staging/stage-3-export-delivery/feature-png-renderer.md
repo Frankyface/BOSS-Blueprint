@@ -253,6 +253,14 @@ the first CI run **will fail loudly** with "snapshot doesn't exist" for six file
 the spec asks a missing baseline to do). Linux baselines must be generated once — no Docker or
 WSL on this machine to produce them here. See Open Questions.
 
+**Merge-train note (2026-07-28):** the Linux visual baselines are RESOLVED — generated on
+ubuntu via the new `update-visual-baselines` workflow_dispatch job (run 30413328252), visually
+inspected, committed, and the six comparisons now run and pass on Linux CI (run 30413744487,
+514 passed). The baseline gate hard-fails in CI and skips-with-warning off-CI. Also: the
+superseded MAX_SAFE_RENDER_HEIGHT_PX recommendation block below is archived history — main's
+clampPosition is now full-containment (blocks cannot be dragged past any page edge), and the
+constant was deliberately kept at its strictly-safe old ceiling (see merge commit e485210).
+
 ## Open Questions
 
 - **RESOLVED 2026-07-28 — `MAX_SAFE_RENDER_HEIGHT_PX = 12160`**, as recommended below, with the

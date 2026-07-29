@@ -241,3 +241,14 @@ only contract frictions; freezing before integration ends the amendment churn wi
 **Rejected:** leaving §7.1 hand-formatted (would force implementations to compare against a
 re-serialization, weakening the byte-exact discipline that caught real defects five times) ·
 **Revisit if:** the round-trip test demands it — via the frozen-contract change process only.
+
+## 2026-07-28 — Recorded from batch-3 review: semantic internal ids + picker-from-storage
+**Chose:** (1) template/page/block internal ids stay semantic (`home`, `rest-home-hero-title`)
+— the export remaps every id at package time (§4.8), so readable ids cost the package nothing
+and buy real E2E selectors and debuggability; ids are minted once and never change on rename;
+(2) the template picker's visibility is DERIVED from storage (no second persisted flag): pick
+Blank, place nothing, reload → the picker re-offers, because there is nothing to come back to ·
+**Because:** both were made and recorded in feature files during implementation; this entry
+promotes them to the decision log per review LOW-3 · **Rejected:** `page-`prefixed generated
+ids (worse selectors), a persisted picker-dismissed flag (a second source of truth that can
+disagree with the design) · **Revisit if:** n/a.
