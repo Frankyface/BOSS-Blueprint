@@ -19,8 +19,10 @@ fallback, and day-one CI visual regression across all three browser engines.
       `site.json` (§4.2), at 1:1 scale — **no `devicePixelRatio` multiplication** (§4.3, ruled
       2026-07-28; revisit to 2× only as a spec revision, never as an ad-hoc toggle)
 - [ ] The render is a dedicated **export root**, not a screenshot of the live editor: the editor
-      page is fit-to-window scaled, carries chrome, and derives a different height (floor 1600,
-      cap 8000) than the export (floor 800). The renderer sizes itself from `site.json` only
+      page is fit-to-window scaled and carries chrome. The HEIGHT is not a difference between them
+      — §4.2 v2.2 gave both **one shared function**, `clamp(1600, ceil((bottom+160)/8)*8, 8000)`,
+      and the renderer calls the shipped `pageHeightForContent` rather than a second formula. The
+      renderer sizes itself from `site.json` only
 - [ ] **No editor chrome**: no selection outlines, resize handles, grid dots, hover states,
       cursors, page tabs or toolbars. White page background beneath the blocks
 - [ ] **Pen layer baked in, above all blocks, exactly as drawn** — rendered from the in-memory
@@ -43,9 +45,11 @@ fallback, and day-one CI visual regression across all three browser engines.
       rectangle, pixel for pixel.** PNG pixel `(px, py)` shows page point `(px, py)`. No scaling,
       no translation, no letterboxing, no "fit the content" mode, and the render **never widens**
       to accommodate an overflowing block. The export width IS the page
-- [ ] A block with `x + w > 1200` (reachable: `clampPosition` only guarantees a 24px sliver stays
-      on-page, so a dragged block's width can extend past the right edge) renders its on-page
-      part and is **cut at the exact pixel column 1199** — not shrunk, not nudged left
+- [ ] A block with `x + w > 1200` (still reachable — **not** by dragging: `clampPosition` now
+      enforces full containment, so no gesture in the editor can push a block past the right edge.
+      An IMPORTED `.blueprint` file can carry any geometry it likes, and that is the case this rule
+      exists for) renders its on-page part and is **cut at the exact pixel column 1199** — not
+      shrunk, not nudged left
 - [ ] The same clip applies at `x < 0` and at `y < 0` (§4.3 already states the negative-y clip);
       there is no bottom clip, because `page.height` is derived from the lowest content
 - [ ] Mechanically the clip is the export root's own box: `width: 1200px; height: <H>px;
@@ -262,8 +266,8 @@ WSL on this machine to produce them here. See Open Questions.
   height function** ruling, which `docs/export-format.md` v2.3 states plainly:
   `clamp(1600, ceil((bottom+160)/8)*8, 8000)` for both. The implementation calls the shipped
   `pageHeightForContent` — one function, no second formula — which is what makes "exactly as the
-  editor shows it" literally true. **The stale "floor 800" line above should be struck when this
-  feature is verified.**
+  editor shows it" literally true. **The stale "floor 800" wording in the Success Criteria was
+  struck when the renderer merged to main (2026-07-28).**
 - **OPEN, and the one thing blocking `verified done` — Linux visual baselines.** Playwright suffixes
   baselines with the platform; the six committed ones are `-win32` and CI is `ubuntu-latest`, so
   the first CI run fails with "A snapshot doesn't exist". Neither Docker nor WSL is available on
