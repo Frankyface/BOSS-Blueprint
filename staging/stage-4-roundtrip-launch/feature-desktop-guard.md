@@ -1,5 +1,5 @@
 # Feature: Desktop Guard
-_Stage: stage-4-roundtrip-launch · Status: not started_
+_Stage: stage-4-roundtrip-launch · Status: awaiting verification_
 
 ## Goal
 Below a small-viewport threshold, tell the client the truth once — **"Blueprint works best on a
@@ -106,7 +106,75 @@ belongs (see Cross-references).
 5. Record commands, exit codes, viewport matrix results and screenshots below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-29 — built on branch `stage4-ui` (worktree off 770c346) · awaiting independent verification
+
+Windows 10, Node 24, `npm ci` clean. E2E runs against the **production `--mode test` build served
+by `vite preview`**, three engines, never the dev server.
+
+**Typecheck / lint** — `npx tsc -b` → exit 0, no output. `npx eslint .` → exit 0, `0 problems`.
+
+**Unit — `npm test`** → `Test Files 81 passed (81) · Tests 1365 passed (1365)`, exit 0, run twice.
+`src/components/DesktopGuard.test.tsx` (10) covers: the query constant is **exactly** the string
+in this file and is what the component asks the browser for; hidden above the threshold; the
+headline and both clauses of the copy below it; `role="status"` + `aria-live="polite"`, no
+`aria-modal`, no focus steal; a `change` event toggles it **without a reload**; one listener,
+released on unmount; dismissal writes `sessionStorage` (and **not** `localStorage`), survives a
+remount, and returns when the session is cleared; a `sessionStorage` that throws still shows the
+notice and still dismisses; the banner publishes `--boss-guard-inset` while up and clears it when
+gone. `src/store/chromeFlags.test.ts` (7) covers the storage layer both features share.
+
+**E2E — `npx playwright test e2e/desktop-guard.spec.ts`** (chromium + firefox + webkit) →
+**48 passed (16 × 3), 0 failed**, exit 0.
+
+Viewport matrix — assertion is the banner's visibility AND `window.matchMedia(GUARD_QUERY)`
+agreeing with it, so a CSS-only regression cannot pass:
+
+| Viewport | Expected | Result |
+|---|---|---|
+| 390 × 844 (phone) | shown | ✅ shown, all 3 engines · screenshot `desktop-guard-390.png` |
+| 768 × 1024 (tablet) | shown | ✅ shown |
+| 1023 × 800 | shown | ✅ shown |
+| **1024 × 800** | **hidden** | ✅ hidden — the boundary holds from both sides |
+| 1024 × 768 | hidden | ✅ hidden (the size named in the criteria) |
+| 1280 × 800 | hidden | ✅ hidden |
+| 1440 × 900 | hidden | ✅ hidden |
+| 1180 × 820 + `hasTouch` | shown | ✅ shown (all 3 engines reported `pointer: coarse`; the test skips itself with a reason on an engine that does not emulate one — it did not need to) |
+
+Reading is not blocked, on a real two-page sketch built at 1440×900 and carried to 390×844:
+- the canvas page has **non-zero width and height** (the 390px zero-width case this feature had
+  to fix — see Notes), the typed heading "Cedar & Stone" is present and visible,
+- the canvas viewport **scrolls** (`scrollTop > 0` after a wheel gesture over an eight-band page),
+- `document.elementFromPoint()` at the page centre, clear of the banner, resolves inside
+  `canvas-area` and not inside the banner,
+- `[inert]` count 0, `[aria-modal]` count 0, no `aria-hidden="true"` ancestor over the canvas,
+- the page tabs still switch (Home → Menu → Home),
+- palette, pen, Add page, Submit and the tour's help control are all still **enabled**,
+- the banner does not take focus when it appears, and `Enter` on it dismisses it.
+
+Size and occlusion: banner height ≤ **25% of the viewport height**, computed `position: fixed`,
+and the canvas scroller's computed `padding-bottom` ≥ the banner's height (it is
+`calc(2rem + var(--boss-guard-inset))`, the inset being measured live from the banner).
+
+Dismissal: "Got it" hides it · same tab reloaded → still hidden (sessionStorage) · a **new
+browser context** at 390×844 → shown again. Live resize 1440 → 390 → 1440 shows and hides it with
+no reload. Tour precedence: in a context with **nothing seeded**, at 390×844 with the start
+surfaces resolved, the guard is up, the tour is absent, and the tour's flag is still `null` —
+suppressed, not spent. Console/pageerror listeners: **0 errors** at every viewport tested.
+
+**Full suite — `npm run e2e`** (build + 3 engines, 627 tests) → **625 passed, 2 skipped, 0 failed**,
+exit 0, **run twice**. The guard does not fire at the suite's 1920×1000 viewport, nor at
+`app-layout.spec.ts`'s 1366×768 / 1280 / 1100 / **1024**×768 narrow-desktop cases, which continue
+to assert that every toolbar control is reachable above the line. The 2 skips are the pre-existing
+chromium-only cross-engine export-visual comparison.
+
+_Environment note:_ space the two full runs a minute or two apart — back to back, the second
+drowns in `page.goto: Could not connect to server` because the first leaves the Windows ephemeral
+port range in `TIME_WAIT` (see feature-onboarding-tour.md's log for the detail).
+
+**Not run — round-trip precondition (How We'll Verify §4).** The client driver and
+`playwright.roundtrip.config.ts` do not exist yet (`scripts/roundtrip/` holds the package gate
+only); that check belongs to `feature-roundtrip-harness.md` R2.3 and stays open here.
 
 ## Open Questions
 1. **Is the coarse-pointer clause worth it?** It adds a second condition and one more E2E case,
@@ -125,6 +193,40 @@ _Empty — nothing verified yet._
    a redesign.
 
 ## Notes & Decisions
+
+### Calls made while building (2026-07-29)
+- **The 390px canvas was zero pixels wide, and the guard could not ship without fixing it.**
+  The shell is three columns: palette `flex: 0 0 240px`, stage `flex: 1 1 auto; min-width: 0`,
+  details panel `flex: 0 0 304px`. 240 + 304 is already wider than a 390px window, so the one
+  column allowed to shrink shrank to nothing. The canvas existed, reported a 0px viewport and
+  rendered nothing you could scroll, read or hit-test — which makes "it does not block reading"
+  unsatisfiable, not merely untested. **Fix:** at small viewports the columns stack
+  (`App.css`, keyed off `data-small-viewport` which `App.tsx` writes from the same media query
+  the banner reads — one definition of "too small", not a second CSS breakpoint). The stage is
+  ordered **first** so the design is what a client sees, at `height: 65vh`; the palette and
+  details panel follow at full width, one scroll away. Nothing is hidden, nothing is disabled,
+  and the header scrolls horizontally rather than clipping Submit under `overflow: hidden`.
+  This is a layout change, not a feature gate — rule 4 holds.
+- **The banner's height is measured, not assumed.** It publishes `--boss-guard-inset` on `<html>`
+  via a `ResizeObserver` while it is up (cleared on unmount), and the canvas scroller pads by
+  `calc(2rem + var(--boss-guard-inset))`. A constant would be too small on a 320px screen — where
+  the copy wraps to more lines — and too big everywhere else. `max-height: 25vh` with
+  `overflow-y: auto` on the banner itself is the belt to that braces: the ≤ 25% criterion holds
+  even if a text-scaling setting inflates the copy.
+- **Detection is shared, not duplicated.** `SMALL_VIEWPORT_QUERY` (`src/constants/viewport.ts`) is
+  read through `useSmallViewport()`, a `useSyncExternalStore` over the `MediaQueryList` itself —
+  so the banner, the tour's suppression and the stacked layout are the same subscription and
+  cannot drift. `e2e/desktop-guard.spec.ts` duplicates the literal (the E2E tsconfig cannot see
+  `src/`) and a unit test asserts the constant character for character.
+- **Dismissal state lives in the component, read once per mount.** A `useState` lazy initialiser
+  over `sessionStorage` beats a module-level read: no stale cache across a reload, and no store
+  to reset between tests.
+- **Open Question 1 resolved by measurement:** the coarse-pointer clause stays. All three engines
+  reported `pointer: coarse` under Playwright's `hasTouch: true`, so the 1180×820 case is a real
+  assertion rather than a hopeful one; the test still skips itself with a reason if an engine ever
+  stops emulating it.
+
+### From the original spec
 - Master plan lists "a good phone sketching experience" as an explicit v1 non-goal, and the app
   is desktop-first by hard constraint (CLAUDE.md process rules). The guard makes that scope
   decision visible to the client instead of letting them discover it by failing.

@@ -1,5 +1,5 @@
 # Feature: Onboarding Tour
-_Stage: stage-4-roundtrip-launch · Status: not started_
+_Stage: stage-4-roundtrip-launch · Status: awaiting verification_
 
 ## Goal
 Thirty seconds of first-run pointers that teach the five things a client must find on their own:
@@ -18,17 +18,20 @@ Master-plan note: "guided wizard onboarding" is an explicit v1 **non-goal**. Thi
 
 ## The five pointers (order = the reading path: left → centre → right → top)
 
+Shipped copy, verbatim from `src/tour/tourSteps.ts` (the draft this replaced is in Notes):
+
 | # | Target (`data-tour`) | Copy (plain English, no jargon) | Fixes |
 |---|---|---|---|
-| 1 | `palette` | **Click a block to add it.** Pick Heading, Text, Image, Button or Nav bar — it lands on the page, then drag it where you want. | N1, M1 (discovery half) |
-| 2 | `canvas` | **Double-click a block to type.** Your words replace the grey example text. Press Enter when you're done. | inline-edit affordance, N3 |
-| 3 | `pen-tool` | **Grab the pen to scribble.** Circle something, write a note, or sketch what a photo should show — we read your marks. | pen discovery |
-| 4 | `side-panel` | **This panel is about the thing you picked.** *Block* = its words and where it links · *Site* = your business name and style · *Nav map* = what links where. | N5 (explanation half) |
-| 5 | `submit` | **When you're happy, hit Submit.** You'll download your design and email it to us — then we build it. | B2 (discovery half) |
+| 1 | `palette` | **Click a block to add it.** Heading, Text, Image, Button or Nav bar — it lands on the page, ready to drag. | N1, M1 (discovery half) |
+| 2 | `canvas` | **Double-click a block to type.** Your words replace the grey text. Press Enter when you're done. | inline-edit affordance, N3 |
+| 3 | `pen-tool` | **Grab the pen to scribble.** Circle something, write a note, sketch a photo idea — we read your marks. | pen discovery |
+| 4 | `side-panel` | **This panel is about whatever you picked.** *Block* = its words and links · *Site* = your name and style · *Nav map* = what links where. | N5 (explanation half) |
+| 5 | `submit` | **When you're happy, hit Submit.** Download your design, email it to us — then we build it. | B2 (discovery half) |
 
 Copy rules: second person, ≤ 2 short sentences per pointer, no "click here to continue", no
 feature names the UI doesn't use. Total reading time at 200 wpm must be **< 30 s** — a unit test
-asserts the concatenated word count of all five pointers is ≤ 95 words.
+asserts the concatenated word count of all five pointers is ≤ 95 words. **Measured: 93**
+(`tourWordCount()`, `src/tour/tourSteps.test.ts`).
 
 ## Success Criteria
 - [ ] On a first visit (no `boss-blueprint:tour:v1` key) the tour starts automatically **after**
@@ -120,7 +123,63 @@ gestures — a one-line edit, listed here so it isn't missed.
 5. Record commands, exit codes, counts and screenshots below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-29 — built on branch `stage4-ui` (worktree off 770c346) · awaiting independent verification
+
+Windows 10, Node 24, `npm ci` clean. Every E2E number below is from the **production
+`--mode test` build served by `vite preview`** (`npm run e2e` builds first), never the dev server.
+
+**Typecheck / lint** — `npx tsc -b` → exit 0, no output. `npx eslint .` → exit 0, `0 problems`.
+
+**Unit — `npm test`** → `Test Files 81 passed (81) · Tests 1365 passed (1365)`, exit 0, run twice.
+What is new, and what it pins down:
+
+| File | Tests | Covers |
+|---|---|---|
+| `src/tour/tourSteps.test.ts` | 7 | the five targets in reading order; **93 ≤ 95 words**; ≤2-sentence budget per pointer; punctuation is not a word; missing-target **skip + renumber** |
+| `src/tour/tourAnchor.test.ts` | 7 | placement per side; the canvas centre kept clear; 35 placement×edge-target combinations all land inside the viewport; a bubble bigger than the window pins to the margin |
+| `src/store/chromeFlags.test.ts` | 7 | local/session separation; unset ≠ dismissed; storage that throws on read, throws on write, and refuses with a quota error |
+| `src/components/OnboardingTour.test.tsx` | 20 | **one live element per `data-tour` id, all five**; auto-start; flag written on first render; five steps in order ending on "Got it"; `role="note"`, `aria-live`, no `aria-modal`, no focus steal; palette still adds a block with the tour open; Skip / Escape / reload; help control re-opens at step 1 **and** takes focus; suppression order picker → coach → guard → submit, and "hide, don't close" on a mid-tour resize |
+| `src/components/BlockPalette.test.tsx` | +1 | the "click a block" sentence now sits **between** the heading and the blocks (N1) |
+
+**E2E — `npx playwright test e2e/onboarding-tour.spec.ts`** (chromium + firefox + webkit) →
+**42 passed (14 × 3), 0 failed**, exit 0. Evidence per How-We'll-Verify item:
+- first visit: picker up → no bubble; blank card → coach up → no bubble; coach dismissed →
+  bubble at step 1 of 5 on `palette`. Screenshot attached as `tour-step-1.png`.
+- **non-blocking probe:** with step 1 open, a Heading is added from the palette, double-clicked,
+  typed into and committed — asserted in the store (`text === 'North Star Dog Grooming'`) with
+  the bubble still visible.
+- `document.elementFromPoint()` at the canvas centre resolves inside `canvas-area` and **not**
+  inside the tour; the tour layer computes `pointer-events: none` and the bubble `auto`;
+  `[aria-modal]` count 0, `[inert]` count 0; focus given to a palette button stays there.
+- all five bubbles: each within 120px of its target's box and wholly inside the window, at
+  1920×1000 and after a resize to 1440×900 (the step-2 bubble re-anchors, `x` 784 → 544).
+- `Escape` at step 2 → gone, flag written; reload → still gone (asserted from the editing
+  state, not from behind the picker); a **new tab in the same context** → still gone.
+- help control: re-opens at step 1 after Skip, leaves the flag `dismissed`, survives a reload,
+  and still works from a second sketch page.
+- 390×844: no bubble, guard visible, **flag untouched** (`null`); grown to 1440×900 the help
+  control offers it again.
+- `contextOptions.reducedMotion: 'reduce'` → bubble `transition-duration: 0s`; the paired
+  `no-preference` test asserts it is **not** 0s, so the first assertion has teeth.
+- console/pageerror listeners across the spec: **0 errors**.
+
+**Full suite — `npm run e2e`** (build + 3 engines, 627 tests) → **625 passed, 2 skipped, 0 failed**,
+exit 0, **run twice**. The 2 skips are the pre-existing chromium-only cross-engine
+export-visual comparison. No existing spec was changed to accommodate the tour: `openCanvas`
+seeds the "already seen" flag through `page.addInitScript` before the first navigation
+(`e2e/support/chrome.ts`), and the two specs that navigate by hand (`shell`,
+`export-png-fallback`) seed it themselves.
+
+_Environment note for whoever re-runs this:_ the two full runs must be **separated by a minute or
+two**. Launched back to back on this Windows box the second run drowns in
+`page.goto: Could not connect to server` (66 of them) — the 627-test run leaves the ephemeral
+port range in `TIME_WAIT` and the fresh `vite preview` cannot be reached. Nothing to do with the
+product; both runs are clean when spaced.
+
+**Not run — round-trip interaction (How We'll Verify §4).** `playwright.roundtrip.config.ts` and
+the client driver do not exist yet; `scripts/roundtrip/` currently holds the package gate only.
+That step belongs to `feature-roundtrip-harness.md` (R2.3) and stays open here.
 
 ## Open Questions
 1. **Stepped bubbles or all five at once?** Five simultaneous callouts read faster but clutter a
@@ -138,6 +197,42 @@ _Empty — nothing verified yet._
    stage DoD requires all five live in the shipped build.
 
 ## Notes & Decisions
+
+### Calls made while building (2026-07-29)
+- **The draft copy was 12 words over its own budget.** The table's original wording counted 107
+  words against the ≤ 95 the criteria and How-We'll-Verify both assert, so one of the two had to
+  give. The measurable criterion won and the copy was trimmed to **93** with every teaching point
+  intact — click to add, drag to place, double-click to type, Enter to commit, what the pen is
+  for, what each panel tab holds, what Submit does. The draft is preserved here so the change is
+  visible rather than silent: *"Pick Heading, Text, Image, Button or Nav bar — it lands on the
+  page, then drag it where you want." · "Your words replace the grey example text." · "Circle
+  something, write a note, or sketch what a photo should show — we read your marks." · "This
+  panel is about the thing you picked. Block = its words and where it links · Site = your
+  business name and style…" · "You'll download your design and email it to us…"*
+- **The blank-page coach counts as the first-open choice.** Rule 3 names the picker; the Notes
+  name "the picker and its coach overlay". The tour therefore waits for `startState === 'editing'`,
+  which is reached from the picker either by choosing a template or by choosing Blank *and*
+  retiring the coach card. Two first-run cards over one canvas was the thing to avoid.
+- **Submit joins the suppression list.** The Submit view takes over the editor body and unmounts
+  four of the five targets, so an open bubble would be pointing at a form. It hides while Submit
+  is up and returns if the client backs out — same "hide, don't close" rule as the guard.
+  Defensively, a target that disappears mid-step also hides its bubble rather than floating.
+- **Small viewport suppresses the tour whether or not the guard banner is still on screen.** The
+  criterion says "suppressed while the desktop guard is showing (small viewport)"; keying it to
+  the media query rather than to the banner's dismissal means dismissing the banner on a phone
+  does not then produce five pointers at a layout that cannot use them.
+- **`useSyncExternalStore` over `matchMedia`, not a store.** The guard, the tour and the shell
+  layout all ask the same `MediaQueryList`, so they cannot disagree, and there is no copy of the
+  browser's state to keep in step (`src/hooks/useSmallViewport.ts`).
+- **Placement is per-step and deliberate.** Pointer 1 parks low beside the palette rather than
+  beside its middle, because the middle of the canvas is where a new block lands and where the
+  non-blocking probe clicks. `src/tour/tourAnchor.ts` is pure arithmetic so "can a bubble render
+  off-screen?" is answered by a unit test rather than by three browsers.
+- **Existing specs are seeded, not edited.** `openCanvas` writes the dismissed flag via
+  `addInitScript` before the first navigation (a `page.evaluate` after `goto` would race the
+  auto-start effect). `e2e/support/chrome.ts` owns the key and the seed.
+
+### From the original spec
 - Evidence base: UX audit report (2026-07-28) §2 first-sixty-seconds and §5 recommendation 2
   ("Make the first 60 seconds teach the interaction (M1 + N1)" — named the cheapest fix on the
   list). The audit also records what already works and must not be disturbed: the calm empty
