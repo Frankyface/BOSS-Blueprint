@@ -1227,6 +1227,96 @@ grounds that the old predicate was impossible rather than merely strict — and 
 strictly harder in practice: the old one never passed a real transcript, this one passes exactly
 one configuration and names anything else.
 
+### 2026-07-29 — LIVE-RUN ATTEMPT 2: one PRECONDITION abort, no verdict; the three fixed blockers proved live, Blocker A did not clear
+
+**Attempt at How-We'll-Verify 6–11 at HEAD `b047a3e`. It got no further than the timed smoke.**
+The run aborted in SEG-3 as PRECONDITION, wrote **no** `verdict.txt`, and is invisible to
+`ship-gate.mjs` (R4.3b, R9.4). **Nothing in this entry is evidence about the product**, no Success
+Criterion is ticked, and **status stays `awaiting verification`.** Recorded per protocol §8.5 —
+one line per iteration, pass or fail. Runs 2–5 were not attempted: a dead credential blocks the
+preview legs too, so retrying gains nothing.
+
+**Operator setup.** `ROUNDTRIP_RUNS_DIR=C:\bp-runs`; port 4173 verified free before the run and
+held by nothing else during it; `npm ls` confirmed `adm-zip@0.6.0 / ajv@8.20.0 / pngjs@7.0.0`
+present, so no `npm ci` was needed. `git status --porcelain` was empty before, during and after
+(`dist/` is gitignored), and the manifest independently records `git.clean: true`.
+
+| # | Run dir (`C:\bp-runs\…`) | Segments | Abort | Elapsed |
+|---|---|---|---|---|
+| 1 | `2026-07-29T15-03-57-490Z_B_b047a3e` | SEG-1 ok 23.7 s · SEG-2 ok 0.75 s | **PRECONDITION** auth (SEG-3, 3.9 s) | 0.48 min, exit 2 |
+
+```
+PRECONDITION: the builder session could not authenticate — nothing was built,
+so there is nothing to score
+Failed to authenticate. API Error: 401 OAuth access token has expired.
+```
+
+**BLOCKER A IS NOT CLEARED — and the credential file's mtime is not evidence that it was.**
+The file *was* rewritten today at 06:58 EDT (= **10:58 UTC**), but that write did not produce a
+working token. Three independent probes, all 401 `OAuth access token has expired`:
+
+| Probe | Config dir | Env | When (UTC) | Result |
+|---|---|---|---|---|
+| direct CLI | real `~/.claude` | inherited | 15:01 | 401 expired |
+| harness SEG-3 (this run) | sterile copy | scrubbed | 15:03 | 401 expired |
+| harness SEG-3 (attempt 1's last real-auth run) | sterile copy | scrubbed | 11:52 | 401 expired |
+
+The 11:52 UTC run is **54 min after** the 10:58 UTC write and already failed; this run is
+**4 h 05 m after** and fails identically. So even reading the mtime charitably as a login, the
+credential it produced does not authenticate. The write is far better explained as **the CLI's own
+failed token refresh during live-run attempt 3** — which started 10:56:34 UTC, 2.5 minutes
+earlier — than as an interactive `/login`. **Whoever resumes should confirm auth by a scrubbed-env
+probe, not by the file's timestamp.**
+
+No workaround was attempted and none is permitted: re-authenticating is an interactive OAuth flow
+and is Cam's alone; R3.4's `api-key-env` fallback applies only when **no** credentials file is
+found, and one is; forcing it would mean editing a rule or moving Cam's credential file. Both are
+barred by R10.
+
+**Environment caveat worth recording: a manual probe run from inside a Claude Code session is not
+faithful.** The operator session exports `ANTHROPIC_BASE_URL` plus 17 other `CLAUDE_*` variables.
+R3.7 drops all of them — the manifest's `droppedEnv` lists exactly those 18 — so the *harness*
+result is uncontaminated, but a bare `claude -p` probe inherits a base-URL override and could 401
+for an unrelated reason. That is why three probes were run across all the combinations rather than
+one; they agree, so the copy is faithful and the token is genuinely dead at source.
+
+**SECOND, INDEPENDENT BLOCKER: the deployed leg would have aborted on R3.6 regardless.** CI run
+`30461384988` for `b047a3e` was **still in progress at 37m54s** when this stopped. Measured:
+
+| | bundle | evidence |
+|---|---|---|
+| local `npm run build` at HEAD | `assets/index-CQhEMnMO.js` | exit 0 |
+| live Pages (`https://frankyface.github.io/BOSS-Blueprint/`) | `assets/index-CKRhcsxH.js` | HTTP 200, `Last-Modified: Wed, 29 Jul 2026 14:49:02 GMT` |
+
+14:49 UTC is when the **previous** commit's CI finished (`07f909b` pushed 14:14:01Z + 35m07s), so
+the live bundle is still `07f909b`'s. **Both blockers must clear before run 3 (A/deployed).**
+
+**THE VALUABLE HALF — all three previously-fixed blockers now proven live, at HEAD, against the
+real CLI rather than the mock.** Until this run each had only been exercised by `--mock-builder` or
+by a standalone probe; here they ran inside a real gating-shaped run:
+
+| Rule | Proof from `run-manifest.json` |
+|---|---|
+| **R4.3a** Windows spawn | resolved to `…\@anthropic-ai\claude-code\bin\claude.exe`, `via: "shim"`, shim `…\claude.cmd`, spawned `shell: false`. **SEG-3 started** — it was `spawn claude ENOENT` in 29 ms at attempt 1 |
+| **R4.6** baseline sterility on the **streaming** init | `purity: {ok: true, kind: null, cliVersion: "2.1.190", baseline: "2.1.190", problems: []}` — set-equal to the committed manifest, asserted before any builder budget was spent |
+| **R4.3b** auth failure is INFRA | aborted **3.9 s** into SEG-3, `error.kind: "PRECONDITION"`, **no `verdict.txt` written** — the dead credential is no longer scored as `FAIL — H3 incomplete build` |
+| **R3.3 / R3.4** sterile config dir | `configDirListing: [".credentials.json", "settings.json"]` — exactly settings plus one credential; `auth.method: "cli-credentials"` |
+| **R3.7** env scrub | `droppedEnv` = 18 entries, `ANTHROPIC_BASE_URL` among them; `managedPolicy: []` |
+| **R3.4** post-run scrub | `credentialScrubbed: true`; `builder/` holds only `prompt.txt`, `sandbox/`, `transcript.jsonl` — no `claude-home/` survives |
+| **R9.3** rule hashing | `invalid: false`, no rule drift start-to-end |
+
+SEG-1 (23.7 s) and SEG-2 (0.75 s) were green, so the driver and the package gate are unaffected.
+
+**The smoke still has never completed, so `SMOKE_BUDGET_MIN` remains unmeasured against a real
+builder.** Both blockers classify as **PRECONDITION / environment** under the ★ row of the
+failure-class routing table — neither routes to Stage 2 or Stage 3, and neither is a product FAIL.
+
+**Nothing was weakened.** No threshold, scan rule, scenario, prompt, rubric or manifest was edited.
+
+**To resume:** (1) Cam runs `claude` interactively and `/login`, verified by a scrubbed-env probe;
+(2) CI `30461384988` finishes and the live bundle hash equals the local HEAD build; (3) re-run
+How-We'll-Verify 6–11 unchanged.
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.
