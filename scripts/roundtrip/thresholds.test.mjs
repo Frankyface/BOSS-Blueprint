@@ -157,6 +157,7 @@ describe('R10.1 — the pinned inventory', () => {
       'thresholds.mjs',
       'scan-transcript.mjs',
       'manifest-diff.mjs',
+      'builtin-manifest.json',
     ])
   })
 })

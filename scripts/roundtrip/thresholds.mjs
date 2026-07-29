@@ -299,6 +299,10 @@ export const RULE_FILES = Object.freeze([
   'thresholds.mjs',
   'scan-transcript.mjs',
   'manifest-diff.mjs',
+  // R4.6's baseline (amended 2026-07-29). Relaxing the builtin set mid-run is the
+  // cheapest way to make a contaminated session look sterile, so it is hashed like
+  // every other rule rather than trusted.
+  'builtin-manifest.json',
 ]);
 
 /** R9.4 · the exact set of (scenario, target) legs a ship gate must contain. */

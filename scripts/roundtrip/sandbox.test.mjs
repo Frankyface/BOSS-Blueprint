@@ -5,7 +5,16 @@ import path from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { assertSessionPurity, assertNoBannedFlags, buildArgv, SessionError } from './claude-session.mjs'
+import { builtinsFor, pinnedVersions } from './builtin-manifest.mjs'
+import {
+  assertSessionPurity,
+  assertNoBannedFlags,
+  authFailureOf,
+  buildArgv,
+  runSession,
+  SessionError,
+} from './claude-session.mjs'
+import { mockBuilderEvents } from './run.mjs'
 import {
   assertAllowlistHermetic,
   assertNoAncestorContext,
@@ -77,27 +86,260 @@ describe('R4.3 / R4.5 — the assembled argv', () => {
   })
 })
 
-describe('R4.6 — session purity', () => {
-  const init = (extra) => [{ type: 'system', subtype: 'init', model: 'resolved-id', mcp_servers: [], ...extra }]
+/**
+ * R4.6 — BASELINE STERILITY, not emptiness (amended 2026-07-29, docs/decisions.md).
+ *
+ * The old suite asserted `{ agents: [], skills: [] }` was pure and anything else was not,
+ * which is exactly backwards for a CLI that ships built-ins inside the binary: the only
+ * transcript that could ever pass it was one the harness wrote itself. Every fixture here
+ * starts from the COMMITTED manifest, so these tests fail if a non-builtin appears — and
+ * they also fail if someone quietly empties the manifest.
+ */
+describe('R4.6 — baseline sterility', () => {
+  const VERSION = pinnedVersions()[0]
+  const BASELINE = builtinsFor(VERSION)
+  const CLAUDE_HOME = path.join('C:', 'runs', 'r1', 'builder', 'claude-home')
 
-  it('accepts an empty session and reports the resolved model id', () => {
-    const purity = assertSessionPurity(init({}))
+  const init = (extra = {}) => [
+    {
+      type: 'system',
+      subtype: 'init',
+      model: 'resolved-id',
+      claude_code_version: VERSION,
+      mcp_servers: [],
+      plugins: [],
+      agents: [...BASELINE.agents],
+      skills: [...BASELINE.skills],
+      slash_commands: [...BASELINE.slash_commands],
+      output_style: BASELINE.output_style,
+      memory_paths: { auto: path.join(CLAUDE_HOME, 'projects', 'p', 'memory') },
+      ...extra,
+    },
+  ]
+  const check = (extra) => assertSessionPurity(init(extra), { configDir: CLAUDE_HOME })
+
+  it('the committed manifest is the measured 2.1.190 baseline, not an empty stub', () => {
+    // The counts the live-run abort named, and the contrast that proved isolation works.
+    expect(VERSION).toBe('2.1.190')
+    expect(BASELINE.agents).toHaveLength(5)
+    expect(BASELINE.skills).toHaveLength(14)
+    expect(BASELINE.slash_commands).toHaveLength(27)
+    expect(BASELINE.agents).toContain('statusline-setup')
+  })
+
+  it('accepts a session carrying EXACTLY the built-ins, and reports the resolved model', () => {
+    const purity = check({})
+    expect(purity.problems).toEqual([])
     expect(purity.ok).toBe(true)
     expect(purity.model).toBe('resolved-id')
+    expect(purity.version).toBe(VERSION)
+  })
+
+  it('order does not matter — it is a SET comparison', () => {
+    expect(check({ skills: [...BASELINE.skills].reverse() }).ok).toBe(true)
+  })
+
+  it.each([
+    ['skills', [...BASELINE.skills, 'pdf']],
+    ['agents', [...BASELINE.agents, 'claude-ads:audit-meta']],
+    ['slash_commands', [...BASELINE.slash_commands, 'sync-docs']],
+  ])('rejects ONE extra %s as a leak, and names it', (key, value) => {
+    const purity = check({ [key]: value })
+    expect(purity.ok).toBe(false)
+    expect(purity.kind).toBe('leak')
+    expect(purity.problems.join(' ')).toContain(value.at(-1))
   })
 
   it.each([
     ['mcp_servers', [{ name: 'supabase' }]],
     ['plugins', ['marketing']],
-    ['agents', ['Explore']],
-    ['skills', ['pdf']],
-    ['project_memory', ['CLAUDE.md']],
-  ])('rejects a session that loaded %s', (key, value) => {
-    expect(assertSessionPurity(init({ [key]: value })).ok).toBe(false)
+  ])('rejects any %s at all — those are pure config', (key, value) => {
+    const purity = check({ [key]: value })
+    expect(purity.ok).toBe(false)
+    expect(purity.kind).toBe('leak')
+  })
+
+  it('a MISSING builtin is a version mismatch, not a leak', () => {
+    const purity = check({ skills: BASELINE.skills.filter((s) => s !== 'schedule') })
+    expect(purity.ok).toBe(false)
+    expect(purity.kind).toBe('version-mismatch')
+    expect(purity.problems.join(' ')).toContain('schedule')
+  })
+
+  it('an unpinned CLI version aborts loudly instead of passing', () => {
+    const purity = check({ claude_code_version: '2.9.999' })
+    expect(purity.ok).toBe(false)
+    expect(purity.kind).toBe('version-mismatch')
+    expect(purity.problems.join(' ')).toContain('2.9.999')
+  })
+
+  it('rejects an output style the baseline does not name', () => {
+    expect(check({ output_style: 'explanatory' }).ok).toBe(false)
+  })
+
+  describe('the memory half (finding 2 — it was checking fields this CLI never emits)', () => {
+    it('reads memory_paths, the field 2.1.190 actually emits', () => {
+      const purity = check({ memory_paths: { auto: 'C:/Users/Cam/.claude/projects/x/memory' } })
+      expect(purity.ok).toBe(false)
+      expect(purity.problems.join(' ')).toContain('outside')
+    })
+
+    it('still checks the OLD field names when a CLI emits them', () => {
+      expect(check({ project_memory: ['C:/repo/CLAUDE.md'] }).ok).toBe(false)
+      expect(check({ memory_files: ['C:/repo/CLAUDE.md'] }).ok).toBe(false)
+      expect(check({ claude_md_files: ['C:/repo/CLAUDE.md'] }).ok).toBe(false)
+    })
+
+    it('cannot pass VACUOUSLY: an init with no memory field at all is a mismatch', () => {
+      const [event] = init()
+      delete event.memory_paths
+      const purity = assertSessionPurity([event], { configDir: CLAUDE_HOME })
+      expect(purity.ok).toBe(false)
+      expect(purity.problems.join(' ')).toContain('memory_paths')
+    })
   })
 
   it('rejects a transcript with no init event at all', () => {
     expect(assertSessionPurity([]).ok).toBe(false)
+    expect(assertSessionPurity([]).kind).toBe('no-init')
+  })
+})
+
+/**
+ * The mask that hid the defect: `--mock-builder` emitted `{ agents: [], skills: [] }`, so
+ * the ONLY transcript R4.6 had ever judged was one written to satisfy it. These two tests
+ * run the real predicate over the real emitter.
+ */
+describe('the mock builder emits a REALISTIC init', () => {
+  const CLAUDE_HOME = path.join('C:', 'runs', 'r1', 'builder', 'claude-home')
+
+  it('passes the same predicate a live session must pass', () => {
+    const purity = assertSessionPurity(mockBuilderEvents({ claudeHome: CLAUDE_HOME }), { configDir: CLAUDE_HOME })
+    expect(purity.problems).toEqual([])
+    expect(purity.ok).toBe(true)
+  })
+
+  it('ABORTS when a non-builtin skill is planted in it', () => {
+    const events = mockBuilderEvents({
+      claudeHome: CLAUDE_HOME,
+      extra: { skills: [...builtinsFor(pinnedVersions()[0]).skills, 'supabase'] },
+    })
+    const purity = assertSessionPurity(events, { configDir: CLAUDE_HOME })
+    expect(purity.ok).toBe(false)
+    expect(purity.kind).toBe('leak')
+    expect(purity.problems.join(' ')).toContain('supabase')
+  })
+})
+
+/**
+ * Finding 3 of the live-run entry: purity used to be asserted AFTER the session returned.
+ * That was free only because auth died in 4.3 s; with a live credential every impure
+ * attempt would spend a full Opus builder budget (§9: ≈ $10-25, 25-45 min) and only then
+ * abort. This spawns a REAL child that emits a leaking init and then would sit for a
+ * minute — the assertion has to cut it short.
+ */
+describe('R4.6 fires on the STREAMING init, before the budget is spent', () => {
+  const CLAUDE_HOME = path.join('C:', 'runs', 'r1', 'builder', 'claude-home')
+  const LINGER_MS = 60_000
+
+  async function fakeClaude(init) {
+    const dir = await tempDir()
+    const script = path.join(dir, 'fake-claude.mjs')
+    await writeFile(
+      script,
+      [
+        `process.stdout.write(JSON.stringify(${JSON.stringify(init)}) + '\\n')`,
+        // What a real builder does next: work, for a long time, expensively.
+        `setTimeout(() => { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', result: 'BUILD COMPLETE' }) + '\\n') }, ${String(LINGER_MS)})`,
+      ].join('\n'),
+      'utf8',
+    )
+    return { dir, script, transcriptPath: path.join(dir, 'transcript.jsonl') }
+  }
+
+  const leaking = () => {
+    const [event] = mockBuilderEvents({ claudeHome: CLAUDE_HOME })
+    return { ...event, skills: [...event.skills, 'supabase'] }
+  }
+
+  it('kills the child instead of waiting for the session to finish', async () => {
+    const { dir, script, transcriptPath } = await fakeClaude(leaking())
+    const started = Date.now()
+
+    await expect(
+      runSession({
+        argv: [script],
+        prompt: '',
+        cwd: dir,
+        env: process.env,
+        transcriptPath,
+        timeoutMs: LINGER_MS * 2,
+        command: process.execPath,
+        onInit: (init) => {
+          const purity = assertSessionPurity([init], { configDir: CLAUDE_HOME })
+          if (!purity.ok) throw new PreconditionError('the builder session was not sterile', purity.problems)
+        },
+      }),
+    ).rejects.toThrow(/was not sterile/)
+
+    expect(Date.now() - started).toBeLessThan(LINGER_MS / 2)
+    // The evidence of the impure session outlives the abort.
+    expect(await readFile(transcriptPath, 'utf8')).toContain('supabase')
+  })
+
+  it('lets a sterile init through and runs the session to completion', async () => {
+    const [clean] = mockBuilderEvents({ claudeHome: CLAUDE_HOME })
+    const { dir, script, transcriptPath } = await fakeClaude(clean)
+    // Same script shape, but a short linger: this one is allowed to finish.
+    await writeFile(script, `process.stdout.write(JSON.stringify(${JSON.stringify(clean)}) + '\\n')`, 'utf8')
+
+    const result = await runSession({
+      argv: [script],
+      prompt: '',
+      cwd: dir,
+      env: process.env,
+      transcriptPath,
+      timeoutMs: LINGER_MS,
+      command: process.execPath,
+      onInit: (init) => {
+        const purity = assertSessionPurity([init], { configDir: CLAUDE_HOME })
+        if (!purity.ok) throw new PreconditionError('not sterile', purity.problems)
+      },
+    })
+
+    expect(result.code).toBe(0)
+    expect(result.init?.claude_code_version).toBe(pinnedVersions()[0])
+  })
+})
+
+/**
+ * Surfaced BY the R4.6 amendment. While purity aborted first, a dead credential never got
+ * far enough to be scored; now that a sterile session passes, the 401 reaches SEG-4 as an
+ * empty sandbox, which reads exactly like a builder that ignored the brief — "FAIL — H3
+ * incomplete build", written to `verdict.txt` and visible to `ship-gate.mjs`. Measured on
+ * this machine before the guard landed (`C:\bp-runs\2026-07-29T11-49-45-751Z_B_ff69834`).
+ */
+describe('a session that could not authenticate is INFRA, never a product FAIL', () => {
+  const result = (text) => [{ type: 'result', subtype: 'success', is_error: true, result: text }]
+
+  it.each([
+    'Failed to authenticate. API Error: 401 OAuth access token has expired. Re-authenticate to continue.',
+    'Not logged in · Please run /login',
+    'Invalid API key · Please run /login',
+  ])('recognises %s', (text) => {
+    expect(authFailureOf(result(text))).toBe(text)
+  })
+
+  it('does NOT claim a real build was an auth failure', () => {
+    expect(authFailureOf(result('Built the site from the brief.\n\nBUILD COMPLETE'))).toBeNull()
+    expect(authFailureOf([])).toBeNull()
+    // A builder that ran and did the job badly is a PRODUCT verdict, and stays one.
+    expect(authFailureOf(result('I could not find the hero image, so I left the slot empty.'))).toBeNull()
+  })
+
+  it('reads the LAST result event, not the first', () => {
+    const events = [...result('BUILD COMPLETE'), ...result('Failed to authenticate. API Error: 401')]
+    expect(authFailureOf(events)).toContain('401')
   })
 })
 

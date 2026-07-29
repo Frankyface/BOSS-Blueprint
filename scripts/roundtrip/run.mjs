@@ -27,7 +27,9 @@ import { applySmokeBudget, elapsedMinutes } from './budget.mjs';
 import { captureSite } from './capture.mjs';
 import { buildRubricManifest, EVALUATOR_PROMPT, readJudgments, stageEvaluatorSandbox } from './evaluator.mjs';
 import { evaluateDeterministic } from './evaluate.mjs';
-import { buildArgv, assertSessionPurity, runSession } from './claude-session.mjs';
+import { BUILTIN_MANIFEST, builtinsFor } from './builtin-manifest.mjs';
+import { authFailureOf, buildArgv, assertSessionPurity, runSession } from './claude-session.mjs';
+import { resolveExecutable } from './lib/resolve-command.mjs';
 import { acceptJudgments, mergeReport, writeReport } from './report.mjs';
 import { loadScenario, scenarioPathFor } from './scenario-load.mjs';
 import { diffManifest } from './manifest-diff.mjs';
@@ -59,6 +61,9 @@ const MINUTE = 60_000;
 /** Aliases only, never pinned version ids (`performance.md`, R4.3). */
 const GATING_MODEL = 'opus';
 const SMOKE_MODEL = 'haiku';
+
+/** R4.3a — the CLI is resolved to an absolute image once and reused by both sessions. */
+const CLAUDE_COMMAND = 'claude';
 
 export function parseRunArgs(argv) {
   const out = {
@@ -194,12 +199,14 @@ async function main() {
 
     await segment(manifest, 'SEG-3', BUILDER_TIMEOUT_MIN, async () => {
       if (options.mockBuilder) {
-        manifest.builder = await runMockBuilder({ mockDir: options.mockBuilder, sandboxDir, transcriptPath });
+        manifest.builder = await runMockBuilder({ mockDir: options.mockBuilder, builderDir, sandboxDir, transcriptPath });
         return;
       }
       const { dir: configDir, auth, listing } = await createSterileConfigDir({ parentDir: builderDir });
       const { env, dropped } = scrubEnvironment({ configDir, useApiKey: auth.method === 'api-key-env' });
       const argv = buildArgv({ model: options.smoke ? SMOKE_MODEL : GATING_MODEL });
+      const command = await resolveClaude();
+      manifest.builder = { auth, configDirListing: listing, droppedEnv: dropped, argv, command };
       const result = await runSession({
         argv,
         prompt,
@@ -207,10 +214,19 @@ async function main() {
         env,
         transcriptPath,
         timeoutMs: BUILDER_TIMEOUT_MIN * MINUTE,
+        command: command.path,
+        // R4.6 fires HERE — on the streaming init, before a token of builder budget is
+        // spent. Asserting after the session returns cost nothing only while auth was
+        // dead; with a live credential it would burn a full run and then abort.
+        onInit: (init) => assertPure('builder', manifest.builder, [init], configDir),
       });
-      const purity = assertSessionPurity(parseTranscript(await readFile(transcriptPath, 'utf8')));
-      if (!purity.ok) throw new PreconditionError('the builder session was not sterile', purity.problems);
-      manifest.builder = { auth, configDirListing: listing, droppedEnv: dropped, argv, resolvedModel: purity.model, ...result };
+      const { init, ...session } = result;
+      Object.assign(manifest.builder, session, { resolvedModel: manifest.builder.purity?.model ?? null });
+      const events = parseTranscript(await readFile(transcriptPath, 'utf8'));
+      // Belt and braces: an init that never arrived (or arrived without its newline)
+      // must still fail the run rather than skip the assertion.
+      if (init === null) assertPure('builder', manifest.builder, events, configDir);
+      assertAuthenticated('builder', events);
     });
 
     /* ── SEG-4 · the scan (H2, H3, H8) ────────────────────────────────── */
@@ -279,6 +295,57 @@ async function main() {
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
+/**
+ * R4.3a — resolve `claude` to an absolute image `spawn` can run with `shell: false`.
+ * Attempt 1 of the 2026-07-29 live run died here in 29 ms: the bare name is an `sh`
+ * shim (ENOENT) and the `.cmd` beside it is what Node refuses to spawn shell-less
+ * (EINVAL, CVE-2024-27980). A resolution failure is INFRA — the CLI's absence is an
+ * operator problem, not a product FAIL.
+ */
+async function resolveClaude() {
+  try {
+    const resolved = await resolveExecutable(CLAUDE_COMMAND);
+    return { path: resolved.path, via: resolved.via, shim: resolved.shim };
+  } catch (err) {
+    throw new Error(`${err.message}\n${(err.detail ?? []).join('\n')}`);
+  }
+}
+
+/**
+ * R4.6 — one place where the amended predicate is applied, so the builder and the
+ * evaluator cannot drift apart (HIGH-3). The outcome is recorded on `sink` either way:
+ * the evidence that a session WAS sterile is as load-bearing as the abort.
+ */
+/**
+ * A session that could not log in built nothing, and "nothing" is indistinguishable from
+ * a builder that ignored the brief once it reaches H3. So it is caught in SEG-3 and
+ * aborts as PRECONDITION — never written to `verdict.txt`, never seen by `ship-gate.mjs`.
+ */
+function assertAuthenticated(who, events) {
+  const failure = authFailureOf(events);
+  if (failure === null) return;
+  throw new PreconditionError(`the ${who} session could not authenticate — nothing was built, so there is nothing to score`, [
+    failure,
+    '',
+    'Re-authenticate the CLI (run `claude` interactively and /login), then rerun.',
+    'R3.4 copies the credentials file faithfully; a dead credential copies across dead.',
+  ]);
+}
+
+function assertPure(who, sink, events, configDir) {
+  const purity = assertSessionPurity(events, { configDir });
+  sink.purity = {
+    ok: purity.ok,
+    kind: purity.kind,
+    cliVersion: purity.version,
+    baseline: builtinsFor(purity.version) === null ? null : purity.version,
+    model: purity.model,
+    problems: purity.problems,
+  };
+  if (!purity.ok) throw new PreconditionError(`the ${who} session was not sterile`, purity.problems);
+  return purity;
+}
+
 async function segment(manifest, id, budgetMin, body) {
   const started = Date.now();
   try {
@@ -319,20 +386,59 @@ async function assertDeployedFreshness(manifest) {
   }
 }
 
+/** The version the mock transcript claims to be. Must have a builtin-manifest entry. */
+const MOCK_CLI_VERSION = Object.keys(BUILTIN_MANIFEST.versions).at(-1);
+
+/**
+ * The init event the mock builder emits — REALISTIC, not empty.
+ *
+ * This used to be `{ agents: [], skills: [], plugins: [] }`, and that is precisely how
+ * the unsatisfiable R4.6 predicate survived review: the only transcript it had ever
+ * judged was one the harness wrote to satisfy it. The same agrees-with-itself failure
+ * the gate's README rejects for `src/export/validate`. Now the mock reproduces the real
+ * CLI's baseline, so `--mock-builder` exercises the real predicate — and a leak planted
+ * in `extra` makes it abort exactly as a contaminated live session would.
+ *
+ * @param {{ claudeHome: string, extra?: object }} options
+ */
+export function mockBuilderEvents({ claudeHome, extra = {} }) {
+  const baseline = builtinsFor(MOCK_CLI_VERSION);
+  return [
+    {
+      type: 'system',
+      subtype: 'init',
+      model: 'mock-builder',
+      claude_code_version: MOCK_CLI_VERSION,
+      mcp_servers: [],
+      plugins: [],
+      agents: [...baseline.agents],
+      skills: [...baseline.skills],
+      slash_commands: [...baseline.slash_commands],
+      output_style: baseline.output_style,
+      memory_paths: { auto: path.join(claudeHome, 'projects', 'mock-builder', 'memory') },
+      ...extra,
+    },
+    { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Built the site.' }] } },
+    { type: 'result', subtype: 'success', result: 'Built the site from the brief.\n\nBUILD COMPLETE' },
+  ];
+}
+
 /**
  * The MOCK builder. Copies a canned site into the sandbox and writes the transcript a
  * clean session would have produced. It proves every segment after SEG-3 without a token
  * of spend — and it is recorded as a cached segment so the run can never ship.
+ *
+ * R4.6 runs on the mock transcript too. It has to: a purity check the mock path skips is
+ * a purity check nobody notices breaking.
  */
-async function runMockBuilder({ mockDir, sandboxDir, transcriptPath }) {
+async function runMockBuilder({ mockDir, builderDir, sandboxDir, transcriptPath }) {
   await cp(path.resolve(mockDir), sandboxDir, { recursive: true });
-  const events = [
-    { type: 'system', subtype: 'init', model: 'mock-builder', mcp_servers: [], plugins: [], agents: [], skills: [] },
-    { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Built the site.' }] } },
-    { type: 'result', subtype: 'success', result: 'Built the site from the brief.\n\nBUILD COMPLETE' },
-  ];
+  const claudeHome = path.join(builderDir, 'claude-home');
+  const events = mockBuilderEvents({ claudeHome });
   await writeFile(transcriptPath, `${events.map((e) => JSON.stringify(e)).join('\n')}\n`, 'utf8');
-  return { mock: true, mockDir: path.resolve(mockDir), resolvedModel: 'mock-builder' };
+  const builder = { mock: true, mockDir: path.resolve(mockDir), resolvedModel: 'mock-builder' };
+  assertPure('builder', builder, events, claudeHome);
+  return builder;
 }
 
 async function runEvaluator({ manifest, runDir, packageDir, shotsDir, site, scenario, scenarioFile, sandboxDir, options }) {
@@ -358,10 +464,18 @@ async function runEvaluator({ manifest, runDir, packageDir, shotsDir, site, scen
   // only the builder's purity was asserted and only the builder's session was recorded.
   manifest.evaluator = { stagedFiles, attempts: [] };
 
+  const command = await resolveClaude();
+  manifest.evaluator.command = command;
+
   for (let attempt = 0; attempt <= EVALUATOR_MAX_RETRIES; attempt += 1) {
     const { dir: configDir, auth, listing } = await createSterileConfigDir({ parentDir: path.join(evalDir, `attempt-${String(attempt)}`) });
     const { env, dropped } = scrubEnvironment({ configDir, useApiKey: auth.method === 'api-key-env' });
     const transcriptPath = path.join(evalDir, `transcript-${String(attempt)}.jsonl`);
+    // Pushed BEFORE the session runs, so the streaming purity abort still has somewhere
+    // to record what it saw — an abort with no evidence is the worst of both.
+    const record = { attempt, auth, configDirListing: listing, droppedEnv: dropped };
+    manifest.evaluator.attempts.push(record);
+
     const session = await runSession({
       argv: buildArgv({ model: options.smoke ? SMOKE_MODEL : GATING_MODEL }),
       prompt: EVALUATOR_PROMPT,
@@ -369,21 +483,19 @@ async function runEvaluator({ manifest, runDir, packageDir, shotsDir, site, scen
       env,
       transcriptPath,
       timeoutMs: SEGMENT_HARD_STOP_MIN * MINUTE,
+      command: command.path,
+      onInit: (init) => assertPure('evaluator', record, [init], configDir),
     });
-
-    const purity = assertSessionPurity(parseTranscript(await readFile(transcriptPath, 'utf8')));
-    manifest.evaluator.attempts.push({
-      attempt,
-      auth,
-      configDirListing: listing,
-      droppedEnv: dropped,
+    Object.assign(record, {
       exitCode: session.code,
       timedOut: session.timedOut,
       elapsedMs: session.elapsedMs,
-      resolvedModel: purity.model,
-      pure: purity.ok,
+      resolvedModel: record.purity?.model ?? null,
+      pure: record.purity?.ok ?? false,
     });
-    if (!purity.ok) throw new PreconditionError('the evaluator session was not sterile', purity.problems);
+    const events = parseTranscript(await readFile(transcriptPath, 'utf8'));
+    if (session.init === null) assertPure('evaluator', record, events, configDir);
+    assertAuthenticated('evaluator', events);
 
     const result = await readJudgments(evalSandbox, rubricManifest);
     if (result.ok) {
@@ -392,10 +504,10 @@ async function runEvaluator({ manifest, runDir, packageDir, shotsDir, site, scen
         await writeFile(path.join(evalDir, 'judgments.json'), `${JSON.stringify(result.judgments, null, 2)}\n`, 'utf8');
         return accepted;
       }
-      manifest.evaluator.attempts.at(-1).rejected = rejected.map((r) => `${r.item?.id ?? '?'}: ${r.why}`);
-      manifest.evaluator.attempts.at(-1).missing = missing;
+      record.rejected = rejected.map((r) => `${r.item?.id ?? '?'}: ${r.why}`);
+      record.missing = missing;
     } else {
-      manifest.evaluator.attempts.at(-1).problems = result.problems;
+      record.problems = result.problems;
     }
   }
   // R7.4 — a flaky evaluator fails the run as INFRA, never as a product FAIL.
