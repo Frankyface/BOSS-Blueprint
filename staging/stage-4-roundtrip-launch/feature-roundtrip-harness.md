@@ -1837,6 +1837,114 @@ the failing one in full), `verdict.txt`, and R9.2's two sketch/shot pairs for sc
 hard gates pass on scenario A, five of six dimensions meet their floors, and the score is 96.93.
 
 
+### 2026-07-29 — GAUNTLET at `f016d82`: ALL THREE LEGS PASS, all 24 hard gates green — ship gate blocked by a contradiction in R9.4 itself
+
+**Four runs at HEAD `f016d82`, clean tree throughout. Every one passed.** The ship gate then
+refused the set — not because any run failed, but because **R9.4's own two requirements cannot both
+be true at once.** No further rule edits were made; this stops for a ruling. **Status stays
+`awaiting verification`.**
+
+| # | Run | Run dir (`C:\bp-runs\…`) | Verdict | Elapsed |
+|---|---|---|---|---|
+| 1 | smoke (B, preview) | `2026-07-29T17-28-32-793Z_B_f016d82` | **SMOKE-PASS 45.33** ✅ | **4.18 min** |
+| 2 | A, preview | `2026-07-29T17-33-12-658Z_A_f016d82` | **PASS 96.36** ✅ | 13.80 min |
+| 3 | A, **deployed** | `2026-07-29T17-47-28-781Z_A_f016d82` | **PASS 96.04** ✅ | 11.18 min |
+| 4 | B, preview | `2026-07-29T17-59-04-247Z_B_f016d82` | **PASS 92.00** ✅ | 8.81 min |
+| 5 | ship gate | — | **FAILED** (see below) | — |
+
+**Hard gates — 8 per scored run, 24 of 24 PASS:**
+
+| Run | H1 | H2 | H3 | H4 | H5 | H6 | H7 | H8 |
+|---|---|---|---|---|---|---|---|---|
+| A/preview | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| A/deployed | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| B/preview | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+
+**Score tables:**
+
+| Dim | A/preview | A/deployed | B/preview | Max |
+|---|---|---|---|---|
+| S1 | 23.9 | 23.5 | 23.3 | 25 |
+| S2 | 20.0 | 20.0 | 20.0 | 20 |
+| S3 | 15.0 | 15.0 | 15.0 | 15 |
+| S4 | 15.0 | 15.0 | 15.0 | 15 |
+| S5 | 15.0 | 15.0 | 13.7 | 15 |
+| S6 | 7.5 | 7.5 | 5.0 | 10 |
+| **Total** | **96.36** | **96.04** | **92.00** | 100 |
+
+**Every floor met in all three.** Both previously-blocking dimensions are now green on live builds:
+**S3 15/15** (the block-type-aware frame estimate) and **S4 15/15** (like-for-like thirds, ±1).
+
+**The deployed leg ran for the first time ever**, and its freshness precondition passed on real
+data: `deployedBundle.ok: true`, local `index-CQhEMnMO.js` == deployed `index-CQhEMnMO.js`.
+
+**THE SHIP GATE FAILURE — R9.4 contradicts itself.**
+
+```
+PASS 92        B/preview  f016d82  2026-07-29T17-59-04-247Z_B_f016d82
+PASS 96.04     A/deployed f016d82  2026-07-29T17-47-28-781Z_A_f016d82
+PASS 96.36     A/preview  f016d82  2026-07-29T17-33-12-658Z_A_f016d82
+
+  ✗ 2026-07-29T17-47-28-781Z_A_f016d82: scenario-B.json differs from the first run's copy
+  ✗ 2026-07-29T17-33-12-658Z_A_f016d82: scenario-B.json differs from the first run's copy
+
+SHIP GATE FAILED
+```
+
+R9.4 requires **both**:
+
+1. the set of `(scenario, target)` is **exactly** `{(A, preview), (A, deployed), (B, preview)}` — so
+   the set necessarily spans **two scenarios**; and
+2. **every rule-file hash identical across all three runs** — and `RULE_FILES` includes **the
+   scenario file**.
+
+`ship-gate.mjs` walks the first run's hash keys and demands the others match key-for-key. The first
+run is the B leg, which hashes `scenario-B.json`; the A legs hash `scenario-A.json` and have no
+`scenario-B.json` entry at all, so `undefined !== hash` fires. **The scenario file can never match
+across a set that is required to span both scenarios, so this gate could not have passed at any
+point in its existence.** It was simply never reached before — every earlier attempt died upstream.
+
+**The property R9.3/R9.4 actually exists to protect is INTACT, and measured:**
+
+| check | result |
+|---|---|
+| `prompt.txt`, `rubric.md`, `thresholds.mjs`, `scan-transcript.mjs`, `manifest-diff.mjs`, `builtin-manifest.json` identical across **all three** runs | **all six IDENTICAL** |
+| `scenario-A.json` identical across **both A runs** | **IDENTICAL** (`2bcff721…`) |
+| every run: rule hashes identical at start **and** end | **true, all four runs** |
+| every run: `invalid` / `cached` | **false / false** |
+| single HEAD across the set | **`f016d82`, all three** |
+| worktree clean recorded per run | **true** |
+
+So **nothing was weakened** — the only "mismatch" is a filename that is different by design.
+
+**Routing.** This is not a product FAIL and not a scored FAIL: all three legs passed. It is a defect
+in the gate's own comparison. The fix is to compare **shared** rule files across all runs and the
+**scenario** file only across runs of that scenario — which is plainly the intent, since a
+cross-scenario set is what R9.4 demands. But that is gate-rule logic, so per the standing binding it
+**needs a ruling before anything is touched**, exactly as the manifest, BUILD_NOTES, S4 and S3
+questions did. `ship-gate.mjs` is not in `RULE_FILES`, but its assertion IS R9.4.
+
+**One INFRA fix was applied this round, before the runs** (committed `f016d82`, not a rule file):
+`run.mjs` dynamically imported `site.config.ts` by filesystem path, and ESM `import()` takes a URL —
+on Windows an absolute path parses as protocol `c:`. The deployed leg aborted as INFRA in 12 s,
+which is why four previous attempts never reached it. `manifest-diff.mjs` already used
+`pathToFileURL`; `run.mjs` now matches. Verified by importing the module and reading the real
+`DEPLOYED_BASE_URL`.
+
+**Also recorded, no action (parked per instruction):** BUILD_NOTES triage still reports FRICTION on
+scenario A; permission denials continue to appear and continue to be routed as harness-side by R5.6
+rather than scored against the product.
+
+**Evidence:** `staging/stage-4-roundtrip-launch/evidence/2026-07-29-gauntlet-f016d82-THREE-PASS/`
+— one directory per scored leg (`A-preview/`, `A-deployed/`, `B-preview/`) each with `report.md`,
+`verdict.txt`, `run-manifest.json`, and R9.2's two sketch/shot pairs under `pairs/`; plus
+`shipgate-output.txt` verbatim.
+
+**To resume:** rule on the ship-gate rule-hash comparison; record it in `docs/decisions.md`; re-run
+the gate. **The three runs themselves need no repeating unless the ruling changes a rule file** —
+they are green, at one sha, with every hash recorded.
+
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.

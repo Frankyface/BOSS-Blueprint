@@ -1,0 +1,203 @@
+{
+  "scenario": "B",
+  "target": "preview",
+  "smoke": false,
+  "startedAt": "2026-07-29T17:59:04.247Z",
+  "git": {
+    "sha": "f016d82ca73d99edc12c5951c1a2c1e04f9cc3eb",
+    "clean": true,
+    "dirtyFiles": []
+  },
+  "runDir": "C:\\bp-runs\\2026-07-29T17-59-04-247Z_B_f016d82",
+  "cached": false,
+  "invalid": false,
+  "ruleHashes": {
+    "start": {
+      "prompt.txt": "6ef395fefc8e0e910e48c5b299169952545c7db013bf30b819ed2a22f1ebce74",
+      "rubric.md": "db024bf065e7203c19760f65bca5e3beaeed70ed8cf869383da39136d6614b60",
+      "thresholds.mjs": "d76a5f228212a5da63d9848d0b79333ec9b306803b4d0ef50609b91c6db7d640",
+      "scan-transcript.mjs": "a2cff61c33e9c2044f748875e5cd04a15ee08afbfcccac346d48fd799ca64d5a",
+      "manifest-diff.mjs": "37a2efe89dd18d64d30932a91cc4e8b9310ba645354f89e69773be4c7e61b620",
+      "builtin-manifest.json": "8eea40bc1f478818be9cbe05ee628c09ca09beec5f431d670441a550ab83735a",
+      "scenario-B.json": "3175d4f9bf602d51593a44127734b4c392870179a35be5ad1b4bb736503cb172"
+    },
+    "end": {
+      "prompt.txt": "6ef395fefc8e0e910e48c5b299169952545c7db013bf30b819ed2a22f1ebce74",
+      "rubric.md": "db024bf065e7203c19760f65bca5e3beaeed70ed8cf869383da39136d6614b60",
+      "thresholds.mjs": "d76a5f228212a5da63d9848d0b79333ec9b306803b4d0ef50609b91c6db7d640",
+      "scan-transcript.mjs": "a2cff61c33e9c2044f748875e5cd04a15ee08afbfcccac346d48fd799ca64d5a",
+      "manifest-diff.mjs": "37a2efe89dd18d64d30932a91cc4e8b9310ba645354f89e69773be4c7e61b620",
+      "builtin-manifest.json": "8eea40bc1f478818be9cbe05ee628c09ca09beec5f431d670441a550ab83735a",
+      "scenario-B.json": "3175d4f9bf602d51593a44127734b4c392870179a35be5ad1b4bb736503cb172"
+    }
+  },
+  "managedPolicy": [],
+  "segments": {
+    "SEG-1": {
+      "ok": true,
+      "ms": 23830,
+      "budgetMin": 8
+    },
+    "SEG-2": {
+      "ok": true,
+      "ms": 709,
+      "budgetMin": 60
+    },
+    "SEG-3": {
+      "ok": true,
+      "ms": 378743,
+      "budgetMin": 45
+    },
+    "SEG-4": {
+      "ok": true,
+      "ms": 23,
+      "budgetMin": 60
+    },
+    "SEG-5": {
+      "ok": true,
+      "ms": 3316,
+      "budgetMin": 60
+    },
+    "SEG-6-eval": {
+      "ok": true,
+      "ms": 121175,
+      "budgetMin": 60
+    }
+  },
+  "builder": {
+    "auth": {
+      "method": "cli-credentials",
+      "copiedFrom": "C:\\Users\\Cam\\.claude\\.credentials.json",
+      "copiedAs": ".credentials.json"
+    },
+    "configDirListing": [
+      ".credentials.json",
+      "settings.json"
+    ],
+    "droppedEnv": [
+      "ANTHROPIC_BASE_URL",
+      "CLAUDE_AGENT_SDK_VERSION",
+      "CLAUDE_CODE_CHILD_SESSION",
+      "CLAUDE_CODE_DISABLE_CRON",
+      "CLAUDE_CODE_EAGER_FLUSH",
+      "CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES",
+      "CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL",
+      "CLAUDE_CODE_ENTRYPOINT",
+      "CLAUDE_CODE_EXECPATH",
+      "CLAUDE_CODE_HOST_SESSION_ID",
+      "CLAUDE_CODE_OAUTH_SCOPES",
+      "CLAUDE_CODE_REPORT_FINDINGS",
+      "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH",
+      "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH",
+      "CLAUDE_CODE_SESSION_ID",
+      "CLAUDE_EFFORT",
+      "CLAUDE_PID",
+      "CLAUDE_PREVIEW_CLASSIFIER_FLOOR"
+    ],
+    "argv": [
+      "-p",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--max-turns",
+      "250",
+      "--model",
+      "opus"
+    ],
+    "command": {
+      "path": "C:\\Users\\Cam\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe",
+      "via": "shim",
+      "shim": "C:\\Users\\Cam\\AppData\\Roaming\\npm\\claude.cmd"
+    },
+    "purity": {
+      "ok": true,
+      "kind": null,
+      "cliVersion": "2.1.220",
+      "baseline": "2.1.220",
+      "model": "claude-opus-5",
+      "problems": []
+    },
+    "code": 0,
+    "timedOut": false,
+    "stderr": "",
+    "elapsedMs": 378576,
+    "resolvedModel": "claude-opus-5"
+  },
+  "evaluator": {
+    "stagedFiles": [
+      "pages/01-home.png",
+      "pages/02-pricing.png",
+      "pages/03-contact.png",
+      "rubric-manifest.json",
+      "rubric.md",
+      "scenario.json",
+      "shots/contact.png",
+      "shots/home.png",
+      "shots/pricing.png",
+      "site.json"
+    ],
+    "attempts": [
+      {
+        "attempt": 0,
+        "auth": {
+          "method": "cli-credentials",
+          "copiedFrom": "C:\\Users\\Cam\\.claude\\.credentials.json",
+          "copiedAs": ".credentials.json"
+        },
+        "configDirListing": [
+          ".credentials.json",
+          "settings.json"
+        ],
+        "droppedEnv": [
+          "ANTHROPIC_BASE_URL",
+          "CLAUDE_AGENT_SDK_VERSION",
+          "CLAUDE_CODE_CHILD_SESSION",
+          "CLAUDE_CODE_DISABLE_CRON",
+          "CLAUDE_CODE_EAGER_FLUSH",
+          "CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES",
+          "CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL",
+          "CLAUDE_CODE_ENTRYPOINT",
+          "CLAUDE_CODE_EXECPATH",
+          "CLAUDE_CODE_HOST_SESSION_ID",
+          "CLAUDE_CODE_OAUTH_SCOPES",
+          "CLAUDE_CODE_REPORT_FINDINGS",
+          "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH",
+          "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH",
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_EFFORT",
+          "CLAUDE_PID",
+          "CLAUDE_PREVIEW_CLASSIFIER_FLOOR"
+        ],
+        "purity": {
+          "ok": true,
+          "kind": null,
+          "cliVersion": "2.1.220",
+          "baseline": "2.1.220",
+          "model": "claude-opus-5",
+          "problems": []
+        },
+        "exitCode": 0,
+        "timedOut": false,
+        "elapsedMs": 120955,
+        "resolvedModel": "claude-opus-5",
+        "pure": true
+      }
+    ],
+    "command": {
+      "path": "C:\\Users\\Cam\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe",
+      "via": "shim",
+      "shim": "C:\\Users\\Cam\\AppData\\Roaming\\npm\\claude.cmd"
+    }
+  },
+  "ruleDrift": [],
+  "finishedAt": "2026-07-29T18:07:52.794Z",
+  "elapsedMin": 8.81,
+  "smokeBudgetBreached": false,
+  "credentialScrubbed": true,
+  "removed": [
+    "C:\\bp-runs\\2026-07-29T17-59-04-247Z_B_f016d82\\builder\\claude-home",
+    "C:\\bp-runs\\2026-07-29T17-59-04-247Z_B_f016d82\\eval\\attempt-0\\claude-home"
+  ],
+  "problems": [],
+  "verdict": "PASS 92"
+}
