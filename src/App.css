@@ -40,3 +40,53 @@
   min-width: 0;
   min-height: 0;
 }
+
+/*
+ * SMALL VIEWPORTS: STACK, DON'T SQUEEZE.
+ *
+ * Keyed off the attribute App.tsx writes from the desktop guard's media query —
+ * one definition of "too small", shared by the layout and the notice.
+ *
+ * Three fixed-width columns do not fit on a phone: 240px of palette plus 304px of
+ * details panel is wider than a 390px window on its own, and the middle column
+ * (which is allowed to shrink) collapsed to zero. The canvas existed, reported a
+ * 0px viewport, and rendered nothing you could scroll, read or hit-test — the exact
+ * opposite of the guard's promise that reading still works.
+ *
+ * So the columns become rows and the stage goes FIRST: the client's own design is
+ * what they came for, and the palette and details panel are one scroll away rather
+ * than in front of it. Nothing is hidden and nothing is disabled — the guard warns
+ * about editing, it never takes a control away.
+ */
+.app-shell[data-small-viewport='true'] .app-shell__body {
+  flex-direction: column;
+  overflow-y: auto;
+  /* Set by DesktopGuard while its fixed banner is up; 0 the rest of the time. */
+  padding-bottom: var(--boss-guard-inset, 0px);
+}
+
+.app-shell[data-small-viewport='true'] .app-shell__stage {
+  order: -1;
+  flex: 0 0 auto;
+  /* Tall enough to read a page in, short enough that the palette is visibly next. */
+  height: 65vh;
+  min-height: 18rem;
+}
+
+/*
+ * The header row is fixed-height and its controls do not shrink, so on a phone the
+ * last of them — Submit — would be clipped by the shell's `overflow: hidden`. The
+ * guard warns about editing; it must never be the reason a control is unreachable.
+ */
+.app-shell[data-small-viewport='true'] .app-header {
+  overflow-x: auto;
+}
+
+.app-shell[data-small-viewport='true'] .block-palette,
+.app-shell[data-small-viewport='true'] .side-panel {
+  flex: 0 0 auto;
+  width: 100%;
+  border-right: none;
+  border-left: none;
+  border-top: 1px solid var(--boss-line);
+}

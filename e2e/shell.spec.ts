@@ -1,10 +1,19 @@
 import { expect, test } from '@playwright/test'
 
+import { seedTourDismissed } from './support/chrome.ts'
+
 const APP_TITLE = 'BOSS Blueprint'
 const EXPECTED_BLOCK_LABELS = ['Section', 'Heading', 'Text', 'Image', 'Button', 'Nav bar']
 const HTTP_ERROR_THRESHOLD = 400
 
 test.describe('app shell', () => {
+  // This spec navigates by hand rather than through `openCanvas`, so it seeds the
+  // "tour already seen" flag itself — the shell is what is under test here, not
+  // the first-run chrome over it (`e2e/onboarding-tour.spec.ts` owns that).
+  test.beforeEach(async ({ page }) => {
+    await seedTourDismissed(page)
+  })
+
   test('renders the header, canvas and the six-entry block palette', async ({ page }) => {
     const response = await page.goto('./')
 

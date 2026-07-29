@@ -85,9 +85,12 @@
   color: var(--boss-text-muted);
 }
 
+/*
+ * Directly under the BLOCKS heading (UX audit N1). It was `margin-top: auto` at the
+ * foot of the column, which pushed the one sentence that explains the palette below
+ * six buttons and, on a laptop, off the bottom of the window entirely.
+ */
 .block-palette__notice {
-  margin-top: auto;
-  padding-top: 0.5rem;
   font-size: 0.7rem;
   line-height: 1.4;
   color: var(--boss-text-muted);

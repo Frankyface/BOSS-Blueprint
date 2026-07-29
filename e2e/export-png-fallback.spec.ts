@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 import { dismissStartSurfaces } from './support/canvas.ts'
+import { seedTourDismissed } from './support/chrome.ts'
 import {
   exportFixturePages,
   expectedPageHeight,
@@ -35,6 +36,9 @@ test.slow(({ browserName }) => browserName === 'webkit')
 const PAPER_MIN_LUMA = 240
 
 test.beforeEach(async ({ page }) => {
+  // Navigated by hand (the query string is the point), so the "tour already seen"
+  // flag is seeded here rather than by `openCanvas`.
+  await seedTourDismissed(page)
   const response = await page.goto('./?export-engine=fallback')
   expect(response?.status()).toBe(200)
   await expect(page.getByTestId('canvas-page')).toBeVisible()

@@ -43,7 +43,7 @@ export function CanvasArea() {
   }
 
   return (
-    <main className="canvas-area" aria-label={CANVAS_LABEL} data-testid="canvas-area">
+    <main className="canvas-area" aria-label={CANVAS_LABEL} data-testid="canvas-area" data-tour="canvas">
       <CanvasToolbar />
       <div
         className="canvas-area__viewport"
