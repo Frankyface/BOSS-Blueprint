@@ -278,24 +278,52 @@ describe('S5 colour maths', () => {
   })
 })
 
+/**
+ * R9.4 — the ship gate over a THREE-RUN SET.
+ *
+ * The fixture below now carries a `scenario-*.json` hash per run, which the previous version
+ * did not. That omission is exactly why this suite stayed green while the real gate could
+ * never pass: `RULE_FILES` includes the per-run scenario file, and R9.4 requires the leg set
+ * to span two scenarios, so "every rule hash identical across all three" was unsatisfiable
+ * by construction. The fixture models reality now (docs/decisions.md, 2026-07-29).
+ */
 describe('R9.4 — the ship gate validates three runs AS A SET', () => {
-  const run = (over = {}) => ({
-    dir: `/runs/${over.scenario ?? 'A'}-${over.target ?? 'preview'}`,
-    manifest: {
-      verdict: 'PASS 92',
-      scenario: 'A',
-      target: 'preview',
-      invalid: false,
-      cached: false,
-      git: { sha: 'abc123', clean: true },
-      ruleHashes: { start: { 'thresholds.mjs': 'h1', 'prompt.txt': 'h2' } },
-      ...over,
-    },
-  })
-  const goodSet = () => [run(), run({ scenario: 'A', target: 'deployed' }), run({ scenario: 'B', target: 'preview' })]
+  const COMMITTED = { 'scenario-A.json': 'sA', 'scenario-B.json': 'sB' }
 
-  it('passes on three clean runs at one commit with identical rules', () => {
-    expect(checkSet(goodSet()).ok).toBe(true)
+  const run = (over = {}) => {
+    const scenario = over.scenario ?? 'A'
+    return {
+      dir: `/runs/${scenario}-${over.target ?? 'preview'}`,
+      manifest: {
+        verdict: 'PASS 92',
+        scenario: 'A',
+        target: 'preview',
+        invalid: false,
+        cached: false,
+        git: { sha: 'abc123', clean: true },
+        ruleHashes: {
+          start: {
+            'thresholds.mjs': 'h1',
+            'prompt.txt': 'h2',
+            [`scenario-${scenario}.json`]: scenario === 'A' ? 'sA' : 'sB',
+          },
+        },
+        ...over,
+      },
+    }
+  }
+  const goodSet = () => [run(), run({ scenario: 'A', target: 'deployed' }), run({ scenario: 'B', target: 'preview' })]
+  const check = (set, committed = COMMITTED) => checkSet(set, { committedScenarioHashes: committed })
+
+  it('passes on the REAL set shape — two scenario-A legs and one scenario-B leg', () => {
+    const result = check(goodSet())
+    expect(result.problems).toEqual([])
+    expect(result.ok).toBe(true)
+  })
+
+  it('the old impossibility is GONE — no "scenario-B differs" against the A legs', () => {
+    // This is the exact failure the live gate produced before the correction.
+    expect(check(goodSet()).problems.join('\n')).not.toMatch(/scenario-B\.json differs/)
   })
 
   it.each([
@@ -305,16 +333,60 @@ describe('R9.4 — the ship gate validates three runs AS A SET', () => {
     ['a non-PASS verdict', (set) => { set[0].manifest.verdict = 'NEAR MISS 82' }, 'verdict is'],
     ['two different commits', (set) => { set[1].manifest.git = { sha: 'def456', clean: true } }, 'different commits'],
     ['the wrong leg set', (set) => { set[2].manifest.scenario = 'A'; set[2].manifest.target = 'preview' }, 'leg set'],
-    ['rule-file drift between runs', (set) => { set[1].manifest.ruleHashes.start['thresholds.mjs'] = 'CHANGED' }, 'differs from the first run'],
+    ['SHARED rule-file drift between runs', (set) => { set[1].manifest.ruleHashes.start['thresholds.mjs'] = 'CHANGED' }, 'differs from the first run'],
   ])('refuses %s', (_name, mutate, needle) => {
     const set = goodSet()
     mutate(set)
-    const result = checkSet(set)
+    const result = check(set)
     expect(result.ok).toBe(false)
     expect(result.problems.join('\n')).toContain(needle)
   })
 
   it('refuses a set that is not three runs', () => {
-    expect(checkSet(goodSet().slice(0, 2)).ok).toBe(false)
+    expect(check(goodSet().slice(0, 2)).ok).toBe(false)
+  })
+
+  it('(b) refuses when the two scenario-A legs DISAGREE on scenario-A.json', () => {
+    const set = goodSet()
+    set[1].manifest.ruleHashes.start['scenario-A.json'] = 'EDITED'
+    const result = check(set)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join('\n')).toContain("differs from the other scenario-A run's copy")
+  })
+
+  it('(c) refuses when a scenario hash does not match the COMMITTED file at the set’s sha', () => {
+    // Both A legs agree with each other, so (b) is satisfied — only the committed-file
+    // anchor catches this. Without (c), editing a scenario once and running both A legs
+    // against the edited copy would sail through.
+    const set = goodSet()
+    set[0].manifest.ruleHashes.start['scenario-A.json'] = 'EDITED'
+    set[1].manifest.ruleHashes.start['scenario-A.json'] = 'EDITED'
+    const result = check(set)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join('\n')).toContain('does not match the committed file')
+    expect(result.problems.join('\n')).not.toContain("differs from the other scenario-A run's copy")
+  })
+
+  it('(c) refuses when the B leg alone diverges from the committed scenario', () => {
+    const set = goodSet()
+    set[2].manifest.ruleHashes.start['scenario-B.json'] = 'EDITED'
+    const result = check(set)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join('\n')).toContain('does not match the committed file')
+  })
+
+  it('refuses rather than SKIPS when the committed scenarios cannot be read', () => {
+    // A check that silently opts out is the vacuous pass this harness exists to prevent.
+    const result = check(goodSet(), null)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join('\n')).toContain('unverifiable')
+  })
+
+  it('refuses a run that recorded no scenario hash at all', () => {
+    const set = goodSet()
+    delete set[2].manifest.ruleHashes.start['scenario-B.json']
+    const result = check(set)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join('\n')).toContain('recorded no scenario-*.json hash')
   })
 })

@@ -568,3 +568,38 @@ replayed unchanged and still passing** (`blk_0021` via the frame estimate, `blk_
 `~2 sentences` hint); and an unknown block type falling back to text rather than throwing.
 `npx vitest run scripts/` green, 257 passed · **Revisit if:** the typography tokens in
 `BlockView.css` change — the table cites them by value, so the two will visibly disagree.
+
+## 2026-07-29 — Ship gate scenario comparison corrected (R9.4 impossibility)
+**Chose:** `ship-gate.mjs` replaces "every rule-file hash identical across all three runs" with three
+checks: **(a)** the SHARED rule files are byte-equal across ALL runs (unchanged); **(b)** the
+scenario file is byte-equal across runs **of the same scenario** — both A legs must agree on
+`scenario-A.json`; **(c)** **every** run's recorded scenario hash must equal the scenario file **as
+committed at the set's sha**, resolved with `git show <sha>:scripts/roundtrip/scenarios/<file>` and
+hashed from the raw blob so it is byte-comparable with `hashRuleFiles`. When git cannot answer,
+that is a **problem, not a skip** — a check that silently opts out is the vacuous pass this harness
+exists to prevent · **Because:** the written assertion demanded cross-scenario file equality in a
+set that R9.4 *itself* requires to span two scenarios. `RULE_FILES` includes the per-run scenario
+file, so the A legs hash `scenario-A.json` and the B leg hashes `scenario-B.json`; the gate walked
+the first run's keys and demanded `scenario-B.json` of the A legs, which never had it.
+**Unsatisfiable by construction — this gate could not have passed at any point in its existence**,
+and it was simply never reached until today, because every earlier attempt died upstream. Same
+class as the R4.6 "these arrays must be empty" predicate and the S4 top-third impossibility: a rule
+whose only passing input was one no real run could produce. The property being protected was
+measured **intact** across the three green runs *before* the fix — all six shared rule files
+identical across all three, `scenario-A.json` identical across both A legs, hashes identical start
+to end in every run, one sha, clean worktree each time — so nothing was weakened by correcting the
+comparison; only the impossible demand went · **(c) is what keeps (b) honest:** without the
+committed-file anchor, editing `scenario-A.json` once and running both A legs against the edited
+copy would satisfy the per-scenario split and sail through. With it, a doctored scenario fails
+whether it is doctored for one leg or for both · **Rejected:** dropping scenario files from the gate
+entirely (loses the doctored-scenario check that R10.5 exists for — the scenario is not a tuning
+knob); restricting the set to a single scenario (violates R9.4's own leg-set rule and would stop
+testing the blank-start path) · **Test-fixture note, and it is the real lesson:** the previous
+suite's fixture carried **no scenario hash at all**, which is precisely why it stayed green while
+the live gate could never pass. The fixture now models a scenario file per run, so the suite would
+have caught this. Added: the real set shape passes; the two A legs disagreeing fails; a scenario
+hash diverging from the committed file fails (for one leg or for both); an unreadable committed
+scenario fails rather than skips; a run recording no scenario hash fails; and the old
+"scenario-B.json differs" failure is asserted **absent** from the correct set · **Verification:**
+`npx vitest run scripts/` green, 263 passed · **Revisit if:** never — this is a correction of an
+impossibility, not a policy choice.
