@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { countWords, liveTourSteps, TOUR_STEPS, TOUR_WORD_LIMIT, tourWordCount } from './tourSteps.ts'
+import {
+  countSentences,
+  countWords,
+  liveTourSteps,
+  TOUR_BODY_SENTENCE_LIMIT,
+  TOUR_STEPS,
+  TOUR_TITLE_SENTENCE_LIMIT,
+  TOUR_WORD_LIMIT,
+  tourWordCount,
+} from './tourSteps.ts'
 
 /** The reading path the feature file fixes: left → centre → toolbar → right → top. */
 const EXPECTED_ORDER = ['palette', 'canvas', 'pen-tool', 'side-panel', 'submit']
@@ -27,11 +36,32 @@ describe('the tour step table', () => {
     expect(tourWordCount()).toBeLessThanOrEqual(TOUR_WORD_LIMIT)
   })
 
-  it('keeps every pointer to two short sentences', () => {
+  it('keeps every pointer short', () => {
     for (const step of TOUR_STEPS) {
       expect(countWords(step.title), `${step.target} title`).toBeLessThanOrEqual(12)
       expect(countWords(step.body), `${step.target} body`).toBeLessThanOrEqual(20)
     }
+  })
+
+  it('keeps the title to one instruction and the body to two sentences', () => {
+    // The claim used to be "≤2 sentences per pointer" with nothing but a word
+    // count behind it — and pointer 2 is a title plus two body sentences, so the
+    // claim was false as written. This is the rule the copy actually obeys.
+    for (const step of TOUR_STEPS) {
+      expect(countSentences(step.title), `${step.target} title`).toBeLessThanOrEqual(
+        TOUR_TITLE_SENTENCE_LIMIT,
+      )
+      expect(countSentences(step.body), `${step.target} body`).toBeLessThanOrEqual(
+        TOUR_BODY_SENTENCE_LIMIT,
+      )
+    }
+  })
+
+  it('counts sentences, not clause separators', () => {
+    expect(countSentences('Block = its words · Site = your name and style.')).toBe(1)
+    expect(countSentences("Your words replace the grey text. Press Enter when you're done.")).toBe(2)
+    expect(countSentences('No terminator at all')).toBe(1)
+    expect(countSentences('   ')).toBe(0)
   })
 
   it('counts words, not punctuation', () => {

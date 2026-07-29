@@ -28,9 +28,12 @@ Shipped copy, verbatim from `src/tour/tourSteps.ts` (the draft this replaced is 
 | 4 | `side-panel` | **This panel is about whatever you picked.** *Block* = its words and links · *Site* = your name and style · *Nav map* = what links where. | N5 (explanation half) |
 | 5 | `submit` | **When you're happy, hit Submit.** Download your design, email it to us — then we build it. | B2 (discovery half) |
 
-Copy rules: second person, ≤ 2 short sentences per pointer, no "click here to continue", no
-feature names the UI doesn't use. Total reading time at 200 wpm must be **< 30 s** — a unit test
-asserts the concatenated word count of all five pointers is ≤ 95 words. **Measured: 93**
+Copy rules: second person, **one instruction sentence in the title and ≤ 2 sentences in the body**
+(restated 2026-07-29 — the old "≤ 2 sentences per pointer" was false for pointer 2, which is a
+title plus two body sentences, and nothing but a word count stood behind it; `countSentences()`
+now enforces the per-part rule directly), no "click here to continue", no feature names the UI
+doesn't use. Total reading time at 200 wpm must be **< 30 s** — a unit test asserts the
+concatenated word count of all five pointers is ≤ 95 words. **Measured: 93**
 (`tourWordCount()`, `src/tour/tourSteps.test.ts`).
 
 ## Success Criteria
@@ -136,7 +139,7 @@ What is new, and what it pins down:
 
 | File | Tests | Covers |
 |---|---|---|
-| `src/tour/tourSteps.test.ts` | 7 | the five targets in reading order; **93 ≤ 95 words**; ≤2-sentence budget per pointer; punctuation is not a word; missing-target **skip + renumber** |
+| `src/tour/tourSteps.test.ts` | 7 | the five targets in reading order; **93 ≤ 95 words**; per-pointer word caps; punctuation is not a word; missing-target **skip + renumber**. _(The row originally read "≤2-sentence budget per pointer" — see the 2026-07-29 bounce-fix entry: that claim was not tested and was false; sentence counting landed with the fix.)_ |
 | `src/tour/tourAnchor.test.ts` | 7 | placement per side; the canvas centre kept clear; 35 placement×edge-target combinations all land inside the viewport; a bubble bigger than the window pins to the margin |
 | `src/store/chromeFlags.test.ts` | 7 | local/session separation; unset ≠ dismissed; storage that throws on read, throws on write, and refuses with a quota error |
 | `src/components/OnboardingTour.test.tsx` | 20 | **one live element per `data-tour` id, all five**; auto-start; flag written on first render; five steps in order ending on "Got it"; `role="note"`, `aria-live`, no `aria-modal`, no focus steal; palette still adds a block with the tour open; Skip / Escape / reload; help control re-opens at step 1 **and** takes focus; suppression order picker → coach → guard → submit, and "hide, don't close" on a mid-tour resize |
@@ -216,6 +219,73 @@ useLayoutEffect into state; assert step/count in the Submit unit test. Also LOW-
 sentences — restate or count sentences.
 
 **Status: BOUNCE on criterion 2** — one scoped fix plus one regression assertion.
+
+### 2026-07-29 — Bounce fix: the Submit round trip restores all five pointers
+
+**Reproduced first, in a unit test.** Before touching `OnboardingTour.tsx`, the Submit case was
+extended in `src/components/OnboardingTour.test.tsx` ("comes back from Submit with all five
+pointers, on the step it left"): open the tour, `Next` to step 2 on `canvas`, open Submit, close
+Submit. It failed exactly as the review described — `data-tour-count="1"` where 5 was expected.
+That failing assertion is the regression test the fix now satisfies; it was red before the fix
+and green after, in that order.
+
+**The fix.** `liveTourSteps(document)` was called from a render-phase `useMemo` keyed
+`[isShowing, openCount]`, so it ran during the render where `isShowing` flips true — while the
+DOM still held the Submit view, in which four of the five targets are unmounted and only the
+header's `data-tour="submit"` survives. It is now read in a **post-commit `useLayoutEffect`**
+into state: React applies every DOM mutation of the commit before any layout effect runs, and
+layout effects run before the browser paints, so the list is read from the page the client is
+about to see and there is no flicker.
+
+One knock-on, caught by the existing suite rather than by inspection: the help control's
+"takes the focus with it" test went red, because the bubble is now mounted one commit later than
+`isShowing` flips, so the focus effect ran while `bubbleRef.current` was still `null`. The effect
+now also depends on a `hasBubble` boolean — a boolean and not `step`, deliberately, so pressing
+`Next` cannot yank focus off the `Next` button.
+
+`react-hooks/set-state-in-effect` is disabled for that one line with a stated reason: this is
+React's own documented "measure the DOM before the browser repaints" case, it runs at most once
+per suppression transition, and the rule's suggested shape (`useSyncExternalStore` over a
+`MutationObserver` on `document.body` with `subtree: true`) would re-query five selectors on
+every DOM mutation in an app whose main interaction is dragging things around a canvas.
+
+**LOW-1 — the sentence-budget claim, fixed by making it true and testable.** The log's
+"≤2-sentence budget per pointer" was backed only by a word count, and pointer 2 is three
+sentences by that reading (title + two body sentences). The rule the shipped copy actually obeys
+is per-part, so that is now what is written and what is asserted: `countSentences()` in
+`src/tour/tourSteps.ts`, `TOUR_TITLE_SENTENCE_LIMIT = 1`, `TOUR_BODY_SENTENCE_LIMIT = 2`, plus a
+test that clause separators (`·`, em dashes) are not sentence ends. Measured across the five
+pointers: titles 1/1/1/1/1 sentences, bodies 1/2/1/1/1. No copy changed; the word count is still
+**93 ≤ 95**.
+
+**Measured, this session, on Windows 10 / Node 24:**
+
+| Check | Command | Result |
+|---|---|---|
+| Lint | `npx eslint .` | **exit 0**, 0 problems |
+| Types | `npx tsc -b` | **exit 0**, no output |
+| Unit | `npm test` | **92 files / 1603 tests passed**, exit 0 |
+| — tour | `npx vitest run src/tour/tourSteps.test.ts` · `…/OnboardingTour.test.tsx` | **9** and **21** passed (was 7 and 20) |
+| Harness unit | `npx vitest run scripts/` | **8 files / 179 tests passed** |
+| Coverage | `npm run test:coverage` | **exit 0** — 87.54% stmt · 80.25% branch · 85.66% func · 88.68% line |
+| Build | `npm run build` | **exit 0** |
+| E2E | `npm run e2e` (build + chromium/firefox/webkit) | **672 passed, 3 skipped, 0 failed**, exit 0, 5.0 min |
+
+**The round-trip driver still walks the DOM the fix changed** — the thing worth proving, since
+the tour now mounts its bubble one commit later than it used to:
+
+| Scenario | Driver | Filmstrip | Tour recorded | Gate |
+|---|---|---|---|---|
+| A — Cedar & Stone | `npx playwright test --config playwright.roundtrip.config.ts` → **1 passed (35.9s)** | **21 frames** | `tourPresent: true · tourFirstStep: 1 · tourStepCount: 5` | **37 pass, 1 warn, 0 fail, 0 skip · exit 0** |
+| B — North Star | **1 passed (14.6s)** | **18 frames** | `tourPresent: true · tourFirstStep: 1 · tourStepCount: 5` | **38 pass, 0 warn, 0 fail, 0 skip · exit 0** |
+
+Frame counts are up by one each because the tour's dismissal now screenshots **before** the Skip
+click as well as after (`02-onboarding-tour-before-dismissal.png`) — harness LOW-3, landed in the
+same batch.
+
+**Status: still `awaiting verification`.** The bounce is fixed and the fix is proven by a test
+that failed first, but the criteria are ticked by an independent pass, not by the agent that
+wrote the fix.
 
 ## Open Questions
 1. **Stepped bubbles or all five at once?** Five simultaneous callouts read faster but clutter a

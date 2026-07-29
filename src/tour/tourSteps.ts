@@ -39,6 +39,18 @@ export interface TourStep {
 export const TOUR_WORD_LIMIT = 95
 
 /**
+ * The shape of a pointer, stated so it can be tested rather than asserted in prose:
+ * the title is ONE instruction, the body is at most TWO sentences of detail.
+ *
+ * The feature file used to claim "≤2 short sentences per pointer" while the only
+ * test behind it counted words — and pointer 2 is three sentences by that reading
+ * (title + two body sentences). The rule that the shipped copy actually obeys, and
+ * the one worth keeping, is per-part; `countSentences` below is what enforces it.
+ */
+export const TOUR_TITLE_SENTENCE_LIMIT = 1
+export const TOUR_BODY_SENTENCE_LIMIT = 2
+
+/**
  * Placement is chosen per step to keep the middle of the page clear: the bubble is
  * chrome pointing AT the canvas, and a client must be able to keep working with it
  * open. `right-end` parks step 1 low beside the palette rather than over the spot a
@@ -84,6 +96,15 @@ export const TOUR_STEPS: readonly TourStep[] = [
  */
 export function countWords(text: string): number {
   return text.split(/\s+/).filter((token) => /[a-z0-9]/i.test(token)).length
+}
+
+/**
+ * Sentences, as a reader counts them: runs of text ended by `.`, `!` or `?`, plus
+ * a trailing run with no terminator at all. Interpuncts and em dashes separate
+ * clauses, not sentences, so `Block = … · Site = … · Nav map = ….` is one.
+ */
+export function countSentences(text: string): number {
+  return text.split(/[.!?]+/).filter((part) => /[a-z0-9]/i.test(part)).length
 }
 
 export function tourWordCount(steps: readonly TourStep[] = TOUR_STEPS): number {

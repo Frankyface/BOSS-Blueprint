@@ -225,6 +225,31 @@ describe('one piece of first-run chrome at a time', () => {
     expect(bubble()).toBeInTheDocument()
   })
 
+  it('comes back from Submit with all five pointers, on the step it left', () => {
+    // THE BOUNCE (2026-07-29 review): the live step list used to be computed
+    // during the render where suppression lifts — i.e. while the DOM still held
+    // the Submit view, where `submit` is the only surviving target. The tour
+    // returned as "step 1 of 1" pointing at the header. Reading the DOM after
+    // the commit is the fix, and this is the assertion that keeps it fixed.
+    render(<App />)
+    fireEvent.click(screen.getByTestId('tour-next'))
+    expect(bubble()).toHaveAttribute('data-tour-step', '2')
+    expect(bubble()).toHaveAttribute('data-tour-target', 'canvas')
+
+    act(() => {
+      useSubmitStore.getState().open()
+    })
+    expect(screen.queryByTestId('tour-bubble')).not.toBeInTheDocument()
+
+    act(() => {
+      useSubmitStore.getState().close()
+    })
+
+    expect(bubble()).toHaveAttribute('data-tour-count', String(TOUR_STEPS.length))
+    expect(bubble()).toHaveAttribute('data-tour-step', '2')
+    expect(bubble()).toHaveAttribute('data-tour-target', 'canvas')
+  })
+
   it('stands down entirely while the desktop guard is showing', () => {
     startSmall()
     render(<App />)
