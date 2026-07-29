@@ -8,7 +8,9 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
   The live gauntlet spawns `claude` CLI builder sessions, and the machine's CLI OAuth token
   expired (401; last written 2026-07-02). Fix: open a terminal, run `claude` and complete the
   login (or `/login` inside it). Two-minute interactive step only you can do. Added 2026-07-29.
-  **Blocks: the three gating round-trip runs — the final v1 gate.** Everything else is done.
+  **Blocks: the three gating round-trip runs — the final v1 gate.** Everything else is done —
+  confirmed 2026-07-29: the harness now spawns the CLI correctly on Windows and a real sterile
+  session passes the purity check in 3.8 s, so this is the last thing standing in the way.
 
 - [ ] **Confirm the submit destination address** — the gated submit now ships, and its
   completion screen shows a real address (prefilled `mailto:` + copyable text). It is set to

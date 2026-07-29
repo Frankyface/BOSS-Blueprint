@@ -2,30 +2,33 @@
 _Last updated: 2026-07-29 · Current stage: stage-4-roundtrip-launch_
 
 ## 🎯 Goals
-Finish Stage 4: clear the tour defect, then three clean round-trip runs at the shipped commit
-decide v1. Everything else in the stage is built and live.
+Finish Stage 4: three clean round-trip runs at the shipped commit decide v1. Blocked on ONE
+thing only — Cam re-authenticating the Claude Code CLI (help.md). Everything else is built.
 
 ## 📍 Current State
 - **Stages 1, 2 and 3 CLOSED** — all 5 Stage 3 features `verified done`; the contract is FROZEN
   at v2.4 (`docs/export-format.md`).
 - **Stage 4 build complete, verification mixed:**
   - `feature-desktop-guard.md` — **verified done** (independent review 2026-07-29).
-  - `feature-roundtrip-harness.md` — awaiting verification; review calls the mechanics verified,
-    the gating runs are still to come.
-  - `feature-onboarding-tour.md` — awaiting verification, **BOUNCED by review**: after a Submit
-    round trip the tour returns as "step 1 of 1" targeting `submit` instead of five pointers.
-    Reproduced in all three engines.
+  - `feature-roundtrip-harness.md` — awaiting verification. R4.6 amended to BASELINE STERILITY
+    and implemented (committed version-keyed builtin manifest, asserted on the streaming init);
+    the Windows spawn defect is fixed; an auth failure is now INFRA, never a scored FAIL.
+    A real sterile session now reaches SEG-3 and passes purity. Only the gating runs remain.
+  - `feature-onboarding-tour.md` — awaiting verification. Both bounces are fixed: the Submit
+    round trip restores all five pointers, and T-1 (the help control never moved the keyboard to
+    the bubble) is fixed and proven RED-then-GREEN in chromium, firefox and webkit.
   - `feature-launch-polish.md` — awaiting verification; built, CI green, live, Lighthouse
     99/100/100/100 desktop. Blocked only on the three help.md items and the round-trip runs.
 - **Live at `324b952`**: CI success, `https://frankyface.github.io/BOSS-Blueprint/` → 200, and the
   deployed bundle is that commit (`assets/index-BbozndLp.js`).
-- 1579 unit / 672 E2E green on Windows; CI green on Linux.
+- 1636 unit / 678 E2E green on Windows; CI green on Linux.
 
 ## 📂 Files I'm Working On
-- staging/stage-4-roundtrip-launch/feature-onboarding-tour.md — the bounced defect.
 - staging/stage-4-roundtrip-launch/feature-roundtrip-harness.md — the three gating runs.
+- staging/stage-4-roundtrip-launch/feature-onboarding-tour.md — awaiting an independent pass.
 
 ## ✅ Things I've Changed
+- 2026-07-29: R4.6 baseline-sterility landed, Windows spawn fix, tour T-1 fix.
 - 2026-07-29: launch polish — BOSS branding, favicon set, footer, head/OG/social card, the UX
   audit's polish tail (P1, P2, P4, P5, N4, N7, N9), README refresh, Lighthouse pass.
 - 2026-07-29: submit-gate review follow-ups F1/F2/F3/F7 (its status stays verified done).
@@ -43,7 +46,7 @@ decide v1. Everything else in the stage is built and live.
 - Space E2E runs: back-to-back full runs exhaust this box's ephemeral ports.
 
 ## ➡️ Next Up
-1. Fix the tour's post-Submit regression and re-verify `feature-onboarding-tour.md`.
+1. Cam re-authenticates the CLI (help.md) — the only remaining blocker.
 2. Three clean round-trip runs (A-preview, A-deployed, B-preview) at the shipped commit.
 3. Stage close: launch checklist — the three `help.md` items stay visible as awaiting-Cam.
 

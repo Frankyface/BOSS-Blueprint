@@ -142,11 +142,11 @@ What is new, and what it pins down:
 | `src/tour/tourSteps.test.ts` | 7 | the five targets in reading order; **93 ≤ 95 words**; per-pointer word caps; punctuation is not a word; missing-target **skip + renumber**. _(The row originally read "≤2-sentence budget per pointer" — see the 2026-07-29 bounce-fix entry: that claim was not tested and was false; sentence counting landed with the fix.)_ |
 | `src/tour/tourAnchor.test.ts` | 7 | placement per side; the canvas centre kept clear; 35 placement×edge-target combinations all land inside the viewport; a bubble bigger than the window pins to the margin |
 | `src/store/chromeFlags.test.ts` | 7 | local/session separation; unset ≠ dismissed; storage that throws on read, throws on write, and refuses with a quota error |
-| `src/components/OnboardingTour.test.tsx` | 20 | **one live element per `data-tour` id, all five**; auto-start; flag written on first render; five steps in order ending on "Got it"; `role="note"`, `aria-live`, no `aria-modal`, no focus steal; palette still adds a block with the tour open; Skip / Escape / reload; help control re-opens at step 1 **and** takes focus; suppression order picker → coach → guard → submit, and "hide, don't close" on a mid-tour resize |
+| `src/components/OnboardingTour.test.tsx` | 20 | **one live element per `data-tour` id, all five**; auto-start; flag written on first render; five steps in order ending on "Got it"; `role="note"`, `aria-live`, no `aria-modal`, no focus steal; palette still adds a block with the tour open; Skip / Escape / reload; help control re-opens at step 1 **and** aims focus at the bubble _(T-1: jsdom cannot prove the focus LANDS — the E2E does)_; suppression order picker → coach → guard → submit, and "hide, don't close" on a mid-tour resize |
 | `src/components/BlockPalette.test.tsx` | +1 | the "click a block" sentence now sits **between** the heading and the blocks (N1) |
 
 **E2E — `npx playwright test e2e/onboarding-tour.spec.ts`** (chromium + firefox + webkit) →
-**42 passed (14 × 3), 0 failed**, exit 0. Evidence per How-We'll-Verify item:
+**42 passed (14 × 3), 0 failed**, exit 0 _(now 48 = 16 × 3; see the 2026-07-29 T-1 entry)_. Evidence per How-We'll-Verify item:
 - first visit: picker up → no bubble; blank card → coach up → no bubble; coach dismissed →
   bubble at step 1 of 5 on `palette`. Screenshot attached as `tour-step-1.png`.
 - **non-blocking probe:** with step 1 open, a Heading is added from the palette, double-clicked,
@@ -200,7 +200,7 @@ visible element · pointer-events pass-through re-proved (layer none, bubble aut
 elementFromPoint at canvas centre inside canvas-area; a Heading added, double-clicked, typed
 and COMMITTED in the store with the bubble up; aria-modal 0, inert 0) · Escape, Skip AND Got
 it each persist through reload and a new tab · fresh context re-shows at step 1 · help control
-reopens at step 1, takes focus, flag stays dismissed · ≤95-word claim independently recounted:
+reopens at step 1, takes focus [^t1], flag stays dismissed · ≤95-word claim independently recounted:
 **93** · reduced-motion pair has teeth (reduce → 0s, no-preference → non-zero) · guard
 suppression correct both directions: mid-tour step 3 → 390×844 hides → 1440×900 returns
 **step 3, target pen-tool**.
@@ -241,7 +241,17 @@ One knock-on, caught by the existing suite rather than by inspection: the help c
 "takes the focus with it" test went red, because the bubble is now mounted one commit later than
 `isShowing` flips, so the focus effect ran while `bubbleRef.current` was still `null`. The effect
 now also depends on a `hasBubble` boolean — a boolean and not `step`, deliberately, so pressing
-`Next` cannot yank focus off the `Next` button.
+`Next` cannot yank focus off the `Next` button. [^t1]
+
+[^t1]: **Both "takes focus" claims above were FALSE when written, and are corrected rather than
+    deleted so the record shows what was believed and why it was wrong.** `hasBubble` was
+    necessary but not sufficient: the bubble renders `visibility: hidden` until it is anchored,
+    and `.focus()` on a visibility-hidden element is a no-op in every real engine — so the
+    keyboard never actually reached it. jsdom does not implement that rule, which is why the unit
+    test went green and stayed green while all three browsers disagreed. Found by independent
+    review as **T-1** (2026-07-29) and fixed the same day by additionally gating the effect on
+    the bubble being ANCHORED; the evidence is now `e2e/onboarding-tour.spec.ts` → "moves the
+    keyboard to the bubble", ×3 engines. See the T-1 entry below.
 
 `react-hooks/set-state-in-effect` is disabled for that one line with a stated reason: this is
 React's own documented "measure the DOM before the browser repaints" case, it runs at most once
@@ -319,6 +329,69 @@ bubble being ANCHORED (position !== null) as well as hasBubble, keeping boolean 
 cannot yank focus; (2) assert the behaviour in e2e/onboarding-tour.spec.ts ×3 engines — the
 jsdom test cannot be the evidence; (3) correct the "takes focus" claims in the two log entries
 above by annotation, not deletion.
+
+### 2026-07-29 — T-1 fixed: the help control now moves the keyboard to the bubble, in all three engines
+
+**Reproduced first, in the browsers, and it had to be reproduced in the RIGHT state.** The new
+E2E goes red on the pre-fix build in **chromium, firefox AND webkit** — but only from a page load
+where the tour has never been anchored yet: `openCanvas(page)` (which seeds the "seen" flag, so
+auto-start does not run) → click `tour-help` → the bubble is visible and `toBeFocused()` fails
+with "inactive". Re-opening a tour that already ran once passes either way, because `position`
+still holds the previous opening's point and the bubble is therefore visible the instant it
+mounts. The first draft of this test did exactly that and passed on the broken build — it is
+recorded here because "the test was green" was itself the original defect.
+
+**The fix, exactly as the bounce specified.** The focus effect is now gated *and* keyed on the
+bubble being **anchored** as well as present:
+
+```
+const isAnchored = position !== null
+useEffect(() => {
+  if (!isShowing || !shouldFocus || !hasBubble || !isAnchored) return
+  bubbleRef.current?.focus()
+}, [isShowing, shouldFocus, openCount, hasBubble, isAnchored])
+```
+
+Both new gates are **booleans**, which is the whole reason it is `isAnchored` and not `position`:
+the anchor point changes on every `Next` and on every re-anchor, and depending on it would drag
+focus back to the bubble mid-tour — the exact thing `hasBubble` was made a boolean to prevent.
+
+**Measured, RED then GREEN, ×3 engines:**
+
+| | pre-fix | post-fix |
+|---|---|---|
+| `the help control › moves the keyboard to the bubble` | **3 failed** (chromium, firefox, webkit — bubble "inactive") | **3 passed** |
+| `the help control › but auto-start still never steals it` | 3 passed | 3 passed |
+
+Full suite after: **`npm run e2e` → 678 passed / 3 skipped / 0 failed (5.0 m)**, `npm test`
+**1636 passed / 2 skipped**, lint clean, build exit 0.
+
+**T-2 — the count split, so the next reader can reconcile the totals.** The E2E count moves
+**672 → 678**: +6 = **2 new tests × 3 engines**, and nothing was removed or renamed. The split
+inside `onboarding-tour.spec.ts` is +1 for the T-1 repro ("moves the keyboard to the bubble") and
++1 for its converse ("but auto-start still never steals it"), which is kept as a separate test
+rather than folded in because the two need different page states — seeded-as-seen versus
+tour-allowed — and a single test that reloads between them would hide which half regressed. The
+unit count moves 1607 → 1636 for an unrelated reason (the round-trip harness batch in the same
+commit, `feature-roundtrip-harness.md`); no tour unit test was added or deleted.
+
+**Three engine differences met and worth recording**, because the obvious assertions are all
+wrong in at least one of them: chromium focuses a button it clicks, webkit **blurs to the body**
+on a click, and webkit focuses the nearest focusable ancestor when the button is inside one — so
+"is `tour-next` focused after clicking it?" and "is the bubble unfocused after clicking Next?"
+each pass in two engines and fail in the third, for reasons that have nothing to do with the
+tour. The step is therefore advanced by **keyboard** (`press('Enter')`), where all three agree,
+which is also the interaction the assertion is about.
+
+**The jsdom test is kept and labelled.** `OnboardingTour.test.tsx`'s focus case is renamed to
+"aims the focus at the bubble (see the E2E for whether it lands)" and carries a comment saying
+in as many words that it is **not** the evidence — jsdom does not implement the CSS visibility
+rule, so it cannot fail on this defect. It still pins the wiring (help click → `shouldFocus` →
+the bubble, not some inner button), which is worth keeping.
+
+**Status: unchanged — `awaiting verification`.** The bounce is fixed and the fix failed first in
+three real browsers, but the criteria are ticked by an independent pass, not by the agent that
+wrote the fix.
 
 ## Open Questions
 1. **Stepped bubbles or all five at once?** Five simultaneous callouts read faster but clutter a

@@ -376,6 +376,25 @@ stdout → `builder/transcript.jsonl`. Model **aliases only**, never pinned vers
 Gating runs use the strongest available alias (it must match what Cam actually feeds packages
 to); smoke uses a small fast alias.
 
+**R4.3a Executable resolution** (added 2026-07-29 after live-run attempt 1). The CLI is resolved
+to an **absolute image** before spawning, by probing `PATH` × `PATHEXT` ourselves; the child is
+always spawned with `shell: false`. Neither obvious spelling works on Windows: `spawn('claude')`
+is ENOENT (the bare name is an `sh` shim `CreateProcess` will not run) and `spawn('claude.cmd')`
+is EINVAL (Node refuses `.cmd`/`.bat` without a shell, post CVE-2024-27980) — and `shell: true`
+is the thing that CVE is about, so it stays banned. Directly spawnable images (`.exe`, `.com`)
+win; when the only hit is an npm shim, the shim is **read** (never run) and the `.exe` it
+delegates to is followed. Failure to resolve is INFRA, naming every candidate found. The
+resolved path, and whether it came via PATH or via a shim, go in `run-manifest.json`.
+
+**R4.3b Authentication failure is INFRA, not a product FAIL** (added 2026-07-29). If the
+terminal `result` event names an auth failure (`Failed to authenticate`, `OAuth access token has
+expired`, `Not logged in`, `Invalid API key`, `Please run /login`), the run aborts as
+PRECONDITION in SEG-3. A session that never logged in leaves an empty sandbox, and an empty
+sandbox is indistinguishable at H3 from a builder that ignored the brief — so without this the
+harness scores a dead credential as "FAIL — H3 incomplete build" and writes it to `verdict.txt`.
+The pattern set is deliberately narrow: a builder that RAN and did the job badly stays a product
+verdict.
+
 **R4.4 Timeouts:** builder segment 45 min; orchestrator hard-stops any segment at 60 min. Breach
 = INFRA fail, not product FAIL.
 
@@ -383,10 +402,28 @@ to); smoke uses a small fast alias.
 `--dangerously-skip-permissions` and the settings object has no `bypassPermissions` /
 `acceptEdits` default. Unit-tested against a mutated-argv fixture.
 
-**R4.6 Session-purity assertion.** Parse the `system`/`init` event and assert: zero MCP servers,
-zero loaded plugins/skills/agents, and no project-memory files listed. Any of these non-empty →
-PRECONDITION abort. This is the assertion that actually proves "zero context"; the config-dir
-mechanics are just how it is achieved.
+**R4.6 Session-purity assertion — BASELINE STERILITY** (amended 2026-07-29, `docs/decisions.md`;
+the original "these arrays must be empty" wording is unsatisfiable on a CLI that ships built-ins
+inside its binary). Parse the `system`/`init` event **as it streams**, before any builder budget
+is spent, and assert:
+
+- zero MCP servers and zero plugins — those are pure config, so any at all is a leak;
+- `agents`, `skills` and `slash_commands` are **set-equal** to the committed, version-keyed
+  `builtin-manifest.json` entry for the version the session reported. An **extra** entry is a
+  LEAK and the abort names it; a **missing** builtin means this is not the pinned CLI, which is a
+  **version mismatch**. Both abort as PRECONDITION; they are reported differently because they
+  need different fixes;
+- the reported `claude_code_version` has a manifest entry at all;
+- every memory path the CLI lists resolves **inside this run's own `claude-home/`**. The field is
+  `memory_paths` on 2.1.190; the older `project_memory` / `memory_files` / `claude_md_files`
+  spellings are still checked when present, and an init that emits the manifest's named memory
+  field **not at all** is a mismatch rather than a vacuous pass.
+
+The assertion fires on the streaming init and **kills the child** on failure; a post-session
+re-check covers an init that never arrived. The mock builder emits the same realistic init, so
+`--mock-builder` exercises the real predicate rather than agreeing with itself.
+`builtin-manifest.json` is hashed as a rule file (R9.3): relaxing the baseline mid-run is the
+cheapest possible way to fake sterility.
 
 ---
 
@@ -516,9 +553,9 @@ rendered box). This is the input for the deterministic order and placement check
 
 **R7.1 Isolation.** A separate fresh `claude -p` session with the same R3 mechanics and its **own
 sandbox** (`<runDir>/eval/sandbox/`), never the builder's. **"The same R3 mechanics" includes
-R4.6:** the evaluator's `system`/`init` event is parsed and asserted pure (zero MCP servers,
-plugins, skills, agents, project memory) exactly as the builder's is, and a failure aborts as
-PRECONDITION. `run-manifest.json` records the evaluator's sterile-dir listing, auth method,
+R4.6:** the evaluator's `system`/`init` event is parsed and asserted **baseline-sterile** against
+the same committed manifest, on the same streaming path, by the same one function — exactly as
+the builder's is, and a failure aborts as PRECONDITION. `run-manifest.json` records the evaluator's sterile-dir listing, auth method,
 dropped env, exit code, elapsed time and resolved model per attempt, in parallel with the
 builder's — a verdict produced by a contaminated evaluator is worth no more than one produced by
 a contaminated builder, and until 2026-07-29 only the builder's was proven.
@@ -1091,6 +1128,100 @@ knowing for the next operator: **the round trip needs sole use of port 4173 for 
 rubric was edited; the rule-file hashes are identical at start and end of all three runs
 (`invalid: false`, `ruleDrift: []`). **Status stays `awaiting verification`.** The live legs
 resume when Blocker A is cleared by Cam and Blocker B is ruled.
+
+### 2026-07-29 — Blocker B RULED and implemented; the Windows spawn defect fixed; Blocker A still Cam's
+
+**Status unchanged: `awaiting verification`.** Nothing here is a product verdict and no Success
+Criterion is ticked. What changed is that the two harness defects which made a gating run
+*impossible* are gone, and the third — the dead credential — now fails honestly instead of
+being scored.
+
+**How the builtin manifest was captured.** Not by hand and not from the docs: by running the
+harness's own sterile-session path — `createSterileConfigDir` (settings.json + exactly one
+credential, R3.3/R3.4) → `scrubEnvironment` (R3.7) → `runSession` — against a sandbox with a
+clean ancestor chain, and reading the sets straight off the streamed `system`/`init` event.
+**The CLI's OAuth token is expired and the init still arrives before the 401** — verified: the
+transcript is `init → api_retry → api_retry → assistant → result("…401 OAuth access token has
+expired…")`, and the init it carries is byte-for-byte the same shape as the one live-run attempt
+3 recorded in `C:\bp-runs\2026-07-29T10-56-34-241Z_B_52fecbe`. So the manifest is measured from a
+live run of the pinned binary, not reconstructed from a transcript.
+
+**Measured while capturing it, and worth knowing: the builtin set is not a constant of the
+binary — it moves with things the harness already pins.** Same machine, same 2.1.190, same hour:
+
+| Conditions | plugins | agents | skills | slash_commands |
+|---|---|---|---|---|
+| sterile dir + one credential + scrubbed env — **what a run does** | 0 | **5** | **14** | **27** |
+| sterile dir + NO credential + scrubbed env | 0 | 5 | 13 | 26 |
+| sterile dir + NO credential + inherited env | 0 | 6 | 13 | 26 |
+
+`schedule` is entitlement-gated (it needs a credential to resolve) and `claude-code-guide` rides
+in on an inherited `CLAUDE_*` variable. R3.4 guarantees exactly one credential or aborts, and
+R3.7 always scrubs, so a harness run only ever sees row 1 — and a run that somehow sees another
+one **should** abort, which is precisely what the version-mismatch branch does. The manifest
+records this sensitivity in its own header so the next person to re-capture knows what to hold
+fixed.
+
+**What landed**
+
+| # | Change | Where |
+|---|---|---|
+| 1 | **R4.6 amended to baseline sterility**, per the decisions entry: plugins/MCP zero; agents/skills/slash_commands set-equal to the committed manifest; extra = LEAK (named), missing = VERSION MISMATCH; version must have a manifest entry; memory paths must resolve inside the run's own `claude-home` | `builtin-manifest.json` + `builtin-manifest.mjs` + `claude-session.mjs` |
+| 2 | **The assertion fires on the STREAMING init** and kills the child — `runSession` gained an `onInit` hook fed by a line-splitter on stdout, so an impure session dies in seconds instead of after a full builder budget (finding 3) | `claude-session.mjs`, `run.mjs` |
+| 3 | **The memory check reads `memory_paths`**, the field 2.1.190 actually emits, with the three old spellings kept as also-checked-if-present — and it can no longer pass vacuously: the manifest names the field the pinned version emits, and an init without it is a mismatch (finding 2) | `claude-session.mjs` |
+| 4 | **The mock builder emits a REALISTIC init** — the manifest's own sets, not empty arrays — so `--mock-builder` exercises the real predicate. This closes the mask that let the unsatisfiable predicate through review | `run.mjs` |
+| 5 | **Windows spawn fixed** (finding 1): PATH × PATHEXT probe, `.exe`/`.com` preferred, npm shim **read** (never run) to follow the `.exe` it delegates to, absolute path spawned with `shell: false`. No `shell: true` anywhere — that is the CVE this works around, not a workaround to use | `lib/resolve-command.mjs`, `run.mjs` (R4.3a) |
+| 6 | **An auth failure is now INFRA** (R4.3b). Found by fixing the above: once purity stopped aborting first, the expired credential reached SEG-4 as an empty sandbox and was scored `FAIL — H3 incomplete build` — a real, measured instance of the harness reporting an environment failure as a product one (`C:\bp-runs\2026-07-29T11-49-45-751Z_B_ff69834`, verdict written; **not a product verdict, disregard it**) | `claude-session.mjs`, `run.mjs` |
+| 7 | `builtin-manifest.json` added to `RULE_FILES` — the baseline is hashed at run start and end like every other rule | `thresholds.mjs` |
+
+**Evidence**
+
+- **A real sterile session now runs and passes the amended predicate.**
+  `ROUNDTRIP_RUNS_DIR=C:\bp-runs npm run roundtrip:smoke` →
+  SEG-1 19.1 s ok · SEG-2 0.5 s ok · **SEG-3 3.8 s ok** (was: ENOENT in 29 ms), with
+  `builder.command = {path: …\@anthropic-ai\claude-code\bin\claude.exe, via: "shim", shim: …\claude.cmd}`
+  and `builder.purity = {ok: true, kind: null, cliVersion: "2.1.190", baseline: "2.1.190",
+  problems: []}`. `credentialScrubbed: true`, `ruleDrift: []`, and the rule hashes now list
+  **seven** files (six + `scenario-B.json`).
+- **The same run after R4.3b landed** aborts as
+  `PRECONDITION: the builder session could not authenticate — nothing was built, so there is
+  nothing to score`, writes **no** `verdict.txt`, and is invisible to `ship-gate.mjs`
+  (`C:\bp-runs\2026-07-29T11-52-31-549Z_B_ff69834`, 0.37 min).
+- **Mock pipeline re-run end to end** (`--mock-builder`, zero tokens) → **SMOKE-FAIL 30.81,
+  exit 1** — the same shape to the decimal, with **H1–H8 all PASS**, and the purity check now
+  genuinely exercised: the mock init carries 0 plugins / 5 agents / 14 skills / 27 commands and
+  `builder.purity.ok: true` against baseline `2.1.190`. Segments SEG-1 17.9 s · SEG-2 0.5 s ·
+  SEG-3 0.01 s · SEG-4 0.00 s · SEG-5 2.9 s; `cached: true`, `invalid: false`, `ruleDrift: []`,
+  `smokeBudgetBreached: false`, `elapsedMin: 0.37`.
+- **The leak proof.** Feeding the real emitter a planted non-builtin skill aborts:
+  `mockBuilderEvents({ extra: { skills: [...builtins, 'supabase'] } })` →
+  `{ok: false, kind: "leak", problems: ["non-builtin skills leaked in: supabase"]}`. Pinned as a
+  unit test that uses the production emitter, so it cannot drift from what the mock actually
+  writes.
+- **The fail-fast proof.** A real child process that emits a leaking init and then would sit for
+  a minute is killed in well under half that, and the impure transcript survives the abort
+  (`sandbox.test.mjs`, "kills the child instead of waiting for the session to finish").
+- **Suites:** `npm run lint` clean · `npm test` **93 files / 1636 passed, 2 skipped** ·
+  `npx vitest run scripts/` **208 passed, 2 skipped** (was 179; +29 = the rewritten R4.6 suite,
+  the resolver's fixture-PATH suite, the streaming and auth-guard proofs — the 2 skips are the
+  POSIX resolver cases, which only a POSIX box can build a `:`-separated PATH for, and they run
+  on the ubuntu CI runner) · coverage exit 0 · build exit 0 · gate self-test **45/45** ·
+  schema check OK.
+- **Driver dry-runs, both green, both gates exit 0:** A — 1 passed (36.3 s), 21 steps, filler
+  WARN shown with exactly one item, **37 pass / 1 warn / 0 fail / 0 skip**, `M04` 33 blocks
+  within ±24 px. B — 1 passed (14.3 s), 18 steps, `fillerWarn.shown: false`, **38 pass / 0 warn /
+  0 fail / 0 skip**, `M04` 11 blocks.
+
+**Blocker A is unchanged and is still Cam's alone:** the CLI's OAuth token is expired
+machine-wide (`.credentials.json` last written 2026-07-02), re-authenticating is an interactive
+flow, and R3.4 copies a dead credential faithfully. The three gating runs resume the moment it is
+cleared — every mechanical obstacle in front of them is now gone.
+
+**Nothing was weakened.** No threshold, scan rule, scenario, prompt or rubric was edited. The one
+Success Criterion touched is R4.6's, amended by the ruling recorded in `docs/decisions.md` on the
+grounds that the old predicate was impossible rather than merely strict — and the new one is
+strictly harder in practice: the old one never passed a real transcript, this one passes exactly
+one configuration and names anything else.
 
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 

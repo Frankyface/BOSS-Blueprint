@@ -61,6 +61,7 @@ Requires Node 24+.
 
 ```bash
 npm ci                  # install
+npm ci --prefix scripts/roundtrip   # the round-trip gate's OWN lockfile — needed before `npm run e2e`
 npm run dev             # http://localhost:5173/BOSS-Blueprint/
 npm test                # unit tests (vitest)
 npm run test:coverage   # …with the per-layer coverage gates
@@ -68,6 +69,10 @@ npm run lint            # eslint, type-aware
 npm run build           # production build into dist/
 npm run e2e             # builds, then Playwright across chromium + firefox + webkit
 ```
+
+The second install is not optional and not obvious: `e2e/submit.spec.ts` shells out to
+`scripts/roundtrip/gate.mjs`, which imports no app code on purpose and so carries its own
+dependencies. Skip it and the E2E run fails on `ERR_MODULE_NOT_FOUND: adm-zip`.
 
 The E2E suite always runs against the **production build** served by `vite preview`, so every run
 also proves the `/BOSS-Blueprint/` base path is right.
