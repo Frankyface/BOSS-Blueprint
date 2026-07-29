@@ -1945,6 +1945,133 @@ the gate. **The three runs themselves need no repeating unless the ruling change
 they are green, at one sha, with every hash recorded.
 
 
+### 2026-07-29 — LIVE RUN COMPLETE: three PASSes at one sha, SHIP GATE PASSED
+
+**The round-trip criterion is met.** Four runs at HEAD `f016d82`, clean tree throughout, all
+passing; the ship gate accepts the set at exit 0. The gate itself needed one correction first — an
+impossibility in R9.4, ruled and recorded — and the three runs did **not** need repeating, because
+the correction touched no rule file and their recorded hashes were already internally consistent.
+
+**Status stays `awaiting verification`** pending the final review pass. Nothing here ticks a
+Success Criterion on its own.
+
+#### Verdict lines
+
+| # | Run | Run dir (`C:\bp-runs\…`) | Verdict | Elapsed |
+|---|---|---|---|---|
+| 1 | smoke (B, preview) | `2026-07-29T17-28-32-793Z_B_f016d82` | **SMOKE-PASS 45.33** | **4.18 min** |
+| 2 | A, preview | `2026-07-29T17-33-12-658Z_A_f016d82` | **PASS 96.36** | **13.80 min** |
+| 3 | A, deployed | `2026-07-29T17-47-28-781Z_A_f016d82` | **PASS 96.04** | **11.18 min** |
+| 4 | B, preview | `2026-07-29T17-59-04-247Z_B_f016d82` | **PASS 92.00** | **8.81 min** |
+| 5 | ship gate | — | **PASSED**, exit 0 | — |
+
+#### Hard gates — 24 of 24 PASS
+
+| Run | H1 | H2 | H3 | H4 | H5 | H6 | H7 | H8 |
+|---|---|---|---|---|---|---|---|---|
+| A/preview | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| A/deployed | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| B/preview | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+
+The smoke also carried all eight.
+
+#### Score table — every floor met, in all three
+
+| Dim | A/preview | A/deployed | B/preview | Max | Floor |
+|---|---|---|---|---|---|
+| S1 | 23.9 | 23.5 | 23.3 | 25 | met |
+| S2 | 20.0 | 20.0 | 20.0 | 20 | met |
+| S3 | 15.0 | 15.0 | 15.0 | 15 | met |
+| S4 | 15.0 | 15.0 | 15.0 | 15 | met |
+| S5 | 15.0 | 15.0 | 13.7 | 15 | met |
+| S6 | 7.5 | 7.5 | 5.0 | 10 | met |
+| **Total** | **96.36** | **96.04** | **92.00** | 100 | pass ≥ 85 |
+
+#### Segment timings
+
+| Run | SEG-1 | SEG-2 | SEG-3 | SEG-4 | SEG-5 | SEG-6-eval |
+|---|---|---|---|---|---|---|
+| smoke | 25.4 s | 0.9 s | 220.1 s | 0.0 s | 3.5 s | — |
+| A/preview | 65.4 s | 1.2 s | 557.6 s | 0.0 s | 4.6 s | 197.2 s |
+| A/deployed | 53.2 s | 1.0 s | 431.4 s | 0.0 s | 4.4 s | 166.5 s |
+| B/preview | 23.8 s | 0.7 s | 378.7 s | 0.0 s | 3.3 s | 121.2 s |
+
+#### Ship gate output, verbatim
+
+```
+PASS 92        B/preview  f016d82  2026-07-29T17-59-04-247Z_B_f016d82
+PASS 96.04     A/deployed  f016d82  2026-07-29T17-47-28-781Z_A_f016d82
+PASS 96.36     A/preview  f016d82  2026-07-29T17-33-12-658Z_A_f016d82
+
+SHIP GATE PASSED — three clean runs, one commit, no rule drift, no cached segments
+```
+
+#### Integrity, measured rather than asserted
+
+| property | result |
+|---|---|
+| `invalid` / `cached` | **false / false**, all four runs |
+| rule hashes identical at run start **and** end | **true**, all four runs |
+| six shared rule files identical across all three scored runs | **true** |
+| `scenario-A.json` identical across both A legs | **true** (`2bcff721…`) |
+| every run's scenario hash == the file committed at `f016d82` | **true** (checked via `git show`) |
+| single sha across the set | **`f016d82`** |
+| worktree clean recorded per run | **true** |
+| builder purity (CLI 2.1.220 vs the 2.1.220 baseline) | **ok**, all four |
+| `credentialScrubbed` | **true**, all four |
+| deployed-bundle freshness (leg 3) | **ok** — local `index-CQhEMnMO.js` == deployed |
+| builder model | `claude-opus-5` on all three scored legs; haiku on the smoke |
+
+**`SMOKE_BUDGET_MIN` is validated end-to-end**: 4.18 min against a 12-minute budget, every segment
+run, `smokeBudgetBreached: false`. Earlier entries could only record it as a floor.
+
+#### What this run cost in rulings, and what each one bought
+
+Five defects were found, and **every one was in the harness — none in the product.** Each was ruled
+before it was touched; none weakened a threshold:
+
+1. **CLI 2.1.220 had no builtin-manifest baseline** → manifest extended from a sterile capture after
+   a by-name delta review; block-on-unknown kept. Unblocked SEG-3 for the first time.
+2. **H3 looked for `BUILD_NOTES.md` at the sandbox root** while the brief says "the root of your
+   build" and the prompt puts the build in `./site/` → gate corrected to the build root, with a
+   named hint for the misplacement. Two independent builders had resolved it the same way.
+3. **S4 normalised against the max-of-image-bottoms**, making the top third provably unreachable
+   with one image per page → real `documentHeight` recorded in the digest, both ratios like-for-like,
+   thirds within ±1 (Option C). The first prescription for this was measured and disproved before
+   being implemented.
+4. **S3 costed a heading frame with body-text metrics**, putting the band floor above what a
+   one-line heading can hold → estimator made block-type-aware from the app's own typography tokens.
+5. **The ship gate demanded cross-scenario file equality** in a set R9.4 requires to span two
+   scenarios → corrected to shared-across-all + per-scenario + committed-hash anchoring.
+
+Plus one INFRA fix: `run.mjs` imported `site.config.ts` by filesystem path, and ESM `import()` takes
+a URL — on Windows an absolute path parses as protocol `c:`, which aborted the deployed leg in 12 s.
+That is why four earlier attempts never reached it.
+
+**Two of these — S4's top third and the ship gate's cross-scenario demand — were provably
+unsatisfiable**, in the same class as R4.6's original "these arrays must be empty". Each had a test
+suite that stayed green because its fixture did not model the real shape (the ship-gate fixture
+carried no scenario hash at all). Those fixtures now model reality.
+
+#### Parked, deliberately
+
+**BUILD_NOTES triage reports FRICTION** on scenario A (121 entries in the near-miss run, 1
+package-defect candidate that was the builder correctly noticing client text contradicted the About
+copy). **Permission denials** continue to appear and continue to route harness-side under R5.6
+rather than being scored against the product. Neither affected any verdict; both are for the
+post-gauntlet review.
+
+#### Evidence
+
+`staging/stage-4-roundtrip-launch/evidence/2026-07-29-gauntlet-f016d82-THREE-PASS/`
+
+- `A-preview/`, `A-deployed/`, `B-preview/` — each with `report.md`, `verdict.txt`,
+  `run-manifest.json`, and R9.2's two sketch/shot pairs under `pairs/`
+- `shipgate-output.txt` — the passing gate, verbatim
+- `shipgate-output-BEFORE-correction.txt` — the failure that exposed the R9.4 impossibility, kept
+  deliberately: it is the evidence the correction was a correction and not a convenience
+
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.

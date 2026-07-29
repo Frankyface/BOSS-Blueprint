@@ -1,3 +1,4 @@
+
 > boss-blueprint@0.1.0 roundtrip:shipgate
 > node scripts/roundtrip/ship-gate.mjs
 
@@ -5,4 +6,7 @@ PASS 92        B/preview  f016d82  2026-07-29T17-59-04-247Z_B_f016d82
 PASS 96.04     A/deployed  f016d82  2026-07-29T17-47-28-781Z_A_f016d82
 PASS 96.36     A/preview  f016d82  2026-07-29T17-33-12-658Z_A_f016d82
 
-SHIP GATE PASSED — three clean runs, one commit, no rule drift, no cached segments
+  ✗ 2026-07-29T17-47-28-781Z_A_f016d82: scenario-B.json differs from the first run's copy
+  ✗ 2026-07-29T17-33-12-658Z_A_f016d82: scenario-B.json differs from the first run's copy
+
+SHIP GATE FAILED
