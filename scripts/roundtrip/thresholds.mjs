@@ -31,6 +31,19 @@ export const S3_MIN_ITEM_SCORE = 1;
 export const S4_FLOOR = 0.8;
 
 /**
+ * S4 · how many vertical thirds a rendered image may sit away from its sketched third
+ * before the placement counts as wrong (Option C, docs/decisions.md 2026-07-29).
+ *
+ * The two surfaces are structurally different: `page.height` is a FIXED 1200×1600 sketch
+ * canvas that a sparse scenario leaves mostly empty, while the built page is content-sized
+ * and legitimately carries a nav, a footer and page furniture the brief permits. Measured
+ * on real captures, exact-third equality failed images that were placed correctly, so the
+ * comparison is like-for-like but bucketed with one third of slack. Two thirds away — a
+ * top-sketched image built at the bottom — still fails, which is the signal worth keeping.
+ */
+export const S4_THIRD_TOLERANCE = 1;
+
+/**
  * R8.2 S3 · the length rule — "within `lengthHint`, or 0.3–3× the frame estimate".
  *
  * The band is wide on purpose: this is a SANITY check ("did the builder write a

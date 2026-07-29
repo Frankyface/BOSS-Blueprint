@@ -491,3 +491,42 @@ triage parsing 81 entries. `npx vitest run scripts/` green, 231 passed · **Revi
 builder writes `BUILD_NOTES.md` somewhere other than the build root — with the instruction now
 consistent between brief, prompt and gate, that is a genuine H3 incomplete build and routes to the
 product, not to another harness edit.
+
+## 2026-07-29 — S4 vertical placement: thirds with ±1 tolerance (Option C)
+**Chose:** like-for-like normalisation — **both** sides are a centre divided by the height of the
+surface it sits on (sketch image centre ÷ `page.height`; rendered image centre ÷ the digest's real
+`documentHeight`, recorded by SEG-5 as of `c8c1540`) — bucketed into thirds, with a placement
+matching iff `|sketchThird − renderThird| ≤ S4_THIRD_TOLERANCE` (= 1). Horizontal half stays
+**exact**. The old max-of-image-bottoms denominator is gone for good; the fallback for pre-`c8c1540`
+digests is the tallest element's bottom, never that proxy · **Because:** two bugs sat on top of each
+other and only real runs separated them. (1) The denominator was the bottom edge of the lowest
+image, which made the top third *provably* unreachable with one image per page — `third = 0` needs
+`(y + h/2)/(y + h) < 1/3` ⟺ `2y < −0.5h`, impossible for `y, h ≥ 0`. (2) Fixing the denominator was
+**not sufficient**, and this was measured rather than argued: `page.height` is a FIXED 1200×1600
+sketch canvas that a sparse scenario leaves mostly empty (Scenario B's content ends near y≈450–500),
+while the built page is content-sized (measured `documentHeight`: home **990**, contact **948**,
+pricing **900**, viewport-floored at 900) and legitimately carries a nav, a footer and page
+furniture the brief explicitly permits. So the sketch normalises to 0.180 / 0.190 (top third) while
+the correct build normalises to 0.369 / 0.363 (middle third) — **exact-third equality punishes
+builds that are right**. Four candidates were run against the real capture: **A** (the first
+written ruling: sketch ÷ 1600 vs render ÷ documentHeight, exact) failed BOTH images; **B** (both
+sides ÷ their own content extent) matched home but failed contact 2 → 1, because added nav/footer
+correctly shift relative position; **C** matched both; **D** (drop vertical entirely) matched both
+but surrenders the signal. C keeps the gross-misplacement signal that D throws away — a
+top-sketched image built at the bottom is two thirds out and still fails · **Rejected:** A (proven
+false on real data — it cannot satisfy its own regression assertion), B (relative position legitimately
+shifts when the builder adds permitted furniture), D (no vertical signal at all; a page could stack
+its images anywhere) · **Also recorded, no change now:** **run-to-run S1 variance of 25.0 → 22.1
+across two adjacent same-scenario runs** (`2c50622` → `c8c1540`, total 32 → 29.14). Builder output
+is not deterministic, so any future threshold discussion must treat a single run as a sample, not a
+measurement — this is exactly the trap of tuning a floor to one green run · **Verification:** 18
+tests in `evaluate-s4.test.mjs`, including the old impossibility now reachable (`y=0, h=200,
+docHeight=600` → top third), exact matches, one-third-out matching, **two-thirds-out still
+failing**, a hairline either side of the 0.333 boundary not flipping the verdict, wrong-half still
+failing, empty-slot alt-text requirement, no-image-at-all failing rather than passing vacuously,
+and multi-image pages. Plus the regression replay the ruling asked for: **the committed `c8c1540`
+capture — the very run that scored S4 = 0 — now scores both images as placed with
+`fraction = 1, floorMet = true`**, and a variant with those same images sunk to the foot of the
+document still fails. `npx vitest run scripts/` green, 249 passed · **Revisit if:** the tolerance
+ever passes a placement a human judge calls wrong — tighten it with that evidence in hand, not
+speculatively.

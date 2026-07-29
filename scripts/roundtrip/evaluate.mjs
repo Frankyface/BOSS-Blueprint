@@ -21,6 +21,7 @@ import {
   S3_LENGTH_MIN_RATIO,
   S3_SENTENCE_HINT_TOLERANCE,
   S4_FLOOR,
+  S4_THIRD_TOLERANCE,
   SCORE_WEIGHTS,
   S5_DET_POINTS,
 } from './thresholds.mjs';
@@ -475,7 +476,43 @@ export function checkCopyLength({ written, lengthHint, frame }) {
   return { ok: measured >= min && measured <= max, rule: 'frame estimate', unit: 'characters', measured, min, max, estimate };
 }
 
-function scoreImagePlacement(site, digests) {
+/** Vertical bucket of a centre within its surface: 0 = top third, 1 = middle, 2 = bottom. */
+export function verticalThird(centre, surfaceHeight) {
+  const height = surfaceHeight > 0 ? surfaceHeight : 1;
+  return Math.min(2, Math.max(0, Math.floor((centre / height) * 3)));
+}
+
+/** Which half of the 1200 px sketch width a centre falls in. 0 = left, 1 = right. */
+function horizontalHalf(x, w) {
+  return x + w / 2 < 600 ? 0 : 1;
+}
+
+/**
+ * The rendered surface a placement is measured against — the page's REAL document height.
+ *
+ * `documentHeight` is recorded by SEG-5's digest. The fallback is the tallest element's
+ * bottom, for digests captured before that field existed; it is deliberately NOT the
+ * max-of-image-bottoms proxy this replaced, which made the top third unreachable for any
+ * page rendering a single image (docs/decisions.md, 2026-07-29).
+ */
+export function renderedSurfaceHeight(digest) {
+  const recorded = digest?.documentHeight ?? 0;
+  if (recorded > 0) return recorded;
+  const nodes = digest?.nodes ?? [];
+  const bottom = nodes.length === 0 ? 0 : Math.max(...nodes.map((n) => n.box.y + n.box.h));
+  return bottom > 0 ? bottom : 1;
+}
+
+/**
+ * S4 · did each image land where the sketch put it?
+ *
+ * Both sides are normalised the SAME way — a centre divided by the height of the surface it
+ * sits on — then bucketed into thirds, and a placement matches when the buckets are within
+ * `S4_THIRD_TOLERANCE`. The tolerance exists because the surfaces differ structurally, not
+ * to be lenient: a gross misplacement (top-sketched, bottom-built) is two thirds away and
+ * still fails. Horizontal half is exact.
+ */
+export function scoreImagePlacement(site, digests) {
   const items = [];
   for (const sitePage of site.pages ?? []) {
     const digest = digests.get(sitePage.slug);
@@ -483,13 +520,16 @@ function scoreImagePlacement(site, digests) {
     for (const block of sitePage.blocks ?? []) {
       if (block.type !== 'imageSlot') continue;
       const images = digest?.images ?? [];
-      const wantThird = Math.floor((block.frame.y / pageHeight) * 3);
-      const wantHalf = block.frame.x + block.frame.w / 2 < 600 ? 0 : 1;
-      const docHeight = Math.max(1, ...images.map((i) => i.box.y + i.box.h));
+      const wantThird = verticalThird(block.frame.y + block.frame.h / 2, pageHeight);
+      const wantHalf = horizontalHalf(block.frame.x, block.frame.w);
+      const docHeight = renderedSurfaceHeight(digest);
+      let bestDelta = null;
       const hit = images.find((img) => {
-        const third = Math.floor(((img.box.y + img.box.h / 2) / docHeight) * 3);
-        const half = img.box.x + img.box.w / 2 < 600 ? 0 : 1;
-        return third === wantThird && half === wantHalf;
+        const third = verticalThird(img.box.y + img.box.h / 2, docHeight);
+        const half = horizontalHalf(img.box.x, img.box.w);
+        const delta = Math.abs(third - wantThird);
+        if (half === wantHalf && (bestDelta === null || delta < bestDelta)) bestDelta = delta;
+        return half === wantHalf && delta <= S4_THIRD_TOLERANCE;
       });
       const emptySlotOk =
         block.assetId === null
@@ -499,6 +539,10 @@ function scoreImagePlacement(site, digests) {
         page: sitePage.slug,
         blockId: block.id,
         empty: block.assetId === null,
+        wantThird,
+        wantHalf,
+        docHeight,
+        thirdDelta: bestDelta,
         ok: Boolean(hit) && emptySlotOk,
       });
     }

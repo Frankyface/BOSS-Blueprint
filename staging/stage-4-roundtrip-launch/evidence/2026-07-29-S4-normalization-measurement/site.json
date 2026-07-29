@@ -1,0 +1,371 @@
+{
+  "schemaVersion": 1,
+  "submission": {
+    "id": "9f175151-dff0-486e-8cfc-2e506ebf5919",
+    "submittedAt": "2026-07-29T16:22:47.466Z",
+    "designCreatedAt": null,
+    "client": {
+      "name": "Sam Okonkwo",
+      "email": "sam@northstardoggrooming.ca"
+    },
+    "appVersion": "0.1.0"
+  },
+  "siteSettings": {
+    "businessName": "North Star Dog Grooming",
+    "tagline": null,
+    "about": "A one-groomer shop on the north side of town. Baths, tidy-ups and full breed cuts, one dog at a time so nobody waits in a crate.",
+    "vibe": "playful",
+    "styleNotes": null,
+    "colors": [
+      "#3b6fb5"
+    ]
+  },
+  "pages": [
+    {
+      "id": "pg_0001",
+      "name": "Home",
+      "slug": "home",
+      "height": 1600,
+      "screenshot": "pages/01-home.png",
+      "blocks": [
+        {
+          "id": "blk_0001",
+          "type": "navBar",
+          "z": 0,
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "w": 1200,
+            "h": 72
+          },
+          "items": [
+            {
+              "id": "nav_0001",
+              "label": "Home",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0001"
+              }
+            },
+            {
+              "id": "nav_0002",
+              "label": "Pricing",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0002"
+              }
+            },
+            {
+              "id": "nav_0003",
+              "label": "Contact",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0003"
+              }
+            }
+          ]
+        },
+        {
+          "id": "blk_0002",
+          "type": "heading",
+          "z": 1,
+          "frame": {
+            "x": 80,
+            "y": 128,
+            "w": 640,
+            "h": 72
+          },
+          "copyMode": "real",
+          "text": "Grooming that dogs actually enjoy",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "id": "blk_0003",
+          "type": "text",
+          "z": 2,
+          "frame": {
+            "x": 80,
+            "y": 240,
+            "w": 480,
+            "h": 160
+          },
+          "copyMode": "generate",
+          "text": "",
+          "generateDescription": "Two warm sentences introducing a small one-groomer dog grooming shop that takes one dog at a time",
+          "lengthHint": "~2 sentences"
+        },
+        {
+          "id": "blk_0004",
+          "type": "imageSlot",
+          "z": 3,
+          "frame": {
+            "x": 624,
+            "y": 128,
+            "w": 496,
+            "h": 320
+          },
+          "assetId": "img_001",
+          "fit": "cover",
+          "description": "A freshly groomed terrier on the grooming table"
+        },
+        {
+          "id": "blk_0005",
+          "type": "button",
+          "z": 4,
+          "frame": {
+            "x": 80,
+            "y": 448,
+            "w": 264,
+            "h": 56
+          },
+          "label": "See our prices",
+          "link": {
+            "kind": "page",
+            "pageId": "pg_0002"
+          }
+        }
+      ],
+      "penStrokes": []
+    },
+    {
+      "id": "pg_0002",
+      "name": "Pricing",
+      "slug": "pricing",
+      "height": 1600,
+      "screenshot": "pages/02-pricing.png",
+      "blocks": [
+        {
+          "id": "blk_0006",
+          "type": "navBar",
+          "z": 0,
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "w": 1200,
+            "h": 72
+          },
+          "items": [
+            {
+              "id": "nav_0004",
+              "label": "Home",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0001"
+              }
+            },
+            {
+              "id": "nav_0005",
+              "label": "Pricing",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0002"
+              }
+            },
+            {
+              "id": "nav_0006",
+              "label": "Contact",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0003"
+              }
+            }
+          ]
+        },
+        {
+          "id": "blk_0007",
+          "type": "text",
+          "z": 1,
+          "frame": {
+            "x": 80,
+            "y": 128,
+            "w": 640,
+            "h": 240
+          },
+          "copyMode": "real",
+          "text": "Bath and brush from $45. Tidy-up from $60. Full breed cut from $85. Nails and ears on their own, $15.",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "id": "blk_0008",
+          "type": "button",
+          "z": 2,
+          "frame": {
+            "x": 80,
+            "y": 408,
+            "w": 264,
+            "h": 56
+          },
+          "label": "Book a spot",
+          "link": {
+            "kind": "page",
+            "pageId": "pg_0003"
+          }
+        }
+      ],
+      "penStrokes": []
+    },
+    {
+      "id": "pg_0003",
+      "name": "Contact",
+      "slug": "contact",
+      "height": 1600,
+      "screenshot": "pages/03-contact.png",
+      "blocks": [
+        {
+          "id": "blk_0009",
+          "type": "navBar",
+          "z": 0,
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "w": 1200,
+            "h": 72
+          },
+          "items": [
+            {
+              "id": "nav_0007",
+              "label": "Home",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0001"
+              }
+            },
+            {
+              "id": "nav_0008",
+              "label": "Pricing",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0002"
+              }
+            },
+            {
+              "id": "nav_0009",
+              "label": "Contact",
+              "link": {
+                "kind": "page",
+                "pageId": "pg_0003"
+              }
+            }
+          ]
+        },
+        {
+          "id": "blk_0010",
+          "type": "text",
+          "z": 1,
+          "frame": {
+            "x": 80,
+            "y": 160,
+            "w": 448,
+            "h": 200
+          },
+          "copyMode": "real",
+          "text": "519-555-0177\n84 Norfolk Street, north entrance\nTuesday to Saturday, 8am to 4pm",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "id": "blk_0011",
+          "type": "imageSlot",
+          "z": 2,
+          "frame": {
+            "x": 696,
+            "y": 160,
+            "w": 424,
+            "h": 288
+          },
+          "assetId": null,
+          "fit": "cover",
+          "description": "The shopfront from the sidewalk so people can spot the blue door"
+        }
+      ],
+      "penStrokes": [
+        {
+          "id": "stk_0001",
+          "points": [
+            [
+              96,
+              190
+            ],
+            [
+              130,
+              180
+            ],
+            [
+              176,
+              174
+            ],
+            [
+              222,
+              174
+            ],
+            [
+              268,
+              182
+            ],
+            [
+              292,
+              192
+            ],
+            [
+              300,
+              202
+            ],
+            [
+              292,
+              212
+            ],
+            [
+              268,
+              220
+            ],
+            [
+              222,
+              226
+            ],
+            [
+              176,
+              228
+            ],
+            [
+              130,
+              226
+            ],
+            [
+              104,
+              216
+            ],
+            [
+              90,
+              204
+            ],
+            [
+              92,
+              194
+            ],
+            [
+              96,
+              190
+            ]
+          ],
+          "color": "#d92d20",
+          "width": 12,
+          "role": "annotation",
+          "targetBlockId": "blk_0010"
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "img_001",
+      "path": "assets/img_001.jpg",
+      "originalFilename": "fixture-dog.jpg",
+      "mimeType": "image/jpeg",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 252963
+    }
+  ]
+}
