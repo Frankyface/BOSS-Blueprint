@@ -1,5 +1,5 @@
 # Feature: Onboarding Tour
-_Stage: stage-4-roundtrip-launch · Status: awaiting verification_
+_Stage: stage-4-roundtrip-launch · Status: verified done_
 
 ## Goal
 Thirty seconds of first-run pointers that teach the five things a client must find on their own:
@@ -37,27 +37,27 @@ concatenated word count of all five pointers is ≤ 95 words. **Measured: 93**
 (`tourWordCount()`, `src/tour/tourSteps.test.ts`).
 
 ## Success Criteria
-- [ ] On a first visit (no `boss-blueprint:tour:v1` key) the tour starts automatically **after**
+- [x] On a first visit (no `boss-blueprint:tour:v1` key) the tour starts automatically **after**
       the template picker / first-open choice is resolved, never on top of it
-- [ ] Exactly five pointers, in the table's order, each anchored to its live target element and
+- [x] Exactly five pointers, in the table's order, each anchored to its live target element and
       repositioned on scroll and resize
-- [ ] **It never blocks.** With any pointer open: every app control underneath is clickable, the
+- [x] **It never blocks.** With any pointer open: every app control underneath is clickable, the
       canvas scrolls, a block can be added and edited, `document.elementFromPoint()` at the canvas
       centre returns a canvas element (not a tour element), there is no backdrop that swallows
       pointer events, no `aria-modal`, and no focus trap — Tab reaches app controls
-- [ ] Dismissible three ways — `Skip`, the final `Got it`, and `Escape` — all of which write the
+- [x] Dismissible three ways — `Skip`, the final `Got it`, and `Escape` — all of which write the
       dismissed flag; the tour then does not reappear on reload, on a new tab, or after a restart
-- [ ] A permanent, always-visible help control (`?` / "Show me around") re-opens the tour from
+- [x] A permanent, always-visible help control (`?` / "Show me around") re-opens the tour from
       pointer 1 at any time, on any page of the sketch, without clearing the dismissed flag
-- [ ] The tour is **suppressed entirely while the desktop guard is showing** (small viewport) and
+- [x] The tour is **suppressed entirely while the desktop guard is showing** (small viewport) and
       becomes available if the viewport grows past the threshold
-- [ ] Every pointer's target exists: a unit test renders the app and asserts one element per
+- [x] Every pointer's target exists: a unit test renders the app and asserts one element per
       `data-tour` value, so a renamed target can never silently produce a pointer aimed at nothing
-- [ ] Keyboard operable (`Next` / `Skip` are real focusable buttons, `Escape` closes) and
+- [x] Keyboard operable (`Next` / `Skip` are real focusable buttons, `Escape` closes) and
       `prefers-reduced-motion: reduce` removes all transitions
-- [ ] The palette's own "how to add a block" sentence is moved directly under the BLOCKS heading
+- [x] The palette's own "how to add a block" sentence is moved directly under the BLOCKS heading
       (N1) — the tour teaches it once, the palette keeps saying it forever
-- [ ] Zero JavaScript errors with the tour open (the audit's clean-console record is not lost)
+- [x] Zero JavaScript errors with the tour open (the audit's clean-console record is not lost)
 
 ## Behaviour rules
 1. **State key:** `localStorage['boss-blueprint:tour:v1'] = 'dismissed'`, matching the existing
@@ -392,6 +392,36 @@ the bubble, not some inner button), which is worth keeping.
 **Status: unchanged — `awaiting verification`.** The bounce is fixed and the fix failed first in
 three real browsers, but the criteria are ticked by an independent pass, not by the agent that
 wrote the fix.
+
+**Re-verification (2026-07-29):** detached worktree pinned at b437748, no tracked edits (probes
+untracked, deleted after). `npm ci` exit 0 (plus scripts/roundtrip) · eslint exit 0 · tsc -b
+exit 0 · `npm test` **93 files / 1636 passed / 2 skipped** · the four tour unit files alone
+**44 passed** · `npm run e2e` **678 passed / 3 skipped / 0 failed** · round-trip client
+scenario A **1 passed (45.4s), 21 frames, tourPresent true · step 1 · count 5** (re-proved at
+this commit because the fix changed when the bubble mounts).
+**T-1 is FIXED in three real browsers** (independent probe suite, 14 tests ×3 engines, deleted
+after): from a page load where the tour has never been anchored, "Show me around" leaves
+document.activeElement ON THE BUBBLE in chromium, firefox AND webkit, Skip one Tab away;
+auto-start still takes nothing (BODY, and still BODY 500ms later — after the anchoring effect,
+the moment the fix could have started stealing); Next does not yank (Enter on Next keeps focus
+on Next ×3; focus parked on a palette button stays there ×3; webkit's bubble-focus on real
+clicks proven to be the engine's ancestor rule via an auto-started control where the effect
+provably cannot fire). Criterion 2 re-proved ×3: step 2 → Submit → back returns count 5,
+step 2, target canvas, anchored, 0 console errors.
+**The shipped E2E was checked for teeth rather than taken on trust:** run against a bundle
+built from THIS commit with the isAnchored gate reverted → "moves the keyboard to the bubble"
+**3 failed (toBeFocused → inactive)** while the auto-start test passed 3/3 — it opens via
+openCanvas (never-anchored fresh path, not a reopen). The two false "takes focus" claims are
+annotated in place, not deleted. Anchors, pass-through with the bubble focused, all three
+dismissal routes, persistence and guard/Submit suppression re-spot-checked ×3 clean; 93 words
+re-counted, titles 1/1/1/1/1, bodies 1/2/1/1/1.
+**One LOW recorded, not bounced:** shouldFocus is session-scoped, so a help-opened tour
+re-takes focus whenever suppression lifts (guard round trip; Submit back), even when the
+previously focused control survived — no trap, pass-through intact, both paths follow a
+deliberate request; clearing shouldFocus after the first landed focus closes it if it ever
+irritates. Also LOW: tourStore.ts:19 points at e2e/support/tour.ts — the literal lives in
+e2e/support/chrome.ts.
+**Status: VERIFIED DONE.**
 
 ## Open Questions
 1. **Stepped bubbles or all five at once?** Five simultaneous callouts read faster but clutter a

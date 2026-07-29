@@ -14,7 +14,7 @@ feature files below turn it into runnable code without softening a single thresh
       the scripted Playwright fake client, package capture, the sandboxed zero-context builder,
       zero-questions detection, the evaluator agent + 8 hard gates + 100-pt rubric, evidence
       archiving, failure routing. **This is the stage.**
-- [ ] feature-onboarding-tour.md — 30-second first-run pointers (palette · pen · pages · side
+- [x] feature-onboarding-tour.md — 30-second first-run pointers (palette · pen · pages · side
       panel · submit); dismissible, never blocking, once per browser, re-openable from a help
       control
 - [x] feature-desktop-guard.md — small-viewport notice ("Blueprint works best on a computer")
