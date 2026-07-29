@@ -23,6 +23,7 @@ import { promisify } from 'node:util';
 
 import AdmZip from 'adm-zip';
 
+import { applySmokeBudget, elapsedMinutes } from './budget.mjs';
 import { captureSite } from './capture.mjs';
 import { buildRubricManifest, EVALUATOR_PROMPT, readJudgments, stageEvaluatorSandbox } from './evaluator.mjs';
 import { evaluateDeterministic } from './evaluate.mjs';
@@ -38,6 +39,7 @@ import {
   PreconditionError,
   runDirName,
   runsRoot,
+  scrubCredentials,
   scrubEnvironment,
 } from './sandbox.mjs';
 import { parseTranscript, scanSegment } from './scan-transcript.mjs';
@@ -47,7 +49,6 @@ import {
   CLIENT_BUDGET_MIN,
   EVALUATOR_MAX_RETRIES,
   SEGMENT_HARD_STOP_MIN,
-  SMOKE_BUDGET_MIN,
 } from './thresholds.mjs';
 
 const exec = promisify(execFile);
@@ -115,11 +116,27 @@ async function main() {
     manifest.invalid = drift.length > 0;
     manifest.ruleDrift = drift;
     manifest.finishedAt = new Date().toISOString();
-    manifest.verdict = verdictLine;
+    manifest.elapsedMin = elapsedMinutes(startedAt);
+
+    // The smoke budget is a SUCCESS CRITERION ("completes in ≤ 12 minutes"), so it is
+    // enforced rather than merely pinned: a smoke run that took twenty minutes has not
+    // met the criterion, whatever the gates said.
+    const budget = applySmokeBudget({
+      smoke: options.smoke,
+      elapsedMin: manifest.elapsedMin,
+      verdictLine,
+      exitCode,
+    });
+    manifest.smokeBudgetBreached = budget.breached;
+    const line = budget.verdictLine;
+    const code = budget.exitCode;
+
+    Object.assign(manifest, await scrubCredentials(runDir));
+    manifest.verdict = line;
     await writeManifest(runDir, manifest);
-    await writeFile(path.join(runDir, 'verdict.txt'), `${verdictLine}\n`, 'utf8');
-    process.stdout.write(`\n${verdictLine}\n${runDir}\n`);
-    process.exit(manifest.invalid ? 1 : exitCode);
+    await writeFile(path.join(runDir, 'verdict.txt'), `${line}\n`, 'utf8');
+    process.stdout.write(`\n${line}\n${runDir}\n`);
+    process.exit(manifest.invalid ? 1 : code);
   };
 
   try {
@@ -228,7 +245,7 @@ async function main() {
     let judged = null;
     if (!options.smoke) {
       judged = await segment(manifest, 'SEG-6-eval', SEGMENT_HARD_STOP_MIN, () =>
-        runEvaluator({ runDir, packageDir, shotsDir, site, scenario, scenarioFile, sandboxDir, options }),
+        runEvaluator({ manifest, runDir, packageDir, shotsDir, site, scenario, scenarioFile, sandboxDir, options }),
       );
     }
 
@@ -251,6 +268,9 @@ async function main() {
     // ship-gate.mjs ignores it rather than counting it as a product failure.
     manifest.ruleHashes.end = await hashRuleFiles(HERE, scenarioFile);
     manifest.finishedAt = new Date().toISOString();
+    manifest.elapsedMin = elapsedMinutes(startedAt);
+    // A failed run leaves the same credential copies behind as a passing one.
+    Object.assign(manifest, await scrubCredentials(runDir));
     await writeManifest(runDir, manifest);
     process.stderr.write(`\n${kind}: ${err.message}\n${(err.detail ?? []).join('\n')}\n${runDir}\n`);
     process.exit(2);
@@ -315,12 +335,12 @@ async function runMockBuilder({ mockDir, sandboxDir, transcriptPath }) {
   return { mock: true, mockDir: path.resolve(mockDir), resolvedModel: 'mock-builder' };
 }
 
-async function runEvaluator({ runDir, packageDir, shotsDir, site, scenario, scenarioFile, sandboxDir, options }) {
+async function runEvaluator({ manifest, runDir, packageDir, shotsDir, site, scenario, scenarioFile, sandboxDir, options }) {
   const evalDir = path.join(runDir, 'eval');
   const evalSandbox = path.join(evalDir, 'sandbox');
   const rubricManifest = buildRubricManifest({ site, scenario });
 
-  await stageEvaluatorSandbox({
+  const { listing: stagedFiles } = await stageEvaluatorSandbox({
     sandboxDir: evalSandbox,
     packageDir,
     shotsDir,
@@ -332,24 +352,50 @@ async function runEvaluator({ runDir, packageDir, shotsDir, site, scenario, scen
   });
   await assertNoAncestorContext(evalSandbox);
 
+  // The evaluator gets the SAME evidence trail as the builder. It is a second sterile
+  // `claude -p` session with the same power to be contaminated, and a verdict produced
+  // by a session carrying this repo's memory would be worth nothing — but until now
+  // only the builder's purity was asserted and only the builder's session was recorded.
+  manifest.evaluator = { stagedFiles, attempts: [] };
+
   for (let attempt = 0; attempt <= EVALUATOR_MAX_RETRIES; attempt += 1) {
-    const { dir: configDir, auth } = await createSterileConfigDir({ parentDir: path.join(evalDir, `attempt-${String(attempt)}`) });
-    const { env } = scrubEnvironment({ configDir, useApiKey: auth.method === 'api-key-env' });
-    await runSession({
+    const { dir: configDir, auth, listing } = await createSterileConfigDir({ parentDir: path.join(evalDir, `attempt-${String(attempt)}`) });
+    const { env, dropped } = scrubEnvironment({ configDir, useApiKey: auth.method === 'api-key-env' });
+    const transcriptPath = path.join(evalDir, `transcript-${String(attempt)}.jsonl`);
+    const session = await runSession({
       argv: buildArgv({ model: options.smoke ? SMOKE_MODEL : GATING_MODEL }),
       prompt: EVALUATOR_PROMPT,
       cwd: evalSandbox,
       env,
-      transcriptPath: path.join(evalDir, `transcript-${String(attempt)}.jsonl`),
+      transcriptPath,
       timeoutMs: SEGMENT_HARD_STOP_MIN * MINUTE,
     });
+
+    const purity = assertSessionPurity(parseTranscript(await readFile(transcriptPath, 'utf8')));
+    manifest.evaluator.attempts.push({
+      attempt,
+      auth,
+      configDirListing: listing,
+      droppedEnv: dropped,
+      exitCode: session.code,
+      timedOut: session.timedOut,
+      elapsedMs: session.elapsedMs,
+      resolvedModel: purity.model,
+      pure: purity.ok,
+    });
+    if (!purity.ok) throw new PreconditionError('the evaluator session was not sterile', purity.problems);
+
     const result = await readJudgments(evalSandbox, rubricManifest);
     if (result.ok) {
-      const { accepted, rejected, missing } = acceptJudgments({ judgments: result.judgments, rubricManifest });
+      const { accepted, rejected, missing } = acceptJudgments({ judgments: result.judgments, rubricManifest, stagedFiles });
       if (rejected.length === 0 && missing.length === 0) {
         await writeFile(path.join(evalDir, 'judgments.json'), `${JSON.stringify(result.judgments, null, 2)}\n`, 'utf8');
         return accepted;
       }
+      manifest.evaluator.attempts.at(-1).rejected = rejected.map((r) => `${r.item?.id ?? '?'}: ${r.why}`);
+      manifest.evaluator.attempts.at(-1).missing = missing;
+    } else {
+      manifest.evaluator.attempts.at(-1).problems = result.problems;
     }
   }
   // R7.4 — a flaky evaluator fails the run as INFRA, never as a product FAIL.
@@ -362,5 +408,3 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(2);
   });
 }
-
-export { SMOKE_BUDGET_MIN };

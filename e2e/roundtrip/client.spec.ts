@@ -125,13 +125,18 @@ const scenario = JSON.parse(readFileSync(scenarioFile, 'utf8')) as Scenario
 let stepIndex = 0
 const stepLog: { step: number; name: string; shot: string }[] = []
 
-/** R2.5 — every step screenshots, so a client-segment failure is an instant filmstrip. */
-async function step(page: Page, name: string, act: () => Promise<void>): Promise<void> {
-  await test.step(name, act)
+/** One numbered filmstrip frame. Frames are ordered by when they were taken. */
+async function frame(page: Page, name: string): Promise<void> {
   const file = `${String(stepIndex).padStart(2, '0')}-${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.png`
   await page.screenshot({ path: path.join(stepsDir, file) })
   stepLog.push({ step: stepIndex, name, shot: `client/steps/${file}` })
   stepIndex += 1
+}
+
+/** R2.5 — every step screenshots, so a client-segment failure is an instant filmstrip. */
+async function step(page: Page, name: string, act: () => Promise<void>): Promise<void> {
+  await test.step(name, act)
+  await frame(page, name)
 }
 
 /* ─────────────────────────── the journey ─────────────────────────── */
@@ -187,6 +192,12 @@ test(`round-trip client · scenario ${scenarioId} · ${scenario.title}`, async (
     findings.tourPresent = true
     findings.tourFirstStep = await bubble.getAttribute('data-tour-step')
     findings.tourStepCount = await bubble.getAttribute('data-tour-count')
+
+    // The step frame is taken AFTER the act, so on its own it evidences a canvas with
+    // no tour on it — which is indistinguishable from a tour that never appeared. R2.3
+    // wants the dismissal itself in the filmstrip, so the bubble gets its own frame
+    // while it is still up.
+    await frame(page, 'onboarding tour before dismissal')
 
     await page.getByTestId('tour-skip').click()
     await expect(bubble, 'Skip did not close the tour').toBeHidden()

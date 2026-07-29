@@ -42,18 +42,41 @@ export const ROUTES = Object.freeze({
   INFRA: 'harness only — never a product FAIL',
 });
 
-/** R7.3 — an evaluator item is only counted if it is in range AND cites an artefact. */
-export function acceptJudgments({ judgments, rubricManifest }) {
+/** Every artefact filename an evidence string names, not merely whether it names one. */
+export function citedArtefacts(evidence) {
+  const global = new RegExp(EVIDENCE_ARTEFACT_RE.source, 'g');
+  return [...String(evidence ?? '').matchAll(global)].map((match) => match[0]);
+}
+
+/**
+ * R7.3 — an evaluator item is only counted if it is in range AND cites an artefact
+ * that WAS ACTUALLY STAGED.
+ *
+ * The shape check alone was satisfied by any string matching the regex, so
+ * `"shots/homepage.png shows the hero"` passed for a site whose only shot is
+ * `shots/home.png` — a citation to a file that does not exist, which is exactly the
+ * shape a hallucinated one takes. Intersecting with the staged listing turns "cites an
+ * artefact" into "cites an artefact the evaluator could see".
+ *
+ * @param {string[]|null} stagedFiles the listing returned by `stageEvaluatorSandbox`.
+ *   `null` means the caller has no listing and only the shape can be checked; `run.mjs`
+ *   always passes one.
+ */
+export function acceptJudgments({ judgments, rubricManifest, stagedFiles = null }) {
   const accepted = [];
   const rejected = [];
   const known = new Set(rubricManifest.items.map((i) => i.id));
+  const staged = stagedFiles === null ? null : new Set(stagedFiles);
   for (const item of judgments?.items ?? []) {
+    const cited = typeof item.evidence === 'string' ? citedArtefacts(item.evidence) : [];
     if (!known.has(item.id)) {
       rejected.push({ item, why: 'id is not in rubric-manifest.json' });
     } else if (!Number.isInteger(item.score) || item.score < 0 || item.score > EVAL_SCORE_MAX) {
       rejected.push({ item, why: `score must be an integer 0..${EVAL_SCORE_MAX}` });
-    } else if (typeof item.evidence !== 'string' || !EVIDENCE_ARTEFACT_RE.test(item.evidence)) {
+    } else if (cited.length === 0) {
       rejected.push({ item, why: 'evidence must name at least one artefact file' });
+    } else if (staged !== null && !cited.some((name) => staged.has(name))) {
+      rejected.push({ item, why: `evidence cites ${cited.join(', ')}, none of which was staged into the evaluator sandbox` });
     } else {
       accepted.push(item);
     }
@@ -64,6 +87,18 @@ export function acceptJudgments({ judgments, rubricManifest }) {
 
 function meanOf(scores) {
   return scores.length === 0 ? 0 : scores.reduce((n, s) => n + s, 0) / scores.length;
+}
+
+/**
+ * A floor over an EMPTY score array reads UNMET, never met.
+ *
+ * `[].every(…)` is `true`, so an evaluator that returned nothing for a dimension used
+ * to clear that dimension's floor by saying nothing at all — the one direction a
+ * missing measurement must never be allowed to fall. R10.7: a criterion that passes
+ * vacuously is a criterion that has been weakened.
+ */
+function floorOver(scores, predicate) {
+  return scores.length >= 1 && scores.every(predicate);
 }
 
 /**
@@ -100,13 +135,14 @@ export function mergeReport({ det, scan, gate, judged, scenarioId, smoke = false
     S2: {
       points: smoke ? null : (SCORE_WEIGHTS.S2 * meanOf(s2Scores)) / EVAL_SCORE_MAX,
       max: SCORE_WEIGHTS.S2,
-      floorMet: smoke ? true : s2Scores.every((s) => s > 0),
+      floorMet: smoke ? true : floorOver(s2Scores, (s) => s > 0),
       detail: { scores: s2Scores },
     },
     S3: {
       points: smoke ? null : (SCORE_WEIGHTS.S3 * meanOf(s3Scores)) / EVAL_SCORE_MAX,
       max: SCORE_WEIGHTS.S3,
-      floorMet: det.dimensions.S3.allSane && (smoke || s3Scores.every((s) => s >= S3_MIN_ITEM_SCORE)),
+      floorMet:
+        det.dimensions.S3.allSane && (smoke || floorOver(s3Scores, (s) => s >= S3_MIN_ITEM_SCORE)),
       detail: { det: det.dimensions.S3, scores: s3Scores },
     },
     S4: { points: det.dimensions.S4.points, max: SCORE_WEIGHTS.S4, floorMet: det.dimensions.S4.floorMet, detail: det.dimensions.S4 },
@@ -119,7 +155,7 @@ export function mergeReport({ det, scan, gate, judged, scenarioId, smoke = false
     S6: {
       points: smoke ? null : (SCORE_WEIGHTS.S6 * meanOf(s6Scores)) / EVAL_SCORE_MAX,
       max: SCORE_WEIGHTS.S6,
-      floorMet: smoke ? true : s6Scores.every((s) => s > 0),
+      floorMet: smoke ? true : floorOver(s6Scores, (s) => s > 0),
       detail: { scores: s6Scores },
     },
   };

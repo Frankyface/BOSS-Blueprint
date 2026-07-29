@@ -9,7 +9,9 @@ dist-ssr/
 # (feature-roundtrip-harness.md R3.1) — this line is belt-and-braces for anyone who
 # points ROUNDTRIP_RUNS_DIR back inside it.
 roundtrip-runs/
-.roundtrip-dryrun/
+# `.roundtrip-dryrun/` is the default; the glob covers the per-scenario dirs a dry run
+# uses when both scenarios are driven in one session (`.roundtrip-dryrun-b/`).
+.roundtrip-dryrun*/
 
 # Test artifacts
 coverage/

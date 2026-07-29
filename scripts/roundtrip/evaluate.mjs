@@ -13,8 +13,13 @@ import path from 'node:path';
 import {
   DELTA_E_MAX,
   DHASH_MAX_HAMMING,
+  FRAME_CHAR_WIDTH_PX,
+  FRAME_LINE_HEIGHT_PX,
   S1_MEAN_FLOOR,
   S1_PAGE_FLOOR,
+  S3_LENGTH_MAX_RATIO,
+  S3_LENGTH_MIN_RATIO,
+  S3_SENTENCE_HINT_TOLERANCE,
   S4_FLOOR,
   SCORE_WEIGHTS,
   S5_DET_POINTS,
@@ -337,23 +342,137 @@ function checkGenerateSanity(site, digests) {
       if (haystack.includes(description) && description.length > 0) {
         problems.push('the generateDescription was echoed verbatim instead of written');
       }
-      const written = findWrittenCopy(digest, description);
-      if (written === null) problems.push('no candidate copy found for this generate item');
-      else if (PLACEHOLDER.test(written)) problems.push(`copy still carries a placeholder marker: ${JSON.stringify(written.slice(0, 60))}`);
-      items.push({ page: sitePage.slug, blockId: block.id, ok: problems.length === 0, problems, written });
+      const written = findWrittenCopy({ digest, sitePage, block });
+      let length = null;
+      if (written === null) {
+        problems.push('no candidate copy found for this generate item');
+      } else {
+        if (PLACEHOLDER.test(written)) {
+          problems.push(`copy still carries a placeholder marker: ${JSON.stringify(written.slice(0, 60))}`);
+        }
+        // R8.2's length rule. It was specified and never implemented: a builder that
+        // wrote three words where a two-sentence paragraph belongs used to pass the
+        // deterministic half untouched.
+        length = checkCopyLength({ written, lengthHint: block.lengthHint, frame: block.frame });
+        if (!length.ok) {
+          problems.push(
+            `copy length ${String(length.measured)} ${length.unit} is outside the ${length.rule} band ` +
+              `${String(length.min)}–${String(length.max)}`,
+          );
+        }
+      }
+      items.push({ page: sitePage.slug, blockId: block.id, ok: problems.length === 0, problems, written, length });
     }
   }
   return { items, allSane: items.every((i) => i.ok), points: 0, note: 'S3 points come from the evaluator half' };
 }
 
-/** The longest paragraph/heading on the page that is not another block's real copy. */
-function findWrittenCopy(digest, description) {
-  if (!digest) return null;
-  const candidates = digest.nodes
-    .filter((n) => n.kind === 'text' || n.kind === 'heading')
-    .map((n) => n.text)
-    .filter((t) => t.length > 0 && t !== description);
-  return candidates.sort((a, b) => b.length - a.length)[0] ?? null;
+/**
+ * THE BLOCK'S OWN COPY, not the longest thing on the page.
+ *
+ * The original picked the longest paragraph or heading anywhere on the page, which
+ * meant every generate block on a page was graded against the SAME string — usually
+ * some other block's real copy — so a genuinely empty generate block could score as
+ * sane while a good one failed the placeholder test on a neighbour's text.
+ *
+ * There is no id mapping from `site.json` to the builder's DOM (there cannot be — the
+ * builder writes its own markup), so position is the honest proxy: among nodes of the
+ * right kind that are not another block's real copy, take the one whose relative
+ * vertical position is nearest the block's. Same information a human comparing sketch
+ * to shot uses.
+ */
+export function findWrittenCopy({ digest, sitePage, block }) {
+  if (!digest || !Array.isArray(digest.nodes)) return null;
+
+  const description = block.generateDescription ?? '';
+  const realCopy = (sitePage?.blocks ?? [])
+    .filter((b) => b.copyMode === 'real' && typeof b.text === 'string' && b.text.trim() !== '')
+    .map((b) => normalise(b.text));
+
+  const usable = digest.nodes.filter((node) => {
+    if (node.kind !== 'text' && node.kind !== 'heading') return false;
+    const text = String(node.text ?? '');
+    if (text.length === 0 || text === description) return false;
+    const value = normalise(text);
+    return !realCopy.some((copy) => copy === value || copy.includes(value) || value.includes(copy));
+  });
+  if (usable.length === 0) return null;
+
+  const wantKind = block.type === 'heading' ? 'heading' : 'text';
+  const sameKind = usable.filter((node) => node.kind === wantKind);
+  // A builder may legitimately render a generate text block as a heading (or the
+  // reverse); kind is a preference, not a requirement, so an empty same-kind set falls
+  // back rather than reporting "no candidate copy" for a page that plainly has some.
+  const pool = sameKind.length > 0 ? sameKind : usable;
+
+  const pageHeight = sitePage?.height || 1600;
+  const docHeight = Math.max(1, ...pool.map((node) => node.box.y + node.box.h));
+  const wantRatio = (block.frame.y + block.frame.h / 2) / pageHeight;
+
+  let best = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const node of pool) {
+    const ratio = (node.box.y + node.box.h / 2) / docHeight;
+    const distance = Math.abs(ratio - wantRatio);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = node;
+    }
+  }
+  return best === null ? null : String(best.text);
+}
+
+/** How many characters the block's frame can hold at the 1200px design width. */
+export function estimateFrameChars(frame) {
+  const perLine = Math.max(1, Math.floor((frame?.w ?? 0) / FRAME_CHAR_WIDTH_PX));
+  const lines = Math.max(1, Math.floor((frame?.h ?? 0) / FRAME_LINE_HEIGHT_PX));
+  return perLine * lines;
+}
+
+/** `~2 sentences`, `about 40 words`, `80 characters` — or null when it says none of those. */
+export function parseLengthHint(hint) {
+  const match = /(\d+)\s*(sentence|word|character|char)/i.exec(String(hint ?? ''));
+  if (!match) return null;
+  const unit = match[2].toLowerCase();
+  return {
+    count: Number(match[1]),
+    unit: unit.startsWith('sentence') ? 'sentences' : unit.startsWith('word') ? 'words' : 'characters',
+  };
+}
+
+function countSentences(text) {
+  return String(text).split(/[.!?]+/).filter((part) => /[a-z0-9]/i.test(part)).length;
+}
+
+function countWords(text) {
+  return String(text).split(/\s+/).filter((token) => /[a-z0-9]/i.test(token)).length;
+}
+
+/**
+ * R8.2 S3 · "length within `lengthHint` or 0.3–3× the frame estimate".
+ * The hint wins when the client gave one; the frame is the fallback the scenario's
+ * no-lengthHint generate block exists to exercise.
+ */
+export function checkCopyLength({ written, lengthHint, frame }) {
+  const hint = parseLengthHint(lengthHint);
+  if (hint !== null) {
+    if (hint.unit === 'sentences') {
+      const measured = countSentences(written);
+      const min = Math.max(1, hint.count - S3_SENTENCE_HINT_TOLERANCE);
+      const max = hint.count + S3_SENTENCE_HINT_TOLERANCE;
+      return { ok: measured >= min && measured <= max, rule: 'lengthHint', unit: 'sentences', measured, min, max };
+    }
+    const measured = hint.unit === 'words' ? countWords(written) : written.length;
+    const min = Math.max(1, Math.round(hint.count * S3_LENGTH_MIN_RATIO));
+    const max = Math.round(hint.count * S3_LENGTH_MAX_RATIO);
+    return { ok: measured >= min && measured <= max, rule: 'lengthHint', unit: hint.unit, measured, min, max };
+  }
+
+  const estimate = estimateFrameChars(frame);
+  const min = Math.max(1, Math.round(estimate * S3_LENGTH_MIN_RATIO));
+  const max = Math.round(estimate * S3_LENGTH_MAX_RATIO);
+  const measured = written.length;
+  return { ok: measured >= min && measured <= max, rule: 'frame estimate', unit: 'characters', measured, min, max, estimate };
 }
 
 function scoreImagePlacement(site, digests) {

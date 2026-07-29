@@ -18,6 +18,7 @@ import { readFile } from 'node:fs/promises';
 import {
   BUILD_SENTINEL,
   CHOICE_VERB_RE,
+  FIRST_PERSON_OFFER_RE,
   FRICTION_PER_PAGE,
   INTERROGATIVE_LEAD_RE,
   PACKAGE_DEFECT_RE,
@@ -194,6 +195,11 @@ export function scanFinalText(finalText) {
       }
       if (CHOICE_VERB_RE.test(text)) {
         hits.push({ rule: 'R5.3-2a-reverse', sentence: text, offset });
+        continue;
+      }
+      // Clause 3 — an offer about the builder itself, which needs no `you` at all.
+      if (FIRST_PERSON_OFFER_RE.test(text)) {
+        hits.push({ rule: 'R5.3-2a-offer', sentence: text, offset });
         continue;
       }
     }

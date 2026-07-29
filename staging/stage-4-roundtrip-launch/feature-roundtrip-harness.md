@@ -288,6 +288,13 @@ sterile-dir listing (R3.3) is recorded alongside it so the evidence shows exactl
 builder could see. The credential file's **contents are never logged, printed or archived** — the
 run directory is committed evidence in part, so only the path and method are recorded.
 
+**Post-run credential scrub.** The copy itself still sits in the run tree for the life of the
+run, and the run root is a long-lived folder that may not be private (see the operator note in
+the Verification Log). So at run end — **on both exits, pass and fail** — every `claude-home/`
+under the run directory is deleted and `run-manifest.json` records
+`credentialScrubbed: true` plus the paths removed. The recorded LISTING survives the scrub,
+because it is data: the evidence that the dir WAS sterile outlives the dir.
+
 **R3.5 Allowlist** (`claude-home/settings.json`) — this is how the house ban on
 `--dangerously-skip-permissions` (`hooks.md`) is honoured:
 
@@ -419,6 +426,14 @@ A candidate sentence **fails H2** if either:
     `/\b(do|does|did|would|could|can|may|might|should|shall|will|is|are|was|were|which|what|where|when|who|whom|whose|why|how)\b[^?]*\byou(r|rs)?\b/i`
   - you → verb of choice:
     `/\byou(r|rs)?\b[^?]*\b(want|prefer|like|need|confirm|decide|choose|pick)\b/i`
+  - **first-person offer (added 2026-07-29, before run 1):**
+    `/\b(should i|shall (i|we)|want me to|anything else)\b/i` — both clauses above need the
+    word `you` somewhere, so every offer the builder makes about ITSELF passed H2 untouched:
+    "Should I add a favicon?", "Shall we wire the footer nav too?", "Want me to swap the hero
+    photo?", "Anything else?". Deliberately four literal forms, not a general "lead → I"
+    clause, which would swallow the rhetorical self-questions a builder legitimately writes
+    ("Why did I choose a two-column hero?" — a `mustPass` corpus row). It is part of 2a, so
+    the `?` is still required.
 - **2b (phrase list, case-insensitive):**
   `/let me know/`, `/please (clarify|confirm|provide|specify)/`,
   `/need (more|additional) (info|information|details)/`, `/before i (proceed|continue)/`,
@@ -428,8 +443,9 @@ A candidate sentence **fails H2** if either:
 Every hit is written to `builder/scan-report.json` with the offending sentence, the rule id and
 its character offset.
 
-**Both 2a clauses are stronger than protocol §4.2's original wording, and that is deliberate**
-(ruled 2026-07-28, Open Question 6). The protocol's lead set was
+**All three 2a clauses are stronger than protocol §4.2's original wording, and that is
+deliberate** (ruled 2026-07-28, Open Question 6; clause 3 ruled 2026-07-29). The protocol's lead
+set was
 `(do|would|could|can|should|shall|which|what|where|who|how)` — `\b(do)\b` does not match "does",
 so "Is this what you wanted?", "Are you happy for me to proceed?" and "You want me to use the
 green?" all passed H2 as written. **This strengthening predates the first gating run by design:**
@@ -499,7 +515,13 @@ rendered box). This is the input for the deterministic order and placement check
 ## R7 — The evaluator agent (SEG-6, judgment layer)
 
 **R7.1 Isolation.** A separate fresh `claude -p` session with the same R3 mechanics and its **own
-sandbox** (`<runDir>/eval/sandbox/`), never the builder's.
+sandbox** (`<runDir>/eval/sandbox/`), never the builder's. **"The same R3 mechanics" includes
+R4.6:** the evaluator's `system`/`init` event is parsed and asserted pure (zero MCP servers,
+plugins, skills, agents, project memory) exactly as the builder's is, and a failure aborts as
+PRECONDITION. `run-manifest.json` records the evaluator's sterile-dir listing, auth method,
+dropped env, exit code, elapsed time and resolved model per attempt, in parallel with the
+builder's — a verdict produced by a contaminated evaluator is worth no more than one produced by
+a contaminated builder, and until 2026-07-29 only the builder's was proven.
 
 **R7.2 Inputs — exhaustive and closed.** `site.json`, the scenario file, `package/pages/*.png`,
 `shots/*.png`, `BUILD_NOTES.md`, `rubric.md`, and a harness-generated `rubric-manifest.json`
@@ -510,15 +532,21 @@ contents after staging and comparing to the closed expected set.
 **R7.3 Output contract.** `judgments.json` per protocol Appendix B, ajv-validated:
 `{ scenario, items: [{ id, score, evidence, confidence }] }`. Every `id` must come from
 `rubric-manifest.json`; scores must be integers in range; **`evidence` must be a non-empty string
-that names at least one artefact file** (regex `/(shots|pages)\/[\w.-]+\.png|BUILD_NOTES\.md/`).
-Uncited or out-of-range items are rejected by the merger.
+that names at least one artefact file** (regex `/(shots|pages)\/[\w.-]+\.png|BUILD_NOTES\.md/`)
+**and at least one of the files it names must be in the staged listing** — the shape check alone
+accepted `shots/homepage.png` for a site whose only shot is `shots/home.png`, which is exactly
+the shape a hallucinated citation takes. Uncited, mis-cited or out-of-range items are rejected by
+the merger.
 
 **R7.4 Retry policy.** One malformed output → exactly one retry → then the run fails as **INFRA,
 never as a product FAIL**. A flaky evaluator must never be able to manufacture a product verdict
 in either direction.
 
 **R7.5** In `--smoke` mode the evaluator is skipped entirely; the verdict is SMOKE-PASS/FAIL on
-hard gates plus the deterministic halves of S1/S3/S4/S5 with the same floors.
+hard gates plus the deterministic halves of S1/S3/S4/S5 with the same floors. **`SMOKE_BUDGET_MIN`
+is ENFORCED, not merely pinned:** the orchestrator records `elapsedMin` for every run and a smoke
+run that overruns 12 minutes is written as `SMOKE-FAIL` with exit 1, whatever the gates said —
+"completes in ≤ 12 minutes" is a Success Criterion, and a criterion nothing checks is a wish.
 
 ---
 
@@ -543,10 +571,17 @@ hard gates plus the deterministic halves of S1/S3/S4/S5 with the same floors.
 |---|---|---|---|
 | S1 | Per-page block order/arrangement: expected reading order from `site.json` (§4.4 grouping) vs built order from `dom.json`, aligned by LCS over `(type, text-prefix)` tokens; page score = matched/expected; pts = 25 × mean | 25 | mean ≥ 0.85, **no page < 0.75** |
 | S2 | Visual layout similarity (evaluator, sketch PNG vs shot PNG): 0 = doesn't resemble · 1 = same content, notably different arrangement · 2 = same arrangement and rough proportions; rationale must answer top-to-bottom order / left-right splits / hero prominence; pts = 20 × mean/2 | 20 | **no page = 0** |
-| S3 | GENERATE copy quality. Det sanity: non-empty, not lorem ipsum, no `[`/`TODO`/`placeholder`, not a verbatim echo of `generateDescription`, length within `lengthHint` or 0.3–3× the frame estimate. Evaluator: 0 off-topic · 1 on-topic · 2 on-topic, on-vibe, uses business specifics; pts = 15 × mean/2 | 15 | **all items pass det sanity AND score ≥ 1** |
+| S3 | GENERATE copy quality. Det sanity, **per block, against that block's own copy** (nearest by relative vertical position among nodes of its kind that are not another block's real copy — not "the longest string on the page", which graded every generate block on a page against the same string): non-empty, not lorem ipsum, no `[`/`TODO`/`placeholder`, not a verbatim echo of `generateDescription`, **length within `lengthHint` (±1 sentence, or 0.3–3× a word/character count) or 0.3–3× the frame estimate** (`⌊w/8⌋ × ⌊h/24⌋` characters). Evaluator: 0 off-topic · 1 on-topic · 2 on-topic, on-vibe, uses business specifics; pts = 15 × mean/2 | 15 | **all items pass det sanity AND score ≥ 1** |
 | S4 | Image placement + empty slots. Det: matched asset's rendered box centre in the same vertical third and horizontal half as its sketch frame; empty slots have an in-region `<img>`/`<svg>` placeholder with alt text derived from the description; pts = 15 × fraction | 15 | ≥ 0.8 |
 | S5 | Style / vibe. Det: ≥ 1 client colour among the 8 dominant colours of any shot (ΔE00 < 12) when colours were given; not unstyled default (≥ 2 non-grayscale dominants, custom fonts or spacing). Evaluator 0–2 on "does this read as ‹vibe›?"; pts = 7 det + 8 × eval/2 | 15 | **det colour check passes when colours were given** |
 | S6 | Pen intent (evaluator, per brief-listed cluster): annotation — intent honoured AND a reading recorded in BUILD_NOTES; imageSketch — placeholder relates to the sketched subject; 0–2 each; pts = 10 × mean/2 | 10 | **imageSketch placeholder must not contradict the sketch subject** |
+
+**Floors over an EMPTY score array read UNMET, never met.** `[].every(…)` is `true`, so an
+evaluator that returned nothing for a dimension used to clear that dimension's floor by saying
+nothing at all — the one direction a missing measurement must never be allowed to fall (R10.7: a
+criterion that passes vacuously has been weakened). Every judged floor now requires `n ≥ 1`
+alongside its predicate. In `--smoke` the judged dimensions are skipped outright, which is a
+different thing from being silently satisfied.
 
 **R8.3 Verdict.** `PASS` = all H gates ∧ total ≥ 85 ∧ all floors. `NEAR MISS` (**reported as
 FAIL**; score 70–84 or a single floor miss) → targeted fixes, rerun. `FAIL` (< 70 or any H gate)
@@ -635,8 +670,16 @@ Exit 0 ⇔ the stage DoD's round-trip criterion is met.
    | `USER_INPUT_TOOLS` | `["AskUserQuestion", "ExitPlanMode"]` + the `/askuser\|userinput\|user_input/i` predicate | R5.2 |
    | `INTERROGATIVE_LEAD_SET` | the extended set ruled 2026-07-28 | R5.3 2a |
    | `CHOICE_VERB_SET` | `want\|prefer\|like\|need\|confirm\|decide\|choose\|pick` | R5.3 2a |
+   | `FIRST_PERSON_OFFER_SET` | `should i` · `shall (i\|we)` · `want me to` · `anything else` (2026-07-29) | R5.3 2a |
    | `QUESTION_PHRASES` | the seven phrase regexes | R5.3 2b |
    | `DENIED_BASH_PREFIXES` | includes `npx`, `npm` (ruling 5) | R3.5 |
+   | `EVAL_SCORE_MIN` / `EVAL_SCORE_MAX` | 0 / 2 | R8.2, Appendix B |
+   | `EVIDENCE_ARTEFACT_RE` | `(shots\|pages)/[\w.-]+\.png\|BUILD_NOTES\.md` | R7.3 |
+   | `EVALUATOR_MAX_RETRIES` | 1 | R7.4 |
+   | `EVALUATOR_SANDBOX_ALLOWED` | the closed input set — and it does NOT contain the transcript | R7.2 |
+   | `S3_LENGTH_MIN_RATIO` / `S3_LENGTH_MAX_RATIO` | 0.3 / 3 | R8.2 S3 |
+   | `FRAME_CHAR_WIDTH_PX` / `FRAME_LINE_HEIGHT_PX` | 8 / 24 | R8.2 S3 |
+   | `S3_SENTENCE_HINT_TOLERANCE` | 1 | R8.2 S3 |
 
    The rule sets are pinned as data, not spelled inline in `scan-transcript.mjs`, precisely
    because ruling 6 changed one of them: a rule set that lives in one hash-tested constant cannot
@@ -745,8 +788,14 @@ below is a measured result, not an estimate.
 
 | Scenario | Driver | Package | Gate incl. §2 step 4 |
 |---|---|---|---|
-| **A** — Cedar & Stone Landscaping, template start | `npx playwright test --config playwright.roundtrip.config.ts` → **1 passed (40.5s)**, 16-step filmstrip | `blueprint_cedar-stone-landscaping_f259ffe8.zip`, 1367.6 KB, 9 entries | **GATE PASSED — 37 pass, 1 warn, 0 fail, 0 skip (38 checks) · exit 0**; `M04` reports `33 block(s) matched within ±24px` |
-| **B** — North Star Dog Grooming, blank start | **1 passed (18.1s)**, 16-step filmstrip | `blueprint_north-star-dog-grooming_38eb941b.zip`, 713.1 KB, 6 entries | **GATE PASSED — 38 pass, 0 warn, 0 fail, 0 skip · exit 0**; `M04` reports `11 block(s) matched within ±24px` |
+| **A** — Cedar & Stone Landscaping, template start | `npx playwright test --config playwright.roundtrip.config.ts` → **1 passed (40.5s)**, 16-frame filmstrip _(pre-tour build; see the 2026-07-29 re-run below for the current counts)_ | `blueprint_cedar-stone-landscaping_f259ffe8.zip`, 1367.6 KB, 9 entries | **GATE PASSED — 37 pass, 1 warn, 0 fail, 0 skip (38 checks) · exit 0**; `M04` reports `33 block(s) matched within ±24px` |
+| **B** — North Star Dog Grooming, blank start | **1 passed (18.1s)**, 16-frame filmstrip _(pre-tour build)_ | `blueprint_north-star-dog-grooming_38eb941b.zip`, 713.1 KB, 6 entries | **GATE PASSED — 38 pass, 0 warn, 0 fail, 0 skip · exit 0**; `M04` reports `11 block(s) matched within ±24px` |
+
+_Filmstrip counts move with the journey: the numbers in this table were measured before the tour
+landed. The tour added its own dismissal step, and the pre-flight batch added a second frame
+inside it, so the current counts are recorded per-run in the entries below rather than restated
+here. A "16-step filmstrip" claim that nobody re-measures is exactly the kind of stale number
+this note exists to stop._
 
 Scenario A's single WARN is `V23` on `pg_0002 / blk_0018` — **exactly the untouched filler
 block R1.2b requires**, and the package shipped anyway. The driver independently asserted
@@ -803,17 +852,27 @@ run, and nothing below is ticked above:
 
 **Two things the operator must know before starting a live run**
 
-1. **`ROUNDTRIP_RUNS_DIR` must point at a directory with a clean ancestor chain.** The ruled
-   default (`%LOCALAPPDATA%\boss-blueprint\roundtrip-runs\`) sits under the user profile, and
-   on this machine `C:\Users\Cam\.claude\settings.json` is an ancestor — so R3.2 aborts the
-   run as PRECONDITION and prints the offending path. That is the guard working, not a bug;
-   `C:\Users\Public\boss-blueprint\roundtrip-runs` has a clean chain and is what the proof
-   above used. The abort message now says so.
-2. **The tour and the desktop guard do not exist yet** (`feature-onboarding-tour.md` and
-   `feature-desktop-guard.md` are both `not started`). The driver dismisses the tour if the
-   control is present and records `tourPresent` in `client/driver-report.json`; it asserts the
-   guard is absent at 1440×900. Both features land **before** the three clean runs per the
-   stage's build order, and the driver needs no change when they do.
+1. **`ROUNDTRIP_RUNS_DIR` must point at a PRIVATE directory with a clean ancestor chain.** The
+   ruled default (`%LOCALAPPDATA%\boss-blueprint\roundtrip-runs\`) sits under the user profile,
+   and on this machine `C:\Users\Cam\.claude\settings.json` is an ancestor — so R3.2 aborts the
+   run as PRECONDITION and prints the offending path. That is the guard working, not a bug.
+   **Both properties are needed, and the obvious fix only buys one of them:**
+   `C:\Users\Public\boss-blueprint\roundtrip-runs` has a clean chain (which is why the
+   zero-token proofs above used it) but is **world-readable on this machine**, and a gating run
+   copies a live credential into `builder/claude-home/` while it runs. For the live runs, prefer
+   a dedicated drive root (e.g. `D:\bp-roundtrip-runs`) or another non-profile folder that is
+   not world-readable. Two things reduce the exposure either way: the credential's contents are
+   never read, printed or archived (R3.4), and every `claude-home/` in the run tree is deleted
+   at run end, pass or fail, with `credentialScrubbed: true` recorded in the manifest. The
+   remaining window is the run itself — hence "private", not merely "clean".
+2. **RESOLVED 2026-07-29 — the tour and the desktop guard have both landed.** This note used to
+   say they did not exist yet. `feature-onboarding-tour.md` and `feature-desktop-guard.md` are
+   both `awaiting verification` with their code shipped, and the driver needed no change: the
+   reviewer's Scenario A dry run recorded **`tourPresent: true`, `tourFirstStep: 1`,
+   `tourStepCount: 5`** in `client/driver-report.json` and the guard absent at 1440×900. The
+   tour's own filmstrip frame is now taken **before** the Skip click as well as after
+   (`onboarding tour before dismissal`), so the evidence shows the bubble that was dismissed
+   rather than only the canvas it left behind.
 
 **Independent review (2026-07-29) — MECHANICAL LAYER ONLY; the three live gating runs remain
 the stage DoD.** Detached worktree at fb7eaf6, no tracked edits; npm ci clean at root and in
@@ -866,6 +925,91 @@ devDependencies.
 **Status: VERIFIED (MECHANICAL).** No Success Criterion ticked; the remaining gate is the
 three live runs + shipgate + timed smoke + evidence copy (How-We'll-Verify 6–11), preceded by
 the pre-flight batch above.
+
+### 2026-07-29 — Pre-flight batch: the doc pass landed, the review findings are addressed, the scan rules were strengthened BEFORE run 1
+
+**The doc pass was the blocking one, and it is done.** R5.3 and R10.1 make it a precondition:
+a rule may not change once a verdict exists, so every ruling has to be recorded while there is
+still no verdict to protect.
+
+- **`docs/decisions.md` gains all eight 2026-07-28 rulings**, one entry each, in the house
+  format — credentials (1), run root outside the repo (2), the Home Section bands (3), the single
+  untouched filler block (4), the `npx`/`npm` denial (5), the extended interrogative set (6), the
+  deployed-bundle freshness precondition (7), the single unlinked Contact button (8) — plus a
+  ninth for the 2026-07-29 scan-rule strengthening below. The eight are dated to the day they
+  were ruled and say they were recorded on the 29th; the log stayed append-only.
+- **`docs/roundtrip-protocol.md` is amended to v1.1**, with a header block listing the nine and
+  an **[AMENDED …]** marker at each passage so the original reading stays visible rather than
+  being quietly replaced: §0 run root + deployed freshness · §1.2 the Section bands, the filler
+  block and the one-button Contact page · §3.1 the single credential and the allowlist without
+  `npx`/`npm` · §3.3 SEG-5 serves with `static-server.mjs`, not `npx http-server` · §4.2 the
+  three-clause rule 2a as a table.
+
+Every amendment records what the shipped code **already does** — this was a pass to make the
+binding spec match reality, not to change the rules. The one genuine rule change is called out
+as such:
+
+**MEDIUM-2 — rule 2a gains a first-person-offer clause (now or never, per R5.5).** Both existing
+clauses require the word `you` somewhere in the sentence, so every offer the builder makes about
+ITSELF passed H2 untouched. `FIRST_PERSON_OFFER_SET` (`should i` · `shall (i|we)` ·
+`want me to` · `anything else`) now fails a sentence that ends in `?` and matches one of them.
+It is four literal forms rather than a general "lead → I" clause on purpose: the general version
+swallows the rhetorical self-questions a builder legitimately writes. **Corpus after the change:
+22 `mustFail` / 14 `mustPass`, every row behaving** — the five new `mustFail` rows are the five
+forms, and the four new `mustPass` rows pin the limits ("Anything else the client sketched is
+already on the page." has no `?`; "I should include the opening hours" is not "should I").
+`Should the hero be full width?`, the pre-existing rhetorical row, still passes. Decisions entry
+landed in the same commit, as R5.5 requires.
+
+**Findings from the mechanical review, one line each:**
+
+| Finding | What changed |
+|---|---|
+| **HIGH-3** evaluator purity never asserted | `assertSessionPurity` now runs on the evaluator transcript exactly as on the builder's; impure → PRECONDITION abort. `run-manifest.json` gains `evaluator.attempts[]` with the sterile-dir listing, auth method, dropped env, exit code, elapsed ms, resolved model and `pure` per attempt |
+| **MEDIUM-1** R7.3 citations were shape-only | evidence must now name an artefact **that was staged**; `citedArtefacts()` extracts every filename and intersects with the staging listing. `shots/homepage.png` against a site whose only shot is `shots/home.png` is rejected — that is the shape a hallucinated citation takes |
+| **MEDIUM-3** S3 missed R8.2's length rule | implemented: `lengthHint` wins (±1 sentence, or 0.3–3× a word/character count), else 0.3–3× the frame estimate `⌊w/8⌋ × ⌊h/24⌋`. All five constants pinned in `thresholds.test.mjs` |
+| **MEDIUM-3** `findWrittenCopy` read longest-on-page | now reads the **block's own** copy: nearest by relative vertical position among nodes of its kind that are not another block's real copy. Every generate block on a page used to be graded against the same string |
+| **MEDIUM-4** four R10.1-class constants unpinned | `EVAL_SCORE_MIN/MAX`, `EVIDENCE_ARTEFACT_RE`, `EVALUATOR_MAX_RETRIES`, `EVALUATOR_SANDBOX_ALLOWED` pinned as literals, plus an assertion that the allowed set does **not** contain the transcript |
+| **MEDIUM-6** empty score arrays cleared floors vacuously | `floorOver()` requires `n ≥ 1`; a dimension the evaluator said nothing about now MISSES its floor. Test: `judged: []` → S2/S3/S6 all missed, verdict not PASS |
+| **MEDIUM-5** world-readable run root | operator note rewritten to say **private** as well as clean-ancestor, and a post-run **credential scrub** implemented: every `claude-home/` under the run dir is deleted at run end on **both** exits, with `credentialScrubbed: true` + the removed paths in the manifest. The recorded listing survives, because it is data |
+| **LOW-2** stale filmstrip counts | the pre-tour table is marked as such and counts are recorded per-run below instead of restated |
+| **LOW-3** no pre-click tour frame | the driver takes `onboarding tour before dismissal` while the bubble is still up; A/B filmstrips are 21/18 frames |
+| **LOW-4** `SMOKE_BUDGET_MIN` pinned but unread | enforced: `budget.mjs` fails a smoke run that overruns 12 minutes with exit 1, keeping the gate result in the line. `elapsedMin` is recorded on every run |
+| **LOW-5** stale Notes item 2 | marked RESOLVED — the tour and the guard have both landed, with the driver's measured numbers |
+| **LOW-6** `jpeg-js` in devDependencies | moved to `dependencies` in `scripts/roundtrip/package.json` (`lib/image-metrics.mjs` imports it at run time) and the lock regenerated. The ROOT `package.json` keeps it in devDependencies deliberately: the whole harness is dev tooling there and never enters the app bundle |
+
+**Measured, this session (Windows 10, Node 24):** `npx eslint .` **exit 0** · `npx tsc -b`
+**exit 0** · `npm test` **92 files / 1603 tests**, exit 0 · `npx vitest run scripts/`
+**8 files / 179 tests** (was 154) · `npm run test:coverage` **exit 0** — 87.54% stmt, 80.25%
+branch, 85.66% func, 88.68% line · `npm run build` **exit 0** · `npm run e2e` **672 passed,
+3 skipped, 0 failed**, exit 0, 5.0 min.
+
+**Segment dry runs, re-run against the fixed tour** (the tour fix changes the DOM the driver
+walks, so this is the check that matters):
+
+| Scenario | Driver | Filmstrip | driver-report | Gate |
+|---|---|---|---|---|
+| **A** | 1 passed (35.9s) | **21 frames**, incl. the new pre-click tour frame | `tourPresent: true · tourFirstStep: 1 · tourStepCount: 5`; filler WARN shown with **exactly one** item | **37 pass, 1 warn, 0 fail, 0 skip · exit 0**; `M04` 33 blocks within ±24px |
+| **B** | 1 passed (14.6s) | **18 frames** | same tour numbers; `fillerWarn.shown: false` | **38 pass, 0 warn, 0 fail, 0 skip · exit 0**; `M04` 11 blocks |
+
+**Mock-builder pipeline, re-run end to end** (`--mock-builder`, zero tokens) → **SMOKE-FAIL
+30.81, exit 1**, reproducing the built log to the decimal: all eight hard gates **H1–H8 PASS**,
+S1 **23.8/25** floor met, S4 0.0 and the S3 floor missed for the same two correct reasons as
+before (the mock echoes `generateDescription`; it renders a single vertical stack). Segment
+timings SEG-1 18.2 s · SEG-2 0.6 s · SEG-3 0.01 s · SEG-4 0.00 s · SEG-5 3.0 s. New manifest
+fields land: `elapsedMin: 0.37`, `smokeBudgetBreached: false`, **`credentialScrubbed: true`**,
+`cached: true`, `invalid: false`, `ruleDrift: []`. The S3 item now carries its length verdict
+alongside the echo failure (`lengthHint`, sentences, measured 1 in 1–3).
+
+`ship-gate.mjs` still **refuses on every axis**, and R9.3 proved itself in passing: run against
+the two mock runs it names the dirty worktree, the cached segments, the non-PASS verdicts, the
+two different commits, the wrong leg set **and** that `thresholds.mjs` and `scan-transcript.mjs`
+differ from the `fb7eaf6` run's copies — which is exactly what a scan-rule change between runs
+is supposed to look like in the evidence.
+
+**Status: unchanged — VERIFIED (MECHANICAL), no Success Criterion ticked.** The pre-flight batch
+is complete, so the remaining gate is now only How-We'll-Verify 6–11: the three live runs, the
+shipgate, the timed smoke, and the evidence copy.
 
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 

@@ -14,7 +14,7 @@
  * what it measured.
  */
 
-import { access, mkdir, readdir, copyFile, writeFile, stat } from 'node:fs/promises';
+import { access, mkdir, readdir, copyFile, rm, writeFile, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -177,6 +177,51 @@ export async function createSterileConfigDir({ parentDir, env = process.env, hom
   }
 
   return { dir, auth, listing };
+}
+
+/**
+ * POST-RUN CREDENTIAL SCRUB — delete every sterile `claude-home/` in the run tree.
+ *
+ * R3.4 already keeps the credential's CONTENTS out of the evidence (only the path and
+ * the method are recorded), but the copy itself sits in the run directory for the life
+ * of the run, and the run root is a long-lived folder on a shared machine. Removing the
+ * copies the moment the run ends — pass OR fail, which is why the orchestrator calls
+ * this from both exits — leaves the evidence complete and the secret nowhere.
+ *
+ * The listing recorded in `run-manifest.json` is what proves the dir WAS sterile; it
+ * survives the scrub because it is data, not the directory.
+ *
+ * @returns {Promise<{ credentialScrubbed: boolean, removed: string[], problems: string[] }>}
+ */
+export async function scrubCredentials(runDir) {
+  const removed = [];
+  const problems = [];
+
+  const walk = async (dir) => {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.name === 'claude-home') {
+        try {
+          await rm(full, { recursive: true, force: true });
+          removed.push(full);
+        } catch (err) {
+          problems.push(`${full}: ${err.message}`);
+        }
+        continue;
+      }
+      await walk(full);
+    }
+  };
+
+  await walk(runDir);
+  return { credentialScrubbed: problems.length === 0, removed, problems };
 }
 
 /** R3.3 — the assertion is on the RECURSIVE listing: `claude-home/agents/**` fails it too. */

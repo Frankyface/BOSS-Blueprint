@@ -119,6 +119,31 @@ describe('R5.3 — rule 2a, the extended interrogative set (ruling 6)', () => {
   })
 })
 
+describe('R5.3 — rule 2a clause 3, the first-person offer (2026-07-29)', () => {
+  // Both earlier clauses need the word `you` somewhere. Every sentence here is an ask
+  // that cannot be answered in `-p` mode, and every one of them passed H2 before this.
+  it.each([
+    ['Should I add a favicon as well?', 'should i'],
+    ['Shall I wire the footer nav to the same four pages?', 'shall i'],
+    ['Shall we go with the sand colour?', 'shall we'],
+    ['Want me to swap the hero photo?', 'want me to'],
+    ['Anything else?', 'anything else'],
+  ])('fails H2 on %s (%s)', (sentence) => {
+    const { hits } = scanFinalText(sentence)
+    expect(hits.length).toBeGreaterThan(0)
+    expect(hits[0].rule).toBe('R5.3-2a-offer')
+  })
+
+  it('still needs the question mark — clause 3 is part of 2a, not 2b', () => {
+    expect(scanFinalText('Anything else the client sketched is already on the page.').hits).toHaveLength(0)
+  })
+
+  it('is word-order sensitive, so an ordinary statement about myself survives', () => {
+    expect(scanFinalText('I should include the opening hours, so I did.').hits).toHaveLength(0)
+    expect(scanFinalText('Should the hero be full width?').hits).toHaveLength(0)
+  })
+})
+
 describe('R5.3 — rule 2b, the phrase list', () => {
   it.each([
     'Let me know if that works.',

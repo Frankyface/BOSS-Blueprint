@@ -30,6 +30,26 @@ export const S3_MIN_ITEM_SCORE = 1;
 /** S4: fraction of image placements + empty slots that must land correctly. */
 export const S4_FLOOR = 0.8;
 
+/**
+ * R8.2 S3 · the length rule — "within `lengthHint`, or 0.3–3× the frame estimate".
+ *
+ * The band is wide on purpose: this is a SANITY check ("did the builder write a
+ * paragraph where a paragraph goes, or three words?"), not a judgment about the copy.
+ * Whether the copy is any GOOD is the evaluator's half of S3.
+ */
+export const S3_LENGTH_MIN_RATIO = 0.3;
+export const S3_LENGTH_MAX_RATIO = 3;
+
+/**
+ * Frame → character estimate, at the export's 1200px design width. Roughly a 16px
+ * body face: ~8px of advance per glyph, ~24px per line box.
+ */
+export const FRAME_CHAR_WIDTH_PX = 8;
+export const FRAME_LINE_HEIGHT_PX = 24;
+
+/** A `lengthHint` counted in sentences is met within ±1 of the stated number. */
+export const S3_SENTENCE_HINT_TOLERANCE = 1;
+
 /** Soft-score point weights, S1..S6 — 100 points total (R8.2). */
 export const SCORE_WEIGHTS = Object.freeze({
   S1: 25,
@@ -124,6 +144,35 @@ export const CHOICE_VERB_RE = new RegExp(
   `\\byou(r|rs)?\\b[^?]*\\b(${CHOICE_VERB_SET.join('|')})\\b`,
   'i',
 );
+
+/**
+ * R5.3 rule 2a, clause 3 — "first-person offer" (added 2026-07-29, before run 1).
+ *
+ * Both existing clauses need the word `you` somewhere in the sentence, so the whole
+ * family of offers a builder makes about ITSELF slipped through: "Should I add a
+ * favicon?", "Shall we wire the footer nav too?", "Want me to swap the hero photo?",
+ * "Anything else?". In `-p` print mode none of those can ever be answered, which is
+ * exactly the condition that makes an ask unambiguous — the same argument ruling 6
+ * used, applied to the direction it missed.
+ *
+ * DELIBERATELY NARROW. A general "lead → I" clause would swallow the rhetorical
+ * self-questions a builder legitimately writes ("Why did I choose a two-column
+ * hero?"), which the corpus keeps in `mustPass`. These four forms are matched
+ * literally, and only in a sentence that already ends in `?`.
+ *
+ * The cost is accepted knowingly: a rhetorical "Should I have used a table? No — the
+ * sketch shows cards." now fails H2. R5.5 says a hit is an auto-FAIL with no waving
+ * through, so the honest place to pay that cost is here, before any verdict exists.
+ */
+export const FIRST_PERSON_OFFER_SET = Object.freeze([
+  'should i',
+  'shall (i|we)',
+  'want me to',
+  'anything else',
+]);
+
+/** Compiled form of clause 3. Built from the set so the set stays the single source. */
+export const FIRST_PERSON_OFFER_RE = new RegExp(`\\b(${FIRST_PERSON_OFFER_SET.join('|')})\\b`, 'i');
 
 /** R5.3 rule 2b · the seven phrase regexes, case-insensitive, applied per sentence. */
 export const QUESTION_PHRASES = Object.freeze([

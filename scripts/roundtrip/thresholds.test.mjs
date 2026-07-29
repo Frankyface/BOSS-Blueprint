@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
+import { applySmokeBudget, elapsedMinutes } from './budget.mjs'
 import * as T from './thresholds.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -36,6 +37,14 @@ describe('R10.1 — the pinned inventory', () => {
     expect(T.SCORE_WEIGHTS).toEqual({ S1: 25, S2: 20, S3: 15, S4: 15, S5: 15, S6: 10 })
     expect(Object.values(T.SCORE_WEIGHTS).reduce((a, b) => a + b, 0)).toBe(100)
     expect(T.S5_DET_POINTS + T.S5_EVAL_POINTS).toBe(T.SCORE_WEIGHTS.S5)
+  })
+
+  it('pins the S3 length rule (R8.2)', () => {
+    expect(T.S3_LENGTH_MIN_RATIO).toBe(0.3)
+    expect(T.S3_LENGTH_MAX_RATIO).toBe(3)
+    expect(T.FRAME_CHAR_WIDTH_PX).toBe(8)
+    expect(T.FRAME_LINE_HEIGHT_PX).toBe(24)
+    expect(T.S3_SENTENCE_HINT_TOLERANCE).toBe(1)
   })
 
   it('pins the geometry and image-matching constants', () => {
@@ -81,6 +90,14 @@ describe('R10.1 — the pinned inventory', () => {
     expect([...T.CHOICE_VERB_SET]).toEqual(['want', 'prefer', 'like', 'need', 'confirm', 'decide', 'choose', 'pick'])
   })
 
+  it('pins the first-person offer forms added 2026-07-29 (R5.3 2a clause 3)', () => {
+    expect([...T.FIRST_PERSON_OFFER_SET]).toEqual(['should i', 'shall (i|we)', 'want me to', 'anything else'])
+    expect(T.FIRST_PERSON_OFFER_RE.flags).toContain('i')
+    // Word order is load-bearing: "I should" is a statement, "should I" is an offer.
+    expect(T.FIRST_PERSON_OFFER_RE.test('Should I add a favicon?')).toBe(true)
+    expect(T.FIRST_PERSON_OFFER_RE.test('I should include the hours.')).toBe(false)
+  })
+
   it('pins the seven question phrases (R5.3 2b)', () => {
     expect(T.QUESTION_PHRASES.map((re) => re.source)).toEqual([
       'let me know',
@@ -112,6 +129,25 @@ describe('R10.1 — the pinned inventory', () => {
       'A/deployed',
       'B/preview',
     ])
+  })
+
+  it('pins the evaluator contract (R7.2/R7.3/R7.4)', () => {
+    // R10.1 says EVERY frozen rule set lives here with an exact-value test. These four
+    // govern what an evaluator may score, cite, retry and see — the loosest of them is
+    // the one a future edit would reach for first.
+    expect(T.EVAL_SCORE_MIN).toBe(0)
+    expect(T.EVAL_SCORE_MAX).toBe(2)
+    expect(T.EVALUATOR_MAX_RETRIES).toBe(1)
+    expect(T.EVIDENCE_ARTEFACT_RE.source).toBe('(shots|pages)\\/[\\w.-]+\\.png|BUILD_NOTES\\.md')
+    expect([...T.EVALUATOR_SANDBOX_ALLOWED]).toEqual([
+      'site.json',
+      'scenario.json',
+      'rubric.md',
+      'rubric-manifest.json',
+      'BUILD_NOTES.md',
+    ])
+    // R7.2's whole point: the builder transcript is not in the set.
+    expect(T.EVALUATOR_SANDBOX_ALLOWED).not.toContain('transcript.jsonl')
   })
 
   it('hashes every rule file R9.3 names', () => {
@@ -149,5 +185,36 @@ describe('R4.2 — the frozen builder prompt', () => {
     expect(text).not.toContain('\r')
     expect(text.endsWith('\n')).toBe(true)
     expect(text.endsWith('\n\n')).toBe(false)
+  })
+})
+
+describe('the smoke budget is ENFORCED, not merely pinned', () => {
+  const line = 'SMOKE-PASS 91.4'
+
+  it('leaves a run inside the budget exactly as the gates left it', () => {
+    const out = applySmokeBudget({ smoke: true, elapsedMin: 11.9, verdictLine: line, exitCode: 0 })
+    expect(out).toEqual({ verdictLine: line, exitCode: 0, breached: false })
+  })
+
+  it('fails a smoke run that overruns, whatever the gates said', () => {
+    // "completes in ≤ 12 minutes" is a Success Criterion, and a criterion nothing
+    // checks is a wish. The gate result is kept in the line so the evidence still says
+    // what the run scored.
+    const out = applySmokeBudget({ smoke: true, elapsedMin: 18.42, verdictLine: line, exitCode: 0 })
+    expect(out.breached).toBe(true)
+    expect(out.exitCode).toBe(1)
+    expect(out.verdictLine).toContain('SMOKE-FAIL')
+    expect(out.verdictLine).toContain('18.4 min')
+    expect(out.verdictLine).toContain(line)
+  })
+
+  it('never touches a full gating run — that budget is per segment, and INFRA', () => {
+    const out = applySmokeBudget({ smoke: false, elapsedMin: 44, verdictLine: 'PASS 91', exitCode: 0 })
+    expect(out).toEqual({ verdictLine: 'PASS 91', exitCode: 0, breached: false })
+  })
+
+  it('measures wall-clock minutes from the run start', () => {
+    const started = new Date('2026-07-29T10:00:00.000Z')
+    expect(elapsedMinutes(started, started.getTime() + 90_000)).toBe(1.5)
   })
 })

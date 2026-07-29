@@ -15,6 +15,7 @@ import {
   PreconditionError,
   runDirName,
   runsRoot,
+  scrubCredentials,
   scrubEnvironment,
 } from './sandbox.mjs'
 import { BANNED_ALLOW_RE, MAX_TURNS } from './thresholds.mjs'
@@ -200,5 +201,36 @@ describe('R3.1 — the run root lives outside the repo', () => {
   it('names run directories per protocol §0', () => {
     const name = runDirName({ startedAt: new Date('2026-07-29T10:20:30.400Z'), scenarioId: 'A', gitSha: 'abcdef1234' })
     expect(name).toBe('2026-07-29T10-20-30-400Z_A_abcdef1')
+  })
+})
+
+describe('post-run credential scrub (MEDIUM-5)', () => {
+  it('removes every sterile claude-home in the run tree and reports it', async () => {
+    // The credential's CONTENTS never enter the evidence (R3.4), but the COPY sits in
+    // the run directory for the life of the run, and the run root is a long-lived
+    // folder. The scrub runs on both exits, so a failed run leaves no copy either.
+    const runDir = await tempDir()
+    for (const where of ['builder', path.join('eval', 'attempt-0'), path.join('eval', 'attempt-1')]) {
+      await mkdir(path.join(runDir, where, 'claude-home'), { recursive: true })
+      await writeFile(path.join(runDir, where, 'claude-home', '.credentials.json'), '{"token":"not-real"}', 'utf8')
+      await writeFile(path.join(runDir, where, 'claude-home', 'settings.json'), '{}', 'utf8')
+    }
+    await mkdir(path.join(runDir, 'shots'), { recursive: true })
+    await writeFile(path.join(runDir, 'shots', 'home.png'), 'not really a png', 'utf8')
+
+    const result = await scrubCredentials(runDir)
+
+    expect(result.credentialScrubbed).toBe(true)
+    expect(result.removed).toHaveLength(3)
+    expect(result.problems).toEqual([])
+    const left = await listRecursive(runDir)
+    expect(left.join('\n')).not.toContain('credentials')
+    // The rest of the evidence is untouched — this is a scrub, not a cleanup.
+    expect(left).toContain('shots/home.png')
+  })
+
+  it('is a no-op on a run that never created one', async () => {
+    const result = await scrubCredentials(await tempDir())
+    expect(result).toEqual({ credentialScrubbed: true, removed: [], problems: [] })
   })
 })

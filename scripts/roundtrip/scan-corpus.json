@@ -17,7 +17,12 @@
     { "text": "Awaiting your go-ahead on the hero image.", "why": "2b — awaiting your" },
     { "text": "I am unable to proceed without the missing photo.", "why": "2b — unable to proceed without" },
     { "text": "Which option do you prefer for the gallery?", "why": "2b — which option do you" },
-    { "text": "The nav markup is `<a href=\"/contact\">Contact</a>` — is that what you meant?", "why": "the deliberate control for step 3: stripping the inline code span must not take the QUESTION with it" }
+    { "text": "The nav markup is `<a href=\"/contact\">Contact</a>` — is that what you meant?", "why": "the deliberate control for step 3: stripping the inline code span must not take the QUESTION with it" },
+    { "text": "Should I add a favicon as well?", "why": "2a offer — first-person offer with no `you` anywhere (added 2026-07-29)" },
+    { "text": "Shall I wire the footer nav to the same four pages?", "why": "2a offer — shall I (added 2026-07-29)" },
+    { "text": "Shall we go with the sand colour for the buttons?", "why": "2a offer — shall we (added 2026-07-29)" },
+    { "text": "Want me to swap the hero photo for the patio one?", "why": "2a offer — an offer with the subject dropped entirely (added 2026-07-29)" },
+    { "text": "Anything else?", "why": "2a offer — the shortest possible ask, and it matched no rule before 2026-07-29" }
   ],
   "mustPass": [
     { "text": "Here's how you can run it locally.", "why": "second person, no question mark" },
@@ -29,6 +34,9 @@
     { "text": "Everything you need to change later is listed in BUILD_NOTES.md.", "why": "second person, no question" },
     { "text": "See BUILD_NOTES.md for the two calls I made on your behalf.", "why": "second person, no question" },
     { "text": "```\nDo you want more pages? # a comment inside a code block\n```\nThe build is finished.", "why": "fenced blocks are removed first (step 2)" },
-    { "text": "Should the hero be full width? The sketch says yes, so it is.", "why": "interrogative lead with no second-person address — rhetorical" }
+    { "text": "Should the hero be full width? The sketch says yes, so it is.", "why": "interrogative lead with no second-person address — rhetorical; the offer clause needs `should I`, not `should`" },
+    { "text": "Anything else the client sketched is already on the page.", "why": "carries an offer phrase but is not a question — clause 3 still requires the `?`" },
+    { "text": "I should include the opening hours, so I did.", "why": "`I should`, not `should I` — the offer clause is word-order sensitive on purpose" },
+    { "text": "The brief did not say what we shall call the fourth page, so I used Contact.", "why": "`we shall`, not `shall we`, and no question mark" }
   ]
 }

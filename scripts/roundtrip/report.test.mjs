@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildRubricManifest, validateJudgments } from './evaluator.mjs'
-import { lcsLength } from './evaluate.mjs'
+import { checkCopyLength, estimateFrameChars, findWrittenCopy, lcsLength, parseLengthHint } from './evaluate.mjs'
 import { acceptJudgments, mergeReport, renderMarkdown } from './report.mjs'
 import { checkSet } from './ship-gate.mjs'
 import { deltaE00, hexToRgb, rgbToLab } from './lib/image-metrics.mjs'
@@ -76,6 +76,33 @@ describe('R7.2/R7.3 — the evaluator contract', () => {
     expect(missing).toContain('S6:big-note')
   })
 
+  it('rejects evidence that cites a file which was never staged', () => {
+    // The shape check alone accepted any string matching the regex, so a citation to a
+    // shot that does not exist — the exact shape a hallucinated one takes — counted.
+    const rubricManifest = buildRubricManifest({ site, scenario })
+    const { accepted, rejected } = acceptJudgments({
+      judgments: {
+        items: [
+          { id: 'S2:home', score: 2, evidence: 'shots/homepage.png shows the hero' },
+          { id: 'S5:home', score: 2, evidence: 'shots/home.png is unmistakably modern' },
+        ],
+      },
+      rubricManifest,
+      stagedFiles: ['BUILD_NOTES.md', 'rubric.md', 'shots/home.png', 'site.json'],
+    })
+    expect(accepted.map((i) => i.id)).toEqual(['S5:home'])
+    expect(rejected[0].why).toContain('none of which was staged')
+  })
+
+  it('still checks the shape when no listing is available', () => {
+    const rubricManifest = buildRubricManifest({ site, scenario })
+    const { accepted } = acceptJudgments({
+      judgments: { items: [{ id: 'S2:home', score: 2, evidence: 'shots/anything.png' }] },
+      rubricManifest,
+    })
+    expect(accepted).toHaveLength(1)
+  })
+
   it('rejects a malformed or wrong-scenario judgments file', () => {
     const rubricManifest = buildRubricManifest({ site, scenario })
     expect(validateJudgments('{oops', rubricManifest).ok).toBe(false)
@@ -124,6 +151,17 @@ describe('R8.3 — the verdict is arithmetic, not judgment', () => {
     expect(merge({ judged }).dimensions.S2.floorMet).toBe(false)
   })
 
+  it('an EMPTY score array misses the floor rather than clearing it vacuously', () => {
+    // `[].every(…)` is true, so an evaluator that said nothing about a dimension used to
+    // clear that dimension's floor by silence — the one direction a missing measurement
+    // must never fall.
+    const report = merge({ judged: [] })
+    expect(report.dimensions.S2.floorMet).toBe(false)
+    expect(report.dimensions.S3.floorMet).toBe(false)
+    expect(report.dimensions.S6.floorMet).toBe(false)
+    expect(report.verdict).not.toBe('PASS')
+  })
+
   it('smoke skips the judged dimensions and applies the same det floors', () => {
     const report = merge({ smoke: true, judged: null })
     expect(report.verdict).toBe('SMOKE-PASS')
@@ -152,6 +190,80 @@ describe('S1 alignment maths', () => {
     expect(lcsLength(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(3)
     expect(lcsLength(['a', 'b', 'c'], ['a', 'x', 'b', 'c'])).toBe(3)
     expect(lcsLength(['a', 'b', 'c'], ['c', 'b', 'a'])).toBe(1)
+  })
+})
+
+describe('S3 deterministic half (R8.2)', () => {
+  const node = (kind, text, y) => ({ kind, tag: kind === 'heading' ? 'h2' : 'p', text, box: { x: 40, y, w: 600, h: 60 } })
+  const sitePage = {
+    slug: 'home',
+    height: 1600,
+    blocks: [
+      { id: 'blk_real', type: 'text', copyMode: 'real', text: 'We answer the phone.' },
+      { id: 'blk_top', type: 'text', copyMode: 'generate', generateDescription: 'intro', frame: { x: 40, y: 100, w: 600, h: 120 } },
+      { id: 'blk_low', type: 'text', copyMode: 'generate', generateDescription: 'outro', frame: { x: 40, y: 1300, w: 600, h: 120 } },
+    ],
+  }
+  const digest = {
+    nodes: [
+      node('text', 'A short introduction to the company, two sentences long. It reads well.', 90),
+      node('text', 'We answer the phone.', 700),
+      node(
+        'text',
+        'A much longer closing paragraph that happens to be the longest thing anywhere on this page by a wide margin indeed.',
+        1400,
+      ),
+    ],
+  }
+
+  it('reads the BLOCK’s own copy by position, not the longest string on the page', () => {
+    // The old rule handed every generate block on a page the same string — whichever was
+    // longest — so a block could be graded against a neighbour's copy entirely.
+    const top = findWrittenCopy({ digest, sitePage, block: sitePage.blocks[1] })
+    const low = findWrittenCopy({ digest, sitePage, block: sitePage.blocks[2] })
+    expect(top).toContain('short introduction')
+    expect(low).toContain('closing paragraph')
+    expect(top).not.toBe(low)
+  })
+
+  it('never returns another block’s real copy', () => {
+    const written = findWrittenCopy({
+      digest,
+      sitePage,
+      block: { type: 'text', generateDescription: 'x', frame: { x: 40, y: 780, w: 600, h: 60 } },
+    })
+    expect(written).not.toBe('We answer the phone.')
+  })
+
+  it('estimates a frame’s character capacity from its own geometry', () => {
+    expect(estimateFrameChars({ w: 800, h: 240 })).toBe(1000)
+    expect(estimateFrameChars({ w: 0, h: 0 })).toBe(1)
+  })
+
+  it('reads a lengthHint in sentences, words or characters', () => {
+    expect(parseLengthHint('~2 sentences')).toEqual({ count: 2, unit: 'sentences' })
+    expect(parseLengthHint('about 40 words')).toEqual({ count: 40, unit: 'words' })
+    expect(parseLengthHint('80 characters')).toEqual({ count: 80, unit: 'characters' })
+    expect(parseLengthHint(null)).toBeNull()
+    expect(parseLengthHint('short and punchy')).toBeNull()
+  })
+
+  it('honours the lengthHint when the client gave one', () => {
+    const two = 'One sentence here. And a second one.'
+    expect(checkCopyLength({ written: two, lengthHint: '~2 sentences', frame: { w: 600, h: 120 } }).ok).toBe(true)
+    // Five sentences against a two-sentence hint is outside ±1.
+    const five = 'One. Two. Three. Four. Five.'
+    expect(checkCopyLength({ written: five, lengthHint: '~2 sentences', frame: { w: 600, h: 120 } }).ok).toBe(false)
+  })
+
+  it('falls back to 0.3–3× the frame estimate when there is no hint', () => {
+    const frame = { w: 600, h: 120 } // 75 × 5 = 375 chars
+    const result = checkCopyLength({ written: 'x'.repeat(200), lengthHint: null, frame })
+    expect(result.rule).toBe('frame estimate')
+    expect(result.ok).toBe(true)
+    // Three words where a paragraph belongs is the case the rule exists to catch.
+    expect(checkCopyLength({ written: 'Nice garden.', lengthHint: null, frame }).ok).toBe(false)
+    expect(checkCopyLength({ written: 'x'.repeat(4000), lengthHint: null, frame }).ok).toBe(false)
   })
 })
 
