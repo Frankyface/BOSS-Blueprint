@@ -1,0 +1,303 @@
+{
+  "title": "North Star Dog Grooming",
+  "bodyText": "Skip to main content North Star Dog Grooming Home Pricing Contact Grooming that dogs actually enjoy Welcome to North Star Dog Grooming, your neighborhood's go-to spot for pampering your four-legged friend. We believe every dog deserves personalized attention in a calm, comfortable environment—that's why we take one dog at a time, ensuring your pup gets our full focus and lots of love. See our prices North Star Dog Grooming Home Pricing Contact Contact 519-555-0177 84 Norfolk Street, north entrance Tuesday to Saturday, 8am to 4pm © 2026 North Star Dog Grooming. All rights reserved.",
+  "nodes": [
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Skip to main content",
+      "href": "#main",
+      "src": null,
+      "box": {
+        "x": 0,
+        "y": -40,
+        "w": 163,
+        "h": 42
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Home",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 966,
+        "y": 17,
+        "w": 44,
+        "h": 39
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Pricing",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 1042,
+        "y": 17,
+        "w": 50,
+        "h": 39
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Contact",
+      "href": "contact.html",
+      "src": null,
+      "box": {
+        "x": 1124,
+        "y": 17,
+        "w": 56,
+        "h": 39
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Home",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 966,
+        "y": 23,
+        "w": 44,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Pricing",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 1042,
+        "y": 23,
+        "w": 50,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Contact",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 1124,
+        "y": 23,
+        "w": 56,
+        "h": 26
+      }
+    },
+    {
+      "kind": "heading",
+      "tag": "h1",
+      "text": "Grooming that dogs actually enjoy",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 153,
+        "w": 490,
+        "h": 115
+      }
+    },
+    {
+      "kind": "image",
+      "tag": "img",
+      "text": "A freshly groomed terrier ready for their best day out",
+      "href": null,
+      "src": "assets/img_001.jpg",
+      "box": {
+        "x": 630,
+        "y": 156,
+        "w": 490,
+        "h": 368
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "p",
+      "text": "Welcome to North Star Dog Grooming, your neighborhood's go-to spot for pampering your four-legged friend. We believe every dog deserves personalized attention in a calm, comfortable environment—that's why we take one dog at a time, ensuring your pup gets our full focus and lots of love.",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 300,
+        "w": 490,
+        "h": 136
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "See our prices",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 468,
+        "w": 166,
+        "h": 58
+      }
+    },
+    {
+      "kind": "heading",
+      "tag": "h2",
+      "text": "North Star Dog Grooming",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 747,
+        "w": 500,
+        "h": 29
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "p",
+      "text": "Contact",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 620,
+        "y": 747,
+        "w": 500,
+        "h": 22
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "p",
+      "text": "519-555-0177 84 Norfolk Street, north entrance Tuesday to Saturday, 8am to 4pm",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 620,
+        "y": 781,
+        "w": 500,
+        "h": 67
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "519-555-0177",
+      "href": "tel:519-555-0177",
+      "src": null,
+      "box": {
+        "x": 620,
+        "y": 782,
+        "w": 87,
+        "h": 19
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Home",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 796,
+        "w": 38,
+        "h": 22
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Pricing",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 158,
+        "y": 796,
+        "w": 42,
+        "h": 22
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Contact",
+      "href": "contact.html",
+      "src": null,
+      "box": {
+        "x": 240,
+        "y": 796,
+        "w": 48,
+        "h": 22
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "p",
+      "text": "© 2026 North Star Dog Grooming. All rights reserved.",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 941,
+        "w": 1040,
+        "h": 21
+      }
+    }
+  ],
+  "links": [
+    {
+      "text": "Skip to main content",
+      "href": "#main"
+    },
+    {
+      "text": "Home",
+      "href": "/"
+    },
+    {
+      "text": "Pricing",
+      "href": "pricing.html"
+    },
+    {
+      "text": "Contact",
+      "href": "contact.html"
+    },
+    {
+      "text": "See our prices",
+      "href": "pricing.html"
+    },
+    {
+      "text": "519-555-0177",
+      "href": "tel:519-555-0177"
+    },
+    {
+      "text": "Home",
+      "href": "/"
+    },
+    {
+      "text": "Pricing",
+      "href": "pricing.html"
+    },
+    {
+      "text": "Contact",
+      "href": "contact.html"
+    }
+  ],
+  "images": [
+    {
+      "src": "assets/img_001.jpg",
+      "alt": "A freshly groomed terrier ready for their best day out",
+      "box": {
+        "x": 630,
+        "y": 156,
+        "w": 490,
+        "h": 368
+      }
+    }
+  ]
+}

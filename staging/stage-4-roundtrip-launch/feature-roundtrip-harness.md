@@ -1531,6 +1531,125 @@ the deployed-bundle precondition and the CLI baseline are all green as of this e
 legs can go the moment the location question is settled.
 
 
+### 2026-07-29 — LIVE-RUN ATTEMPT 5: H3 fix CONFIRMED LIVE, all 8 hard gates PASS; smoke stops on the S4 floor, and S4's placement test is measuring against the wrong denominator
+
+**Attempt at How-We'll-Verify 6–11 at HEAD `2c50622`, clean tree throughout. One run: the timed
+smoke, `SMOKE-FAIL 32`.** Runs 2–5 and the shipgate **not attempted** — binding is *scored FAIL →
+commit honest evidence, STOP, routing analysis*, and no further rule edits without a fresh ruling.
+**Status stays `awaiting verification`.**
+
+**The BUILD_NOTES ruling is confirmed against a live builder, not just fixtures.** `scan-report.json`
+from this run: `h2.ok true · h3.ok true · h8.ok true`, with
+`buildNotesExists: true, buildNotesAtSandboxRoot: false`. **This builder wrote the notes to
+`site/BUILD_NOTES.md` unprompted, exactly as attempt 4's did** — a second independent session
+resolving "the root of your build" the same way, which is about as good as this evidence gets.
+The run went four segments further than any before it.
+
+| # | Run dir (`C:\bp-runs\…`) | Verdict | Elapsed |
+|---|---|---|---|
+| 1 | `2026-07-29T16-07-51-270Z_B_2c50622` | **SMOKE-FAIL 32/100** (scenario B, preview, smoke) | **4.67 min**, exit 1 |
+
+| Segment | Result | Time |
+|---|---|---|
+| SEG-1 driver | ok | 27.9 s |
+| SEG-2 package gate | ok | 0.9 s |
+| SEG-3 builder (sterile) | ok | 247.3 s |
+| SEG-4 scan | **ok — H2/H3/H8 all pass** | 0.025 s |
+| SEG-5 capture | **ok** (3 pages shot + DOM digests) | 3.4 s |
+| SEG-6 deterministic eval | ran — produced the score below | — |
+
+**ALL EIGHT HARD GATES PASS: H1 H2 H3 H4 H5 H6 H7 H8.** The smoke verdict keys on
+`gatesOk && floorsOk`, not on the 85 threshold (`report.mjs`), so the 32/100 headline is not the
+blocker — **one floor is**.
+
+| Dim | Points | Max | Floor |
+|---|---|---|---|
+| S1 | 25.0 | 25 | met |
+| S2 | skipped (needs the judge; `--smoke` skips SEG-6-eval) | 20 | met |
+| S3 | skipped | 15 | met |
+| S4 | **0.0** | 15 | **MISSED** |
+| S5 | 7.0 | 15 | met |
+| S6 | skipped | 10 | met |
+| **Total** | **32.0** | 100 | |
+
+**S4 is the only thing standing between this and a SMOKE-PASS.** S4 = "fraction of image
+placements + empty slots that land correctly", floor 0.8. Two items, both scored `ok: false`,
+fraction 0.
+
+**The builder's output is not the problem.** Both images rendered, both with alt text written from
+the description, both on the correct side of the page:
+
+| page / block | rendered | alt | horizontal half |
+|---|---|---|---|
+| home / `blk_0004` | `assets/img_001.jpg` at (630,156,490,368) | "A freshly groomed terrier ready for their best day out" | want 1, got 1 ✓ |
+| contact / `blk_0011` (SOURCE AN IMAGE) | `assets/placeholders/blk_0011.svg` at (630,294,490,333) | "North Star Dog Grooming shopfront with blue door visible from the sidewalk" | want 1, got 1 ✓ |
+
+Only the **vertical third** missed, and the reason is in the evaluator, not the site.
+`scoreImagePlacement` (`scripts/roundtrip/evaluate.mjs`) compares two ratios computed against
+**different denominators**:
+
+```
+wantThird = floor( (block.frame.y / pageHeight) * 3 )       // sketch: pageHeight = 1600
+docHeight = Math.max(1, ...images.map(i => i.box.y + i.box.h))   // <-- NOT the document height
+third     = floor( ((img.box.y + img.box.h/2) / docHeight) * 3 ) // built site
+```
+
+`docHeight` is the **bottom edge of the lowest image**, not the rendered document height. Measured
+on this run: home `docHeight = 524` (the one image ends at 524), contact `docHeight = 627`.
+
+**With exactly one image on a page this makes the top third unreachable, provably:**
+
+```
+third = 0  requires  (y + h/2) / (y + h) < 1/3
+                <=>  3y + 1.5h < y + h
+                <=>  2y < -0.5h      -> impossible for y, h >= 0
+```
+
+Measured: home `340/524 = 0.649 -> third 1`; contact `460.5/627 = 0.734 -> third 2`. Both sketches
+place their image in the **top** third (`wantThird = 0`: y=128/1600 and y=160/1600). **So both
+items could not have passed no matter what the builder built.** Any scenario whose page renders a
+single image in the top third fails S4 by construction. The DOM digests carry no document-height
+field at all (`home.dom.json`, `contact.dom.json` — committed), so the correct denominator is not
+currently captured.
+
+**Routing.** This is **not** the S4 row's nominal destination. The report auto-routes S4 to
+"brief generator §4.4 / assets usage lines", but the brief and the build are both fine here — the
+brief named the slot, the description, the fit and the placeholder path, and the builder honoured
+all four. **It routes to the harness evaluator** (`evaluate.mjs::scoreImagePlacement`), and
+plausibly to SEG-5 capture as well, since fixing it properly needs a real document height recorded
+in the DOM digest. That is a scan/threshold-class change to a rule file, so per the standing
+binding it **needs a ruling before anything is touched** — the same abort-capture-review loop the
+manifest and BUILD_NOTES questions went through.
+
+**Not asserted:** whether S4 has ever passed. Attempts 1–4 never reached SEG-6, so this is the
+first time the dimension has been evaluated against a real build at all, and its floor has no
+prior green run to regress from.
+
+**Also recorded, not acted on.** BUILD_NOTES triage: **101 entries, 0 package-defect candidates**,
+flagged **FRICTION** ("the brief is making the builder guess too much"). One permission denial
+again (H2 passed, so R5.6's harness-routing note is informational). Neither affected this verdict;
+both are worth reading when S4 is ruled on, since a 101-entry notes file is itself a signal about
+brief quality.
+
+**Nothing was weakened.** No threshold, scan rule, scenario, prompt, rubric or manifest was edited
+after the run. `invalid: false`, `cached: false`, `credentialScrubbed: true`, `purity.ok: true`
+(CLI 2.1.220 against the 2.1.220 baseline), and all seven rule hashes byte-identical at run start
+and run end. Elapsed 4.67 min, `smokeBudgetBreached: false` — but the run still stopped at a floor
+rather than completing a full scored pass, so **`SMOKE_BUDGET_MIN` remains a floor, not a
+validated end-to-end measurement**; SEG-6's judge leg has still never been exercised.
+
+**Evidence** (committed): `staging/stage-4-roundtrip-launch/evidence/2026-07-29-live-run-attempt-5-smoke-S4/`
+— `run-manifest.json`, `scan-report.json` (H3/H8 green, the fix proven live), `report.md` (gate +
+score tables), `evaluate.json` (the two S4 items), `home.dom.json` / `contact.dom.json` (the
+ground truth showing both images present and correctly placed), `verdict.txt`, and R9.2's two
+sketch/shot pairs for scenario B under `pairs/`.
+
+**To resume — one ruling:** decide how S4 should measure vertical placement (record a real document
+height in the SEG-5 DOM digest and compare like-for-like, or normalise both sides against the same
+frame of reference), record it in `docs/decisions.md`, then re-run 6–11 unchanged. Auth, the
+deployed-bundle precondition, the CLI baseline and all eight hard gates are green as of this entry.
+
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.
