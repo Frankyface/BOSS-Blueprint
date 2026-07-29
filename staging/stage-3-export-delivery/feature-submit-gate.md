@@ -206,6 +206,17 @@ webkit, 7.4 min locally. `e2e/submit.spec.ts` (6 tests × 3 engines):
    retry, fires no download, and offers no partial package.
 6. *no nagging* — a freshly opened form has `[role="alert"]` count 0; after a failed send
    it is non-zero.
+7. *the business name commits the way a client commits it* — added after a manual pass through
+   the real preview build. The other tests blur the field explicitly, which is a TEST
+   convenience: a client types and goes straight for the button, and because the business name
+   is a committed field (one store write, one undo step) "does the click's own blur commit it?"
+   is a real question with a bad failure mode — a form refusing a name the client can see in
+   the box. This test types into all three fields and clicks Send with **no blur of our own**;
+   it asserts `submit-error-businessName` has count 0 and the view reaches `blocked`. It uses
+   the blockers fixture deliberately, so proving the form gate was satisfied costs no renders.
+   Green in all three engines. (The manual pass that prompted it was itself a false alarm — the
+   symptom came from driving a React-controlled input with injected JS, which sets the value
+   without ever firing React's `onBlur`.)
 
 **Relay payload actually logged** (dev console, `NoopRelay`) —
 `variant: 'full'`, `submissionId`, `uuid8`, `client: { name, email }`, `businessName`,

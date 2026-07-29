@@ -249,6 +249,36 @@ test.describe('failure paths', () => {
   })
 })
 
+test.describe('the business name commits the way a client commits it', () => {
+  /**
+   * The journey test blurs the field explicitly, which is a TEST convenience — a
+   * real client types and goes straight for the button. The business name is a
+   * committed field (one store write, one undo step), so "did the click's own
+   * blur commit it?" is a real question and it is the difference between a
+   * working submit and a form that refuses a name the client can see in the box.
+   * No explicit blur here on purpose. Uses the blockers fixture so the assertion
+   * costs no page renders: getting as far as the BLOCK screen already proves the
+   * form gate was satisfied.
+   */
+  test('typing it and clicking Send is enough — no blur of our own', async ({ page }) => {
+    await openCanvas(page)
+    await seedSubmitDesign(page, { pages: submitFixturePages({ withBlockers: true }) })
+    await openSubmit(page)
+
+    await page.getByTestId('submit-client-name').click()
+    await page.keyboard.type(CLIENT.name)
+    await page.getByTestId('submit-client-email').click()
+    await page.keyboard.type(CLIENT.email)
+    await page.getByTestId('submit-business-name').click()
+    await page.keyboard.type(BUSINESS)
+
+    await sendButton(page).click()
+
+    await expect(page.getByTestId('submit-error-businessName')).toHaveCount(0)
+    await expect(page.getByTestId('submit-view')).toHaveAttribute('data-screen', 'blocked')
+  })
+})
+
 test.describe('no nagging before the send', () => {
   test('an untouched form carries no alerts at all', async ({ page }) => {
     await openCanvas(page)
