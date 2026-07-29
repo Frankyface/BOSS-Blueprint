@@ -157,7 +157,7 @@ an awaiting-human item into a done-sounding one is the failure mode this rule ex
 
 ## Verification Log
 
-### 2026-07-29 — built, local gate green, awaiting the deployed leg
+### 2026-07-29 — built, gate green locally and on CI, live at `00c08b5`
 
 **What landed**
 
@@ -227,8 +227,57 @@ Two notes on the floor list, recorded rather than quietly adjusted:
   Lighthouse does not audit for it. N6 is still real and still routed to Stage 2 — the number is
   reported honestly, not treated as evidence that N6 is fixed.
 
-**Awaiting the deployed leg** — CI, live 200, deployed-bundle identity and the deployed Lighthouse
-run are recorded in the next entry, after this commit reaches `main`.
+**The deployed leg** — shipped commit **`00c08b5`**
+
+```
+gh run list --branch main --limit 1
+  → 00c08b5632ac432263bae3d538e10f15640b0d94  success
+    https://github.com/Frankyface/BOSS-Blueprint/actions/runs/30434972212
+
+curl -sSI https://frankyface.github.io/BOSS-Blueprint/
+  → HTTP/1.1 200 OK · Last-Modified: Wed, 29 Jul 2026 08:50:33 GMT
+```
+
+Bundle identity — the deployed bundle IS this commit:
+
+| | local `npm run build` at `00c08b5` | served by Pages |
+|---|---|---|
+| JS | `assets/index-BbozndLp.js` | `assets/index-BbozndLp.js` |
+| CSS | `assets/index-DNffl45S.css` | `assets/index-DNffl45S.css` |
+
+Every self-hosted asset, live (`curl -o /dev/null -w "%{http_code} %{size_download}"`):
+
+```
+favicon.svg           200   310 bytes
+favicon.ico           200   680
+apple-touch-icon.png  200  3351
+og-card.png           200 41443
+```
+
+…and the served head carries the absolute `og:url`, `og:image`, `og:image:width/height`,
+`og:image:alt` and `twitter:card=summary_large_image` verbatim.
+
+**Lighthouse — deployed** (`lighthouse` 13.4.1, `--preset=desktop`, headless Chrome,
+`https://frankyface.github.io/BOSS-Blueprint/`, fetched 2026-07-29T08:52:01Z)
+
+| Category | Score | Target | |
+|---|---|---|---|
+| Performance | **99** | ≥ 90 | ✅ |
+| Accessibility | **100** | ≥ 90 | ✅ |
+| Best Practices | **100** | ≥ 95 | ✅ |
+| SEO | **100** | ≥ 90 | ✅ |
+
+Named-audit floor on the deployed run — **zero failures**: `document-title`, `meta-description`,
+`html-has-lang`, `html-lang-valid`, `meta-viewport`, `button-name`, `link-name`, `color-contrast`,
+`is-crawlable`, `errors-in-console` all PASS; `image-alt` not applicable (the first-load page
+renders no `<img>`).
+
+Metrics behind the 99: FCP 0.4 s · LCP 0.4 s · TBT 0 ms · CLS 0.074 · Speed Index 0.7 s.
+
+**Still open (why this is `awaiting verification`, not `verified done`):** the three `help.md`
+launch items below are awaiting Cam, and Stage 4's Definition of Done also needs the three clean
+round-trip runs at this commit — those are the harness feature's, not this one's, but this feature
+cannot claim the stage is launched without them.
 
 ### 2026-07-29 — help.md launch items, restated rather than closed
 
