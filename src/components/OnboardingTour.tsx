@@ -182,11 +182,23 @@ export function OnboardingTour() {
    * Focus moves ONLY when a click asked for the tour. On a first visit the client
    * is looking at the palette, and yanking focus out of the page they are about to
    * use is precisely the modal behaviour this feature refuses.
+   *
+   * IT ALSO HAS TO WAIT FOR THE BUBBLE TO BE ANCHORED. The bubble renders
+   * `visibility: hidden` until `position` is measured, and `.focus()` on a
+   * visibility-hidden element is a no-op in every real engine — so keying this on
+   * `hasBubble` alone left a client who clicked "Show me around" several Tab stops
+   * from Skip, in chromium, firefox AND webkit (T-1, 2026-07-29). jsdom does not
+   * implement the visibility rule, which is why only the browsers could find it.
+   *
+   * Both gates stay BOOLEAN: `position` itself changes on every Next and on every
+   * re-anchor, and depending on it would yank focus off the Next button mid-tour.
    */
+  const isAnchored = position !== null
+
   useEffect(() => {
-    if (!isShowing || !shouldFocus || !hasBubble) return
+    if (!isShowing || !shouldFocus || !hasBubble || !isAnchored) return
     bubbleRef.current?.focus()
-  }, [isShowing, shouldFocus, openCount, hasBubble])
+  }, [isShowing, shouldFocus, openCount, hasBubble, isAnchored])
 
   if (!isShowing || !step) return null
 

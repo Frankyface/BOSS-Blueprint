@@ -295,6 +295,50 @@ test.describe('the help control', () => {
 
     expect(errors).toEqual([])
   })
+
+  /**
+   * T-1, and the reason it is HERE rather than in jsdom: the bubble renders
+   * `visibility: hidden` until it has been anchored, and `.focus()` on a
+   * visibility-hidden element is a no-op in a real engine. The unit test could not
+   * fail — jsdom does not implement that rule — so it reported "takes the focus with
+   * it" while chromium and firefox left focus on the help button and webkit on BODY.
+   *
+   * A keyboard client who asks for the tour must land ON the bubble, one Tab from
+   * Skip. Auto-start deliberately does not do this, and the next assertion pins that
+   * the fix did not turn the tour into the modal the feature refuses to be.
+   */
+  test('moves the keyboard to the bubble', async ({ page }) => {
+    // A RETURNING client, whose tour has never been anchored on this page load — the
+    // exact state T-1 was found in. Re-opening a tour that already ran once passes
+    // either way, because `position` still holds the last opening's point.
+    await openCanvas(page)
+    await expect(tourBubble(page)).toBeHidden()
+
+    await page.getByTestId('tour-help').click()
+
+    await expect(tourBubble(page)).toBeVisible()
+    await expect(tourBubble(page)).toBeFocused()
+
+    // …and Next does not yank it BACK to the bubble: the deps stayed boolean, so the
+    // effect does not re-fire when the step — and with it the anchor point — changes.
+    // Advanced by KEYBOARD, not by a click: webkit focuses the nearest focusable
+    // ancestor when you click a button, and the bubble is one — so a click cannot
+    // tell "the tour grabbed the focus" apart from "the engine parked it there".
+    await page.getByTestId('tour-next').press('Enter')
+
+    await expectStep(page, 1)
+    await expect(page.getByTestId('tour-next')).toBeFocused()
+  })
+
+  test('but auto-start still never steals it', async ({ page }) => {
+    // The other half of the rule, and the reason the fix is gated on `shouldFocus`:
+    // on a first visit the client is looking at the palette, and yanking the keyboard
+    // out of the page they are about to use is the modal behaviour this tour refuses.
+    await openWithTour(page)
+
+    await expect(tourBubble(page)).toBeVisible()
+    await expect(tourBubble(page)).not.toBeFocused()
+  })
 })
 
 test.describe('when the guard has precedence', () => {

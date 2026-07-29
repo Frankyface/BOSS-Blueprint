@@ -163,7 +163,17 @@ describe('the help control', () => {
     expect(window.localStorage.getItem(TOUR_STORAGE_KEY)).toBe(FLAG_DISMISSED)
   })
 
-  it('takes the focus with it, because a human asked for it', () => {
+  /**
+   * NOT THE EVIDENCE FOR THIS BEHAVIOUR, and it is worth saying so where someone
+   * changing it will read it. jsdom does not implement the CSS visibility rule, so
+   * `.focus()` on the still-hidden bubble succeeds here and this test passed for
+   * weeks while all three real engines left focus on the help button (T-1,
+   * 2026-07-29). It is kept because it still pins the wiring — help click →
+   * `shouldFocus` → the bubble is the focus target, not some inner button — but the
+   * assertion that the client actually lands there is
+   * `e2e/onboarding-tour.spec.ts` → "moves the keyboard to the bubble", ×3 engines.
+   */
+  it('aims the focus at the bubble (see the E2E for whether it lands)', () => {
     window.localStorage.setItem(TOUR_STORAGE_KEY, FLAG_DISMISSED)
     render(<App />)
 
