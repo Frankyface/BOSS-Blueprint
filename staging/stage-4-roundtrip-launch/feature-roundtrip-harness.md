@@ -1,5 +1,5 @@
 # Feature: Round-Trip Harness
-_Stage: stage-4-roundtrip-launch · Status: awaiting verification_
+_Stage: stage-4-roundtrip-launch · Status: verified done_
 
 **Built 2026-07-29. Everything that can be proven without spending a builder budget is
 proven and green; the three live gating runs are not done, so no Success Criterion is
@@ -85,36 +85,36 @@ trip must never be dragged into the tri-engine suite (it would run three times a
 `retries: 2` in CI, both fatal to the protocol's determinism and flake policy).
 
 ## Success Criteria
-- [ ] `npm run roundtrip:full -- --scenario A --target preview` runs end to end unattended,
+- [x] `npm run roundtrip:full -- --scenario A --target preview` runs end to end unattended,
       halts at the first failed hard gate, and exits 0 only on PASS
-- [ ] Scenario A and Scenario B files exist, are the single source of truth for the driver, the
+- [x] Scenario A and Scenario B files exist, are the single source of truth for the driver, the
       manifest diff and the evaluator, and are schema-validated at load (R1.4)
-- [ ] Scenario A covers **all six block types** (the Home Section band, R1.2a) and exercises the
+- [x] Scenario A covers **all six block types** (the Home Section band, R1.2a) and exercises the
       template-filler path end to end: one untouched `fromTemplate` block, the V23 WARN shown at
       submit, the package shipped anyway (R1.2b)
-- [ ] The builder's sterile config dir contains `settings.json` plus **at most one** credential
+- [x] The builder's sterile config dir contains `settings.json` plus **at most one** credential
       file, the auth method is recorded in `run-manifest.json`, and the allowlist contains no
       `npx`/`npm` entry (R3.3–R3.5)
-- [ ] The client driver performs every scenario step through visible UI affordances only, with
+- [x] The client driver performs every scenario step through visible UI affordances only, with
       zero `page.evaluate` into app state and zero use of the `__blueprintStore` seam (R2.2)
-- [ ] The builder session runs in a sterile sandbox with an isolated `CLAUDE_CONFIG_DIR`, a
+- [x] The builder session runs in a sterile sandbox with an isolated `CLAUDE_CONFIG_DIR`, a
       scoped allowlist, no MCP servers, no ancestor `CLAUDE.md`, and **no**
       `--dangerously-skip-permissions` — all four asserted mechanically, not by inspection (R3)
-- [ ] Zero-questions detection implements R5 exactly: tool-level rule, final-message rules, the
+- [x] Zero-questions detection implements R5 exactly: tool-level rule, final-message rules, the
       strip order, the two regexes and the phrase list, with a red test per rule and a green
       corpus of rhetorical near-misses
-- [ ] A permission-denied tool result anywhere in the transcript is detected and, when H2 also
+- [x] A permission-denied tool result anywhere in the transcript is detected and, when H2 also
       fails, routes the FAIL to **harness**, never to the product (R5.6)
-- [ ] The evaluator agent runs in its own sandbox, never receives the builder transcript, emits
+- [x] The evaluator agent runs in its own sandbox, never receives the builder transcript, emits
       schema-valid `judgments.json` with evidence on every item, and one malformed output →
       single retry → INFRA fail (R7)
-- [ ] `report.md`, `report.json` and `verdict.txt` are produced for every run, with every miss
+- [x] `report.md`, `report.json` and `verdict.txt` are produced for every run, with every miss
       carrying its evidence link and its pre-filled routing row
-- [ ] Every run leaves a self-contained archived run directory outside the repo tree, and
+- [x] Every run leaves a self-contained archived run directory outside the repo tree, and
       `run-manifest.json` records the start/end hashes of every rule file (R9.3)
-- [ ] `node scripts/roundtrip/ship-gate.mjs` verifies the three clean runs as a set and fails if
+- [x] `node scripts/roundtrip/ship-gate.mjs` verifies the three clean runs as a set and fails if
       they disagree on commit, are not all PASS, or had any rule file change between them
-- [ ] `npm run roundtrip:smoke` completes in ≤ 12 minutes with the evaluator agent skipped and
+- [x] `npm run roundtrip:smoke` completes in ≤ 12 minutes with the evaluator agent skipped and
       the same hard gates and deterministic floors applied
 
 ---
@@ -1937,7 +1937,8 @@ rather than scored against the product.
 
 **Evidence:** `staging/stage-4-roundtrip-launch/evidence/2026-07-29-gauntlet-f016d82-THREE-PASS/`
 — one directory per scored leg (`A-preview/`, `A-deployed/`, `B-preview/`) each with `report.md`,
-`verdict.txt`, `run-manifest.json`, and R9.2's two sketch/shot pairs under `pairs/`; plus
+`verdict.txt`, `run-manifest.json`, and its R9.2 sketch/shot pair under `pairs/` (two per
+SCENARIO as R9.2 requires: A contributes home + our-work across its two legs, B home + contact); plus
 `shipgate-output.txt` verbatim.
 
 **To resume:** rule on the ship-gate rule-hash comparison; record it in `docs/decisions.md`; re-run
@@ -2072,6 +2073,69 @@ post-gauntlet review.
   deliberately: it is the evidence the correction was a correction and not a convenience
 
 
+### 2026-07-29 — FINAL REVIEW: the three PASSes hold up under forensics — VERIFIED DONE
+
+**Final review (2026-07-29):** independent reviewer, detached worktree at `835fa8f`, no tracked
+edits; `npm ci` clean at root and in `scripts/roundtrip`. **The claimed live-run result is real
+and the evidence is internally consistent.**
+
+**Suites, measured:** `npm run lint` exit 0 · `npm test` **97 files / 1740 passed, 2 skipped** ·
+`npx vitest run scripts/` **10 files / 263 passed, 2 skipped** · `npm run build` exit 0 ·
+`npm run e2e` **687 passed, 3 skipped, 0 failed, 7.4 min** · tour + guard specs alone **96 passed
+across 3 engines**. **CI at HEAD (run `30479343712`) landed green** — every step including E2E
+and the Pages deploy.
+
+**Evidence forensics (audited, not re-run).** Committed `run-manifest.json` and `verdict.txt` are
+**byte-identical** to the live `C:\bp-runs` dirs for all three legs; committed `report.md` is
+byte-identical to each run's `eval/report.md` and its score table matches this log's entry exactly.
+All three: sha `f016d82`, `git.clean: true`, `invalid: false`, `cached: false`, `ruleDrift: []`,
+`credentialScrubbed: true`, `purity ok` (2.1.220 vs the 2.1.220 baseline), evaluator `pure: true`,
+`managedPolicy: []`, sterile dir exactly `[.credentials.json, settings.json]`. Seven rule files
+hashed per run, **start == end in every run**; the six shared files byte-equal across all three
+legs; `scenario-A.json` identical across both A legs; every run's scenario hash equals the blob
+committed at `f016d82`. **R9.2's ten pair PNGs are all byte-identical to their own run's
+`shots/` and `package/pages/` artefacts** and decode as real renders (the Scenario A sketch shows
+the nav, both section bands, the red `BIG!` annotation, the dashed generate placeholder and the
+deliberate typo; the shot shows the built site with that typo preserved verbatim).
+`shipgate-output.txt` shows the PASS with the pre-correction failure preserved beside it. The
+ship gate was **re-run by the reviewer and exits 0**, reproducing the committed output verbatim.
+
+**The five ruled fixes each have a decisions entry and each BITES**, spot-proven by feeding the
+production modules mutated inputs: S3 (heading 35 chars vs text 160; the real `blk_0026` passes,
+the same string costed as text still fails, a 500-char heading still fails) · S4 (top third now
+reachable; sunk-to-the-foot and wrong-half both miss the floor; a legacy digest fails rather than
+passing vacuously) · R4.6 (planted skill → `kind: "leak"`; MCP server, unpinned version, outside
+memory path and a missing `memory_paths` field all abort) · **the ship gate refuses on all ten
+axes, including both A legs doctored identically — the hole only check (c) closes**.
+
+**Shipped-commit identity, byte-level.** `git diff --stat f016d82..HEAD -- src/` is **empty** —
+HEAD adds only docs, evidence, `ship-gate.mjs` and its test. The deployed assets
+(`index-CQhEMnMO.js`, `index-DNffl45S.css`) are **sha256-identical** to the local production build
+at `835fa8f`, so the bundle the deployed leg proved at `f016d82` is the bundle serving now.
+
+**One finding worth carrying, and it is about the instrument rather than this run.** On the
+A/preview leg only, `home`'s external CTA renders its label **invisible**: the builder's own CSS
+has `.band--green a { color: var(--sand) }` (specificity 0,1,1) overriding
+`.btn--sand { color: var(--green-dark) }` (0,1,0), so the label paints `#d9c7a7` on a `#d9c7a7`
+pill. Measured: the `<a>` interior is **one flat colour across 6592 px, zero glyph pixels**, while
+the same button on the A/deployed leg has 35. A sweep of every text-bearing box across all three
+legs and ten pages found **1 of 293**. All eight hard gates passed it correctly — H5 reads the
+href and H6 reads the DOM text, both of which are right — and the judge scored S2 20/20. **The
+run's PASS stands under the protocol as written**; what this exposes is that nothing in R8
+measures whether text actually rendered. Adding such a check is a rule change (R10.2/R10.7) and
+must not be retrofitted onto this evidence. Routed to a post-v1 ruling
+(`docs/decisions.md` 2026-07-29 "Post-v1 backlog").
+
+**Status: VERIFIED DONE.** All thirteen Success Criteria are met with evidence.
+
+**Post-review corrections applied the same day (docs only, no code):** DoD item 4's `CLAUDE.md`
+half had already landed at `5cb4581` — after this reviewer pinned `835fa8f` — so F2 was closed
+before the finding was written; `help.md`'s CLI re-auth item moved to Done (F3); `handoff.md`
+refreshed (F4); Notes item 7 below marked RESOLVED (F5); the A-deployed evidence wording
+corrected to one pair for that leg, two per scenario as R9.2 requires (F6); F7 (vacuous
+`scoreImagePlacement` over an empty item set — unreachable for A/B) and F8 (two Stage-3 package
+-defect candidates in the A/preview BUILD_NOTES triage) recorded in the post-v1 backlog.
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.
@@ -2182,7 +2246,10 @@ disagreed with it. Nothing was quietly absorbed.
    WARN forever. Measured: Scenario A's package carries exactly one flagged block. The Notes
    entry below is left in place for history but is no longer live.
 
-7. **NEW UPSTREAM FINDING — §4.5's degenerate-bbox fallback misclassifies straight strokes.**
+7. **RESOLVED 2026-07-29 (fixed at `0debd61`) — §4.5's degenerate-bbox fallback misclassified straight strokes.**
+   `containedRatio` now multiplies both axis ratios, so a straight stroke outside a slot on either
+   axis is an annotation; recorded in `staging/stage-3-export-delivery/feature-site-json-generator.md`.
+   Original finding kept for context:
    `containedRatio` (`src/export/penRoles.ts`) handles a zero-area bbox by measuring the
    overlap along whichever axis has length — and **ignores the other axis entirely**. So a
    perfectly vertical stroke drawn anywhere on the page is classified `imageSketch` for any
@@ -2193,7 +2260,7 @@ disagreed with it. Nothing was quietly absorbed.
    `src/export/penRoles.ts`:** the degenerate branch should still require the zero-extent axis
    to fall inside the frame. Scenario A's strokes now carry the slant and jitter real
    handwriting has, which is faithful to "hand-written" rather than a dodge — but the bug is
-   real and unfixed, and a client who draws a straight underline beside a photo will hit it.
+   real (now fixed, see above), and a client who draws a straight underline beside a photo would have hit it.
 
 8. **Scenario A's Home hero CTA is an INSERTED button, and `trade-home-hero-cta` is deleted.**
    Protocol §1.2 asks for a `Get a free quote` button linked to Contact; the trades template's

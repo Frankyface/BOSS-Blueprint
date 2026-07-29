@@ -4,14 +4,6 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
 
 ## Open
 
-- [ ] **Re-authenticate the Claude Code CLI on this machine — BLOCKS the v1 round-trip runs.**
-  The live gauntlet spawns `claude` CLI builder sessions, and the machine's CLI OAuth token
-  expired (401; last written 2026-07-02). Fix: open a terminal, run `claude` and complete the
-  login (or `/login` inside it). Two-minute interactive step only you can do. Added 2026-07-29.
-  **Blocks: the three gating round-trip runs — the final v1 gate.** Everything else is done —
-  confirmed 2026-07-29: the harness now spawns the CLI correctly on Windows and a real sterile
-  session passes the purity check in 3.8 s, so this is the last thing standing in the way.
-
 - [ ] **Confirm the submit destination address** — the gated submit now ships, and its
   completion screen shows a real address (prefilled `mailto:` + copyable text). It is set to
   `cammer3034@gmail.com` in `site.config.ts` (`BOSS_SUBMIT_EMAIL`) — the working address this
@@ -85,4 +77,8 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
 
 ## Done
 
+- [x] 2026-07-29 — **Claude Code CLI re-authenticated** (Cam). Verified by scrubbed-env probe,
+  then exercised for real: three sandboxed builder sessions ran to completion in the gauntlet.
+  The CLI also auto-updated 2.1.190 → 2.1.220 in the same step; the builtin manifest was extended
+  after a named-delta review (docs/decisions.md 2026-07-29).
 - [x] 2026-07-27 — GitHub CLI authenticated as Frankyface (verified during scaffold).

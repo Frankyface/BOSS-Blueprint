@@ -10,7 +10,7 @@ pass: the gating instrument is `docs/roundtrip-protocol.md`, which is executable
 feature files below turn it into runnable code without softening a single threshold.
 
 ## Features
-- [ ] feature-roundtrip-harness.md — the protocol as runnable scripts: scenario files A + B,
+- [x] feature-roundtrip-harness.md — the protocol as runnable scripts: scenario files A + B,
       the scripted Playwright fake client, package capture, the sandboxed zero-context builder,
       zero-questions detection, the evaluator agent + 8 hard gates + 100-pt rubric, evidence
       archiving, failure routing. **This is the stage.**
@@ -41,44 +41,46 @@ it is the only feature whose changes cannot invalidate a round-trip run (see Not
    aborts as PRECONDITION, never as a product FAIL.
 
 ## Definition of Done (testable checklist)
-- [ ] **Three clean uncached round-trip runs PASS**, per `docs/roundtrip-protocol.md` §8.2 — no
+- [x] **Three clean uncached round-trip runs PASS**, per `docs/roundtrip-protocol.md` §8.2 — no
       cached segments, no scan-rule or scenario edits mid-sequence, `git status` clean and the
       same `HEAD` sha recorded in all three `run-manifest.json` files:
-  - [ ] Scenario A (Cedar & Stone Landscaping, template start) on target `preview`
-  - [ ] Scenario A on target `deployed` (the live Pages URL — this is the leg that satisfies
+  - [x] Scenario A (Cedar & Stone Landscaping, template start) on target `preview`
+  - [x] Scenario A on target `deployed` (the live Pages URL — this is the leg that satisfies
         "the REAL deployed UI")
-  - [ ] Scenario B (North Star Dog Grooming, blank start) on target `preview`
-- [ ] Each of the three: all hard gates H1–H8 green, total score **≥ 85**, **every** per-dimension
+  - [x] Scenario B (North Star Dog Grooming, blank start) on target `preview`
+- [x] Each of the three: all hard gates H1–H8 green, total score **≥ 85**, **every** per-dimension
       floor met, `verdict.txt` reads `PASS <score>`, exit code 0
-- [ ] Evidence recorded per repo convention: run paths, verdict lines and score tables in
+- [x] Evidence recorded per repo convention: run paths, verdict lines and score tables in
       feature-roundtrip-harness.md's Verification Log; `report.md` + 2 representative
       side-by-side sketch/shot pairs per scenario copied into
       `staging/stage-4-roundtrip-launch/evidence/` and committed
-- [ ] `npm run roundtrip:smoke` green and ≤ 12 minutes, and the "run smoke before merging any
+- [x] `npm run roundtrip:smoke` green and ≤ 12 minutes, and the "run smoke before merging any
       change to `src/export/**`, the schema, the brief generator, templates or the PNG renderer"
       rule is recorded in `handoff.md` and `CLAUDE.md` conventions
-- [ ] **App live** on GitHub Pages at the shipped commit: CI green on `main`, live URL returns
+- [x] **App live** on GitHub Pages at the shipped commit: CI green on `main`, live URL returns
       HTTP 200, and the deployed hashed bundle filename equals the local `npm run build` output
       at that commit (the same identity check the harness uses)
-- [ ] **Tour verified by E2E**: first visit shows the pointers; they never block interaction;
+- [x] **Tour verified by E2E**: first visit shows the pointers; they never block interaction;
       dismissal persists across reload; a fresh profile sees them again; the help control
       re-opens them (`npx playwright test e2e/onboarding-tour.spec.ts`, 3 engines, green)
-- [ ] **Guard verified by E2E**: at a mobile viewport the notice appears and the canvas remains
+- [x] **Guard verified by E2E**: at a mobile viewport the notice appears and the canvas remains
       readable, scrollable and hit-testable underneath it; above the threshold the notice is
       absent (`npx playwright test e2e/desktop-guard.spec.ts`, 3 engines, green)
-- [ ] `npm run lint`, `npm test`, `npm run build`, `npm run e2e` all green in CI on `main`
-- [ ] Lighthouse desktop on the deployed URL meets the targets in feature-launch-polish.md and
+- [x] `npm run lint`, `npm test`, `npm run build`, `npm run e2e` all green in CI on `main`
+- [x] Lighthouse desktop on the deployed URL meets the targets in feature-launch-polish.md and
       the named-audit floor list has zero failures
-- [ ] **Launch checklist closed or explicitly awaiting-human.** Every item is either done with
+- [x] **Launch checklist closed or explicitly awaiting-human.** Every item is either done with
       evidence, or listed in `help.md` under Open with a dated blocker line and repeated here.
       Currently awaiting Cam (`help.md`):
-  - [ ] "Sketch your site" link on bossolutions.pro — **awaiting human**, blocks nothing else
-  - [ ] DNS `sketch.bossolutions.pro` → GitHub Pages — **awaiting human, optional**, rides on
+  - [ ] "Sketch your site" link on bossolutions.pro — **AWAITING CAM**, blocks nothing else;
+        the PR is written and open: Frankyface/BOSS-website#1 (one click to merge)
+  - [ ] DNS `sketch.bossolutions.pro` → GitHub Pages — **AWAITING CAM, optional**, rides on
         the pending BOSS DNS repoint off GoHighLevel; the app ships on
         `https://frankyface.github.io/BOSS-Blueprint/` regardless
-  - [ ] The email relay account (`help.md`) is a Stage 3 blocker, not Stage 4's — but if it is
+  - [ ] The email relay account (`help.md`) — **AWAITING CAM**; the relay code is built and
+        shipped config-gated OFF, so nothing is blocked. Deliberately not Stage 4's gate — but if it is
         still open at stage close, say so here rather than letting it look resolved
-- [ ] Every feature file above is `verified done` with Verification Log evidence
+- [x] Every feature file above is `verified done` with Verification Log evidence
 
 **Nothing on the awaiting-human list may be silently checked off, reworded into a done state, or
 absorbed into another item.** If Cam has not done it, the stage closes with the item visible and

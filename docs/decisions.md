@@ -620,3 +620,23 @@ the operator twice measured a proposed ruling against real data and refused to i
 fabricated pass · **Rejected:** at every turn, weakening a threshold to make a run pass ·
 **Revisit if:** the smoke run (mandatory before export-layer merges, now recorded in CLAUDE.md)
 ever fails — that is the signal the package stopped being buildable.
+
+## 2026-07-29 — Post-v1 backlog recorded (final-review findings F1, F7, F8)
+**Chose:** three items are recorded for a post-v1 ruling rather than retrofitted onto the
+gauntlet's evidence: (F1) **nothing in R8 measures whether text actually RENDERED** — the final
+review found one CTA on the A/preview leg whose label painted #d9c7a7 on a #d9c7a7 pill (a
+specificity collision in the *builder's own* CSS: `.band--green a` 0,1,1 beating `.btn--sand`
+0,1,0), measured as one flat colour across 6592px with zero glyph pixels, 1 of 293 text boxes
+across three legs; every hard gate passed it correctly (H5 reads the href, H6 the DOM text) and
+the judge scored S2 20/20 — a legibility sub-check would be a rule change under R10.2/R10.7;
+(F7) `scoreImagePlacement` returns floorMet over an EMPTY item set — the vacuous-pass shape
+`floorOver()` already closed for judged floors; unreachable for scenarios A/B, so it affected no
+verdict; (F8) the A/preview BUILD_NOTES triage emitted **two Stage-3 package-defect candidates**
+(a button reading as "not wired up yet", and band backgrounds the brief never specified) — the
+routing table allows a PASSING run to emit tickets · **Because:** the protocol forbids editing
+scan rules or thresholds once a verdict exists (R5.5/R10.2), and the v1 PASS is correct *under
+the protocol as written*; changing the instrument now would either invalidate the evidence or
+launder a change through it · **Rejected:** retrofitting a legibility gate onto the existing
+runs; treating F1 as a product defect (the deployed leg built the identical package correctly —
+it is builder variance, not a format defect) · **Revisit if:** taking any of these up — each
+needs its own decisions entry, then a fresh three-run set at the new rules.
