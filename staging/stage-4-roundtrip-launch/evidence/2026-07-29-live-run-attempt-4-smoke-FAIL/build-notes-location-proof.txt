@@ -1,0 +1,18 @@
+GROUND TRUTH — where the builder actually put its output.
+Captured from /c/bp-runs/2026-07-29T15-38-37-821Z_B_1fee28f/builder/sandbox
+
+$ find . -maxdepth 2 -name 'BUILD_NOTES.md' -o -maxdepth 2 -name 'index.html' | sort
+./site/BUILD_NOTES.md
+./site/index.html
+
+$ ls ./  (sandbox root — where run.mjs looks for BUILD_NOTES.md)
+package/
+site/
+
+$ ls ./site/  (the build output — where the builder put BUILD_NOTES.md)
+BUILD_NOTES.md
+assets/
+contact.html
+index.html
+pricing.html
+style.css

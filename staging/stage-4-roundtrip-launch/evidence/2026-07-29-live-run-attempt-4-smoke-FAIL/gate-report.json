@@ -1,0 +1,196 @@
+{
+  "ok": true,
+  "steps": [
+    {
+      "id": "F01",
+      "ok": true,
+      "detail": "blueprint_north-star-dog-grooming_c2d968d7.zip"
+    },
+    {
+      "id": "F02",
+      "ok": true,
+      "detail": "slug \"north-star-dog-grooming\""
+    },
+    {
+      "id": "F03",
+      "ok": true,
+      "detail": "uuid8 \"c2d968d7\""
+    },
+    {
+      "id": "V12",
+      "ok": true,
+      "detail": "6 file entries, 6 expected"
+    },
+    {
+      "id": "C01",
+      "ok": true,
+      "detail": "6 ordered entries"
+    },
+    {
+      "id": "C02",
+      "ok": true,
+      "detail": "site.json 8333 B, brief.md 13213 B"
+    },
+    {
+      "id": "V01",
+      "ok": true,
+      "detail": "schemaVersion 1, 0 errors"
+    },
+    {
+      "id": "V02",
+      "ok": true,
+      "detail": "every link.pageId / imageSlot.assetId / penStroke.targetBlockId resolves"
+    },
+    {
+      "id": "V03",
+      "ok": true,
+      "detail": "ids unique site-wide; z unique per page and blocks[] sorted by z ascending"
+    },
+    {
+      "id": "V04",
+      "ok": true,
+      "detail": "1 manifest entries, 1 referenced ids"
+    },
+    {
+      "id": "V05",
+      "ok": true,
+      "detail": "every copyMode \"generate\" block has a non-empty generateDescription"
+    },
+    {
+      "id": "V06",
+      "ok": true,
+      "detail": "pages/01-home.png 1200x1600 var=2950.0; pages/02-pricing.png 1200x1600 var=2470.6; pages/03-contact.png 1200x1600 var=2501.6"
+    },
+    {
+      "id": "V07",
+      "ok": true,
+      "detail": "1 WRITE THIS COPY, 1 SOURCE AN IMAGE, 11 block bullets"
+    },
+    {
+      "id": "V08",
+      "ok": true,
+      "detail": "c2d968d7-f7e7-4d45-b1c6-fd37c8b17f85"
+    },
+    {
+      "id": "V09",
+      "ok": true,
+      "detail": "3 pages"
+    },
+    {
+      "id": "V09w",
+      "ok": true,
+      "detail": "no individual page is empty"
+    },
+    {
+      "id": "V10",
+      "ok": true,
+      "detail": "0.70 MB"
+    },
+    {
+      "id": "V11",
+      "ok": true,
+      "detail": "FIX invariant: every external link URL starts http(s)://"
+    },
+    {
+      "id": "V13",
+      "ok": true,
+      "detail": "no duplicate page.name values site-wide"
+    },
+    {
+      "id": "V14",
+      "ok": true,
+      "detail": "every empty image slot carries a non-blank description"
+    },
+    {
+      "id": "V15",
+      "ok": true,
+      "detail": "3/3 pages reachable"
+    },
+    {
+      "id": "V16",
+      "ok": true,
+      "detail": "every asset.path extension equals the §4.6 mapping of its mimeType"
+    },
+    {
+      "id": "V17",
+      "ok": true,
+      "detail": "FIX invariant: page.screenshot equals pages/<NN>-<slug>.png for its position"
+    },
+    {
+      "id": "V18",
+      "ok": true,
+      "detail": "no block frame is substantially off-page"
+    },
+    {
+      "id": "V19",
+      "ok": true,
+      "detail": "no copyMode \"real\" block has blank/whitespace-only text"
+    },
+    {
+      "id": "V20",
+      "ok": true,
+      "detail": "FIX invariant: copyMode \"real\" blocks ship with generateDescription = null"
+    },
+    {
+      "id": "V21",
+      "ok": true,
+      "detail": "img_001 1600x1200 252963B"
+    },
+    {
+      "id": "V22",
+      "ok": true,
+      "detail": "1 annotation cluster(s), 0 imageSketch cluster(s) exempt"
+    },
+    {
+      "id": "V23",
+      "ok": true,
+      "detail": "no content-bearing block still carries fromTemplate: true"
+    },
+    {
+      "id": "V23f",
+      "ok": true,
+      "detail": "FIX invariant: no section block ships carrying fromTemplate"
+    },
+    {
+      "id": "V24",
+      "ok": true,
+      "detail": "3 pg, 11 blk, 9 nav, 1 stk; leak scan: ordinal-only (no --internal-ids)"
+    },
+    {
+      "id": "V25",
+      "ok": true,
+      "detail": "no block extends past the right page edge (x + w > 1200)"
+    },
+    {
+      "id": "V26",
+      "ok": true,
+      "detail": "no blank button label and no empty nav bar"
+    },
+    {
+      "id": "V27",
+      "ok": true,
+      "detail": "18 node kinds derived from §7.1"
+    },
+    {
+      "id": "N13",
+      "ok": true,
+      "detail": "0 overflowing block(s), 0 marker(s)"
+    },
+    {
+      "id": "C03",
+      "ok": true,
+      "detail": "every page.slug equals §4.1 slugify(page.name) with the uniqueness pass"
+    },
+    {
+      "id": "C04",
+      "ok": true,
+      "detail": "pen targets obey §4.5: annotations never target a section; imageSketch targets an imageSlot"
+    },
+    {
+      "id": "M04",
+      "ok": true,
+      "detail": "scenario B: 11 block(s) matched within ±24px"
+    }
+  ],
+  "failures": []
+}

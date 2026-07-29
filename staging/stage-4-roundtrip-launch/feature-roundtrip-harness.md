@@ -1418,6 +1418,119 @@ the same time: a baseline keyed to an auto-updating binary will keep doing this,
 should say whether a new version blocks a run (today's behaviour) or is recorded and waved
 through.
 
+### 2026-07-29 — LIVE-RUN ATTEMPT 4: Blocker C CLEARED, first builder session ever to complete; smoke returns a SCORED FAIL — H3, and it is a real contract defect
+
+**Attempt at How-We'll-Verify 6–11 at HEAD `1fee28f`, clean tree throughout. It got one run in:
+the timed smoke, which COMPLETED and returned a scored verdict.** Runs 2–5 and the shipgate were
+**not attempted** — the binding for this attempt is *scored FAIL → commit honest evidence, STOP,
+routing analysis*, and this is a scored FAIL, not a PRECONDITION. **Status stays
+`awaiting verification`** and no Success Criterion is ticked.
+
+**Blocker C is cleared, and the fix is load-bearing.** `builder.purity.ok: true`,
+`cliVersion: 2.1.220`, `baseline: 2.1.220` — SEG-3 passed for the **first time in four attempts**.
+The 2.1.220 manifest entry (committed at `1fee28f`, ruled and recorded in `docs/decisions.md`) is
+what let a builder session start at all. **This is also the first time the harness has ever run a
+real builder to completion**: `builder.code: 0`, `timedOut: false`, `stderr` empty, terminal event
+`result/success` with `is_error: false`.
+
+**Operator setup.** `ROUNDTRIP_RUNS_DIR=C:\bp-runs`; port 4173 verified FREE before the run; CLI
+re-verified at 2.1.220 (mtime 11:14:56 EDT, unchanged since attempt 3 — no second auto-update);
+`git status --porcelain` empty before and after; manifest independently records `git.clean: true`.
+
+| # | Run dir (`C:\bp-runs\…`) | Verdict | Elapsed |
+|---|---|---|---|
+| 1 | `2026-07-29T15-38-37-821Z_B_1fee28f` | **FAIL — H3 incomplete build** (scenario B, preview, smoke) | **4.27 min**, exit 1 |
+
+| Segment | Result | Time | Budget |
+|---|---|---|---|
+| SEG-1 driver | ok | 30.1 s | 8 min |
+| SEG-2 package gate | ok | 0.8 s | 60 min |
+| SEG-3 builder (sterile session) | **ok** | 225.2 s | 45 min |
+| SEG-4 scan | ok (ran; reported the failure) | 0.027 s | 60 min |
+| SEG-5 capture / SEG-6 eval | not reached — H3 gate stopped the run | — | — |
+
+**`SMOKE_BUDGET_MIN` is still NOT validated end-to-end.** `smokeBudgetBreached: false` and 4.27 min
+is comfortably under 12, but the run stopped at the SEG-4 gate and never paid for SEG-5 capture or
+SEG-6 evaluation. **4.27 min is a floor, not a measurement of a complete smoke.** Recording it as
+"the smoke fits the budget" would be exactly the vacuous pass this harness exists to prevent.
+
+**THE FAILURE, and it is one line.** `builder/scan-report.json`, unedited:
+
+```
+"h3": { "ok": false,
+        "sentinelPresent": true,      <- printed BUILD COMPLETE
+        "indexHtmlExists": true,      <- site/index.html built
+        "buildNotesExists": false,    <- THE ONLY FALSE INPUT
+        "maxTurns": false,            <- NOT out of turns
+        "unevaluableFinalText": false }
+"h8": { "ok": false }                 <- same single root cause
+```
+
+`H3 = sentinelPresent && indexHtmlExists && buildNotesExists && !maxTurns`, and `H8 =
+buildNotesExists`. **Three of four H3 inputs are green.** The builder built the site, wrote the
+copy, followed the pen mark (phone number → `tel:` link), created the placeholder SVG, and printed
+the sentinel. The export package scored **38 PASS / 0 WARN / 0 FAIL** in SEG-2.
+
+**Root cause: a location disagreement between the brief and the harness — not a bad build.**
+
+| | Path | Source |
+|---|---|---|
+| Harness looks for | `<sandbox>/BUILD_NOTES.md` | `run.mjs` SEG-4: `isNonEmptyFile(path.join(sandboxDir, 'BUILD_NOTES.md'))` |
+| Builder wrote | `<sandbox>/site/BUILD_NOTES.md` | ground truth, 5221 B — see `build-notes-location-proof.txt` |
+
+The brief's own words, `package/brief.md` line 20: *"Record every judgment call in a
+`BUILD_NOTES.md` **at the root of your build**"*. `builder/prompt.txt`: *"Create your build output
+in `./site/`"*. **So "the root of your build" resolves to `./site/`, and the builder's placement is
+the more natural reading of the instruction it was given.** The harness is also internally
+inconsistent on this point: it looks for `index.html` *inside* `site/` but `BUILD_NOTES.md` at the
+sandbox root, one level up.
+
+**This is the round-trip test doing its job.** A fresh Claude session with zero extra context read
+the brief and resolved an ambiguity differently than the harness assumed — which is precisely the
+class of defect CLAUDE.md's "export must stay buildable by a fresh Claude session" constraint
+exists to surface. The builder is not at fault; the contract is.
+
+**Routing.** The table's H3 row says *"brief DoD unclear, or the builder ran out of turns — read
+the transcript to tell which"*. The transcript answers it: `maxTurns: false`, `builder.code: 0`,
+terminal `result/success`. **Not infra. It is the DoD wording branch**, and it needs a ruling
+because the two candidate fixes land in different places and only one of them is a product fix:
+
+- **(a) Brief generator** (Stage 3, `src/export/`) — make the location explicit and absolute,
+  e.g. "a `BUILD_NOTES.md` at `./BUILD_NOTES.md`, beside `site/` and not inside it". This treats
+  the *brief* as the defect. It is a **product** change and it changes what every real client
+  package tells every future builder.
+- **(b) Harness scan rule** (`run.mjs` SEG-4) — accept `site/BUILD_NOTES.md`, or accept either
+  location. This treats the *harness expectation* as the defect. It is **not** a product change.
+
+**I did not pick one.** Both `prompt.txt` and the scan rule are frozen for this attempt, and (a)
+edits the product's generated brief on the strength of a single smoke run. Choosing between them
+is a rule question of the same shape as attempt 3's, so it stops here per R10.2/R10.7 rather than
+being decided mid-gauntlet by the operator who just watched it fail.
+
+**Nothing was weakened.** No threshold, scan rule, scenario, prompt, rubric or manifest was edited
+after the run. `invalid: false`, `cached: false`, `credentialScrubbed: true`, and **all seven rule
+hashes byte-identical at run start and run end** (`prompt.txt`, `rubric.md`, `thresholds.mjs`,
+`scan-transcript.mjs`, `manifest-diff.mjs`, `builtin-manifest.json`, `scenario-B.json`).
+
+**Also observed, not acted on — three permission denials in the transcript** (`python3`,
+`convert`/ImageMagick, and a backgrounded `python3 -m http.server` + `curl`). The builder routed
+around all three on its own and shipped an SVG placeholder instead, so they did not cause this
+FAIL. But the ★ routing row *"H2 with ≥1 permission denial → allowlist too tight (R3.5); never
+scored as a product FAIL"* exists for a reason, and a slower or less adaptable builder could burn
+real budget on them. Worth a look when the H3 ruling is made; recorded here so it is not
+rediscovered from scratch.
+
+**Evidence** (committed, small): `staging/stage-4-roundtrip-launch/evidence/2026-07-29-live-run-attempt-4-smoke-FAIL/`
+— `run-manifest.json` (segments, both hash sets, verdict), `scan-report.json` (the H3/H8
+breakdown above), `gate-report.json` (38 PASS), `verdict.txt`, `builder-prompt.txt`,
+`build-notes-location-proof.txt` (the `find` output proving where the file landed).
+
+**To resume — one ruling, then re-run 6–11 unchanged:** decide (a) brief generator or (b) harness
+scan rule for the `BUILD_NOTES.md` location, record it in `docs/decisions.md`, then re-run. Auth,
+the deployed-bundle precondition and the CLI baseline are all green as of this entry, so all three
+legs can go the moment the location question is settled.
+
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.
