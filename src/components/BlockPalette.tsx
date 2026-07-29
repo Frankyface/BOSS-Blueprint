@@ -1,4 +1,4 @@
-import { BLOCK_TYPES } from '../constants/blockTypes.ts'
+import { PALETTE_BLOCK_TYPES } from '../constants/blockTypes.ts'
 import { useCanvasStore } from '../store/canvasStore.ts'
 
 import './BlockPalette.css'
@@ -30,7 +30,7 @@ export function BlockPalette() {
         {PALETTE_NOTICE}
       </p>
       <ul className="block-palette__list">
-        {BLOCK_TYPES.map((blockType) => (
+        {PALETTE_BLOCK_TYPES.map((blockType) => (
           <li key={blockType.id} className="block-palette__item">
             <button
               type="button"

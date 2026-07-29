@@ -18,6 +18,8 @@
   --boss-band: #f2f5fa;
 
   --boss-header-height: 4rem;
+  /* Chrome, not content: tall enough to click, short enough to forget. */
+  --boss-footer-height: 1.75rem;
   --boss-palette-width: 15rem;
   --boss-panel-width: 19rem;
   --boss-radius: 0.5rem;

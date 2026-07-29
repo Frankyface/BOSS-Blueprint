@@ -11,17 +11,12 @@
   border-bottom: 3px solid var(--boss-accent);
 }
 
+/* The mark carries its own rounded backplate, so this only has to size it. */
 .app-header__mark {
-  display: grid;
-  place-items: center;
+  flex: 0 0 auto;
+  display: block;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: var(--boss-radius);
-  background: var(--boss-accent);
-  color: var(--boss-ink);
-  font-size: 1.35rem;
-  font-weight: 800;
-  line-height: 1;
 }
 
 .app-header__title {

@@ -1,8 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { PAGE_WIDTH_PX } from '../canvas/constants.ts'
-import { pageHeightForContent } from '../canvas/geometry.ts'
+import { hasContentBelow, pageHeightForContent } from '../canvas/geometry.ts'
 import { useCanvasKeyboard } from '../hooks/useCanvasKeyboard.ts'
 import { usePageScale } from '../hooks/usePageScale.ts'
 import { selectCurrentBlocks, selectCurrentStrokes, useCanvasStore } from '../store/canvasStore.ts'
@@ -35,6 +35,41 @@ export function CanvasArea() {
   const pageHeight = useMemo(() => pageHeightForContent(blocks, strokes), [blocks, strokes])
 
   useCanvasKeyboard()
+
+  /**
+   * THE PAGE CONTINUES BELOW (UX audit P5). The decision is `hasContentBelow`,
+   * which is unit-tested arithmetic; this is only the wiring that feeds it the
+   * three numbers and re-asks after anything that can change them.
+   *
+   * `pageHeight` and `scale` are dependencies rather than observed, because a
+   * block added off the bottom grows the CONTENT, not the scroller, and a
+   * `ResizeObserver` on the viewport would never fire for it.
+   */
+  const [isPageClipped, setPageClipped] = useState(false)
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+
+    const measure = () => {
+      setPageClipped(
+        hasContentBelow(viewport.scrollTop, viewport.clientHeight, viewport.scrollHeight),
+      )
+    }
+    measure()
+
+    viewport.addEventListener('scroll', measure, { passive: true })
+
+    // jsdom has no ResizeObserver and no layout; there the one measurement stands.
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    observer?.observe(viewport)
+
+    return () => {
+      viewport.removeEventListener('scroll', measure)
+      observer?.disconnect()
+    }
+  }, [viewportRef, pageHeight, scale])
 
   // Blocks stop their own pointerdown, so anything reaching here is empty canvas.
   const handleBackgroundPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -87,6 +122,15 @@ export function CanvasArea() {
           </div>
         </div>
       </div>
+      {/* Chrome over the scroller, never inside the page: `pointer-events: none`
+          so it cannot swallow a click, and outside the element the PNG renderer
+          captures so it can never reach an exported page. */}
+      <div
+        className="canvas-area__more"
+        data-testid="canvas-more"
+        data-more={isPageClipped ? 'true' : 'false'}
+        aria-hidden="true"
+      />
     </main>
   )
 }

@@ -12,6 +12,8 @@ import './PageStrip.css'
 
 const STRIP_LABEL = 'Pages'
 const DELETE_PROMPT = 'Delete this page?'
+const ADD_PAGE_DISABLED_REASON = 'Type a name first'
+const RENAME_PAGE_DISABLED_REASON = 'A page needs a name'
 
 /** Only the page the client is looking at can be renamed, moved or deleted. */
 type PendingAction = 'none' | 'add' | 'rename' | 'delete'
@@ -160,9 +162,16 @@ export function PageStrip() {
         <PageNameForm
           testId="page-add"
           label="Name the new page"
-          placeholder="Menu"
+          placeholder="e.g. Menu"
           initialValue=""
-          confirmLabel="Add page"
+          /*
+           * NOT "Add page" (UX audit N4): with the form open there were two
+           * controls with that exact name on screen at once — the one that opened
+           * the form and the one that finishes it — and the audit's client
+           * clicked the wrong one. The verb changes at the step it belongs to.
+           */
+          confirmLabel="Create page"
+          disabledReason={ADD_PAGE_DISABLED_REASON}
           maxLength={PAGE_NAME_MAX_LENGTH}
           onCancel={close}
           onConfirm={(name) => {
@@ -179,6 +188,7 @@ export function PageStrip() {
           placeholder={current.name}
           initialValue={current.name}
           confirmLabel="Save name"
+          disabledReason={RENAME_PAGE_DISABLED_REASON}
           maxLength={PAGE_NAME_MAX_LENGTH}
           onCancel={close}
           onConfirm={(name) => {

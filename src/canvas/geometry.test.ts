@@ -11,10 +11,12 @@ import {
 import {
   clamp,
   clampPosition,
+  hasContentBelow,
   moveRect,
   pageHeightForContent,
   pageScaleForViewport,
   resizeRect,
+  SCROLL_END_TOLERANCE_PX,
   snapToGrid,
 } from './geometry.ts'
 import type { BlockRect, PenStroke, Size } from './types.ts'
@@ -483,5 +485,56 @@ describe('pageScaleForViewport', () => {
         expect(pageScaleForViewport(VIEWPORT_AT_100 / zoom, zoom)).toBeGreaterThanOrEqual(UNZOOMED)
       }
     })
+  })
+})
+
+/**
+ * UX audit P5: the canvas gives no sign that the page continues below the fold,
+ * so parts of a client's own sketch may as well not exist. `CanvasArea` fades the
+ * bottom edge while this is true; the decision is arithmetic and lives here.
+ */
+describe('hasContentBelow', () => {
+  const VIEWPORT_HEIGHT = 800
+  const TALL_PAGE = 1600
+
+  it('says yes at the top of a page taller than its window', () => {
+    expect(hasContentBelow(0, VIEWPORT_HEIGHT, TALL_PAGE)).toBe(true)
+  })
+
+  it('says no once the scroller is at the bottom', () => {
+    expect(hasContentBelow(TALL_PAGE - VIEWPORT_HEIGHT, VIEWPORT_HEIGHT, TALL_PAGE)).toBe(false)
+  })
+
+  it('says no when everything already fits', () => {
+    expect(hasContentBelow(0, VIEWPORT_HEIGHT, VIEWPORT_HEIGHT)).toBe(false)
+    expect(hasContentBelow(0, VIEWPORT_HEIGHT, VIEWPORT_HEIGHT - 200)).toBe(false)
+  })
+
+  it('still says yes one full screen from the end', () => {
+    expect(hasContentBelow(400, VIEWPORT_HEIGHT, TALL_PAGE)).toBe(true)
+  })
+
+  /**
+   * Fractional layout and non-integer device pixel ratios leave the bottom of a
+   * scroller a fraction short of its own `scrollHeight`. Without the tolerance
+   * the cue would never quite switch off.
+   */
+  it('treats a sub-pixel shortfall at the end as the end', () => {
+    const shortfall = SCROLL_END_TOLERANCE_PX - 0.375
+    expect(hasContentBelow(TALL_PAGE - VIEWPORT_HEIGHT - shortfall, VIEWPORT_HEIGHT, TALL_PAGE)).toBe(
+      false,
+    )
+  })
+
+  it('still says yes just past the tolerance', () => {
+    const gap = SCROLL_END_TOLERANCE_PX + 1
+    expect(hasContentBelow(TALL_PAGE - VIEWPORT_HEIGHT - gap, VIEWPORT_HEIGHT, TALL_PAGE)).toBe(true)
+  })
+
+  /** A measurement that is not a number is not a reason to draw a cue. */
+  it('refuses to guess from a measurement that is not finite', () => {
+    expect(hasContentBelow(Number.NaN, VIEWPORT_HEIGHT, TALL_PAGE)).toBe(false)
+    expect(hasContentBelow(0, Number.POSITIVE_INFINITY, TALL_PAGE)).toBe(false)
+    expect(hasContentBelow(0, VIEWPORT_HEIGHT, Number.NaN)).toBe(false)
   })
 })

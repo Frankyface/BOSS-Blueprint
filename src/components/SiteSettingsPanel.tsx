@@ -15,8 +15,15 @@ const NO_VIBE_VALUE = ''
 const NO_VIBE_LABEL = 'Not sure yet'
 
 const BUSINESS_NAME_HINT = "We'll need this before you send the design in — the rest is optional."
-const COLOR_PLACEHOLDER = '#2f6f4f'
-const COLORS_HINT = `Up to ${String(SITE_COLOR_LIMIT)} colours, most important first.`
+const COLOR_PLACEHOLDER = 'e.g. dark green or #2f6f4f'
+const COLORS_HINT = `Pick a colour, or type its name. Up to ${String(SITE_COLOR_LIMIT)}, most important first.`
+
+/**
+ * What an unpicked swatch shows. It is also a colour a client may legitimately
+ * choose, which is why "is this slot set?" is answered by the stored value being
+ * empty, never by comparing against this.
+ */
+const EMPTY_SWATCH_VALUE = '#ffffff'
 
 interface ColorSlotProps {
   index: number
@@ -24,11 +31,19 @@ interface ColorSlotProps {
 }
 
 /**
- * One preferred colour, as a hex field with a live swatch.
+ * One preferred colour: the PICKER LEADS, the hex field follows (UX audit P4).
  *
- * Deliberately NOT `<input type="color">`: the native picker is a different widget
- * in every engine (and historically absent in WebKit), it cannot express "no
- * colour", and hex is exactly what the export stores anyway.
+ * The audit watched a client be asked for "#2f6f4f" when what she knows about
+ * her brand is that it is dark green. Two answers ship together — the field now
+ * takes a name (`parseColorInput`, Stage 2) and the row now opens with a real
+ * swatch she can just click.
+ *
+ * This reverses an earlier local call against `<input type="color">`. Of its
+ * three reasons, two no longer hold: WebKit has shipped the control since Safari
+ * 12.1, and hex is still exactly what the export stores because the control's
+ * value IS `#rrggbb`. The third — that it cannot say "no colour" — is why the
+ * text field stays: clearing it is still how a slot is emptied, and an unpicked
+ * swatch is drawn dashed rather than pretending white was chosen.
  */
 function ColorSlot({ index, color }: ColorSlotProps) {
   const setSiteColor = useCanvasStore((state) => state.setSiteColor)
@@ -70,19 +85,31 @@ function ColorSlot({ index, color }: ColorSlotProps) {
     setSiteColor(index, hex)
   }
 
+  /** The picker has no half-way state: choosing is committing. */
+  const pick = (hex: string) => {
+    setError(null)
+    setDraft(hex)
+    setSiteColor(index, hex)
+  }
+
   return (
     <li className="site-colors__slot">
-      <span
+      <input
+        type="color"
         className="site-colors__swatch"
         data-testid={`site-color-${String(index)}-swatch`}
-        style={color.length > 0 ? { background: color } : undefined}
-        aria-hidden="true"
+        data-empty={color.length > 0 ? 'false' : 'true'}
+        aria-label={`Pick preferred colour ${String(index + 1)}`}
+        value={color.length > 0 ? color : EMPTY_SWATCH_VALUE}
+        onChange={(event) => {
+          pick(event.target.value)
+        }}
       />
       <input
         type="text"
         className="side-panel__control"
         data-testid={`site-color-${String(index)}`}
-        aria-label={`Preferred colour ${String(index + 1)}`}
+        aria-label={`Preferred colour ${String(index + 1)} as a name or hex code`}
         placeholder={COLOR_PLACEHOLDER}
         value={draft}
         onChange={(event) => {
@@ -148,7 +175,7 @@ export function SiteSettingsPanel() {
           type="text"
           className="side-panel__control"
           data-testid="setting-business-name"
-          placeholder="Martina's Trattoria"
+          placeholder="e.g. Martina's Trattoria"
           {...businessName}
         />
       </label>
@@ -160,7 +187,7 @@ export function SiteSettingsPanel() {
           type="text"
           className="side-panel__control"
           data-testid="setting-tagline"
-          placeholder="Slow food, fast smiles"
+          placeholder="e.g. Slow food, fast smiles"
           {...tagline}
         />
       </label>
@@ -170,7 +197,7 @@ export function SiteSettingsPanel() {
         <textarea
           className="side-panel__control side-panel__control--tall"
           data-testid="setting-about"
-          placeholder="A family-run trattoria in Guelph, open for dinner six nights a week."
+          placeholder="e.g. A family-run trattoria in Guelph, open for dinner six nights a week."
           {...about}
         />
       </label>
@@ -200,7 +227,7 @@ export function SiteSettingsPanel() {
         <textarea
           className="side-panel__control side-panel__control--tall"
           data-testid="setting-style-notes"
-          placeholder="Like our Instagram — lots of white space, big food photos."
+          placeholder="e.g. Like our Instagram — lots of white space, big food photos."
           {...styleNotes}
         />
       </label>

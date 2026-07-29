@@ -44,7 +44,14 @@ export const BLOCK_TYPES = [
   {
     id: 'section',
     label: 'Section',
-    hint: 'A full-width band of the page',
+    /*
+     * "A full-width band of the page" told a client who already knew what a
+     * section was (UX audit P2): the audit's client read it, could not picture
+     * what would appear, and clicked it first anyway because it was first. It
+     * says what it LOOKS like now, and `PALETTE_ORDER` below stops it being the
+     * thing an unsure client reaches for by default.
+     */
+    hint: 'A coloured background band behind other blocks',
     defaultRect: { x: 0, y: 0, width: 1200, height: 240 },
     minSize: { width: 160, height: 64 },
     placement: 'stacked',
@@ -106,6 +113,28 @@ export const BLOCK_TYPES = [
 
 export const BLOCK_TYPE_COUNT = BLOCK_TYPES.length
 
+/**
+ * WHAT THE PALETTE OFFERS FIRST — a presentation order, and nothing more.
+ *
+ * `BLOCK_TYPES` above is the CONTRACT: its ids are the export discriminators and
+ * its rectangles are the geometry every template and every stored document was
+ * built against, so its order is left exactly where it was. This list is the only
+ * thing P2 moves.
+ *
+ * Section goes last because it is the one block that is not a thing you can see
+ * words on: the audit's client clicked it first (it was first), got a grey band
+ * with no obvious purpose, and nearly stopped. Heading leads instead — it is what
+ * every page starts with and what makes the canvas immediately look like a page.
+ */
+export const PALETTE_ORDER: readonly BlockTypeId[] = [
+  'heading',
+  'text',
+  'image',
+  'button',
+  'nav-bar',
+  'section',
+]
+
 const DEFINITIONS_BY_ID: ReadonlyMap<BlockTypeId, BlockTypeDefinition> = new Map(
   BLOCK_TYPES.map((definition) => [definition.id, definition]),
 )
@@ -122,3 +151,7 @@ export function getBlockTypeDefinition(id: BlockTypeId): BlockTypeDefinition {
   }
   return definition
 }
+
+/** The same six definitions, in the order the palette lists them. */
+export const PALETTE_BLOCK_TYPES: readonly BlockTypeDefinition[] =
+  PALETTE_ORDER.map(getBlockTypeDefinition)

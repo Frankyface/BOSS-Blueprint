@@ -1,6 +1,7 @@
 import type { DragEvent as ReactDragEvent } from 'react'
 
 import { isDesignFileName } from './canvas/designFile.ts'
+import { AppFooter } from './components/AppFooter.tsx'
 import { AppHeader } from './components/AppHeader.tsx'
 import { BlankStartCoach } from './components/BlankStartCoach.tsx'
 import { BlockPalette } from './components/BlockPalette.tsx'
@@ -106,6 +107,9 @@ export function App() {
           </>
         )}
       </div>
+      {/* Outside `__body`, so it is on screen while the submit takeover is up and
+          strictly outside the 1200px element the PNG renderer captures. */}
+      <AppFooter />
       <TemplatePicker />
       {/* Both are chrome, and both are last: neither can touch the document, and
           the tour suppresses itself while either of the other two is up. */}

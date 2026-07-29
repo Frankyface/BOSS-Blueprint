@@ -17,6 +17,9 @@ playwright-report/
 test-results/
 blob-report/
 .playwright/
+# Lighthouse writes ~1.2 MB of regenerable HTML+JSON per run; the SCORES are the
+# evidence and they live in feature-launch-polish.md's Verification Log.
+lighthouse/
 
 # Environment / secrets
 .env

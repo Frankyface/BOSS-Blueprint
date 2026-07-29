@@ -4,12 +4,69 @@
  * the whole page is transform-scaled, so rem would fight the zoom.
  */
 
+/*
+ * ONE TYPOGRAPHY TABLE PER BLOCK TYPE (UX audit P1).
+ *
+ * The rendered face and the inline editor are two different elements showing the
+ * same words, and they used to carry two different sets of numbers: a Heading
+ * rendered at 40px/700 and, the moment you double-clicked it, dropped to 18px/400
+ * — so the client typed in one font and watched it become another on Enter. The
+ * WYSIWYG illusion broke at exactly the moment they were paying most attention.
+ *
+ * These custom properties are declared on the block WRAPPER, which contains both,
+ * so `.block-content--*` and `.block-editor` read the same value rather than
+ * repeating it. Adding a type means adding one block here, not two.
+ */
 .canvas-block {
   position: absolute;
   display: flex;
   touch-action: none;
   user-select: none;
   cursor: grab;
+
+  /* Defaults are the Text box's, the most common case. */
+  --block-font-size: 18px;
+  --block-font-weight: 400;
+  --block-line-height: 1.55;
+  --block-color: var(--boss-text);
+  --block-text-align: left;
+  --block-padding: 8px;
+  --block-editor-bg: var(--boss-surface);
+}
+
+.canvas-block--heading {
+  --block-font-size: 40px;
+  --block-font-weight: 700;
+  --block-line-height: 1.15;
+  --block-padding: 4px 8px;
+}
+
+/*
+ * The editor takes the pill's own colours, not white: ink-on-white would be a
+ * different-looking control in the one place the client is comparing.
+ */
+.canvas-block--button {
+  --block-font-weight: 700;
+  --block-color: var(--boss-ink);
+  --block-text-align: center;
+  --block-padding: 0 16px;
+  --block-editor-bg: var(--boss-accent);
+}
+
+/* Light text on ink; a white editor here would have made it invisible. */
+.canvas-block--nav-bar {
+  --block-font-size: 17px;
+  --block-font-weight: 600;
+  --block-color: var(--boss-text-invert);
+  --block-text-align: right;
+  --block-padding: 0 24px;
+  --block-editor-bg: var(--boss-ink);
+}
+
+.canvas-block--section {
+  --block-font-size: 13px;
+  --block-font-weight: 600;
+  --block-padding: 8px 12px;
 }
 
 .canvas-block:active {
@@ -40,14 +97,14 @@
 .block-content--section {
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 8px 12px;
+  padding: var(--block-padding);
   background: var(--boss-band);
   border: 1px solid var(--boss-line);
 }
 
 .block-content__tag {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--block-font-size);
+  font-weight: var(--block-font-weight);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.75;
@@ -56,21 +113,24 @@
 /* --- Heading -------------------------------------------------------------- */
 .block-content--heading {
   align-items: center;
-  padding: 4px 8px;
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 1.15;
-  color: var(--boss-text);
+  padding: var(--block-padding);
+  font-size: var(--block-font-size);
+  font-weight: var(--block-font-weight);
+  line-height: var(--block-line-height);
+  text-align: var(--block-text-align);
+  color: var(--block-color);
 }
 
 /* --- Text box ------------------------------------------------------------- */
 .block-content--text {
   align-items: flex-start;
-  padding: 8px;
-  font-size: 18px;
-  line-height: 1.55;
+  padding: var(--block-padding);
+  font-size: var(--block-font-size);
+  font-weight: var(--block-font-weight);
+  line-height: var(--block-line-height);
+  text-align: var(--block-text-align);
   white-space: pre-wrap;
-  color: var(--boss-text);
+  color: var(--block-color);
 }
 
 /* --- Image slot ----------------------------------------------------------- */
@@ -173,12 +233,13 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  padding: 0 16px;
+  padding: var(--block-padding);
   border-radius: 999px;
   background: var(--boss-accent);
-  color: var(--boss-ink);
-  font-size: 18px;
-  font-weight: 700;
+  color: var(--block-color);
+  font-size: var(--block-font-size);
+  font-weight: var(--block-font-weight);
+  text-align: var(--block-text-align);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -188,14 +249,15 @@
   align-items: center;
   justify-content: flex-end;
   gap: 28px;
-  padding: 0 24px;
+  padding: var(--block-padding);
+  text-align: var(--block-text-align);
   background: var(--boss-ink);
-  color: var(--boss-text-invert);
+  color: var(--block-color);
 }
 
 .block-content__nav-item {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: var(--block-font-size);
+  font-weight: var(--block-font-weight);
   white-space: nowrap;
 }
 
@@ -239,21 +301,37 @@
   color: var(--boss-text-muted);
 }
 
-/* --- Inline text editor (textarea/input, never contentEditable) ----------- */
+/*
+ * --- Inline text editor (textarea/input, never contentEditable) -----------
+ *
+ * WHAT YOU TYPE IS WHAT YOU GET (UX audit P1): every typographic property here
+ * is the block's own token, so the editor is the face with a caret in it. The
+ * blue border is the one deliberate difference — it is the "you are editing"
+ * cue, and it is drawn inside the box rather than around it so nothing moves.
+ */
 .block-editor {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  padding: 8px;
-  font: inherit;
+  padding: var(--block-padding);
   font-family: var(--boss-font);
-  font-size: 18px;
-  color: var(--boss-text);
-  background: var(--boss-surface);
-  border: 2px solid var(--boss-select);
+  font-size: var(--block-font-size);
+  font-weight: var(--block-font-weight);
+  line-height: var(--block-line-height);
+  text-align: var(--block-text-align);
+  color: var(--block-color);
+  background: var(--block-editor-bg);
+  border: none;
+  box-shadow: inset 0 0 0 2px var(--boss-select);
   border-radius: 2px;
   resize: none;
+}
+
+/* An untouched block is muted on the face; it must be muted in the editor too. */
+.block-editor::placeholder {
+  color: var(--boss-text-muted);
+  opacity: 1;
 }
 
 /* --- Resize handles ------------------------------------------------------- */

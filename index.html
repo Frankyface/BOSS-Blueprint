@@ -2,13 +2,51 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Every string below is mirrored in src/meta/headTags.ts and asserted equal by
+      src/meta/headTags.test.ts. Change one, change both — a stale absolute URL here
+      produces a blank social card and nothing in the browser complains.
+    -->
+    <title>Sketch your website — BOSS Blueprint</title>
     <meta
       name="description"
-      content="BOSS Blueprint — sketch your website page by page and send it to BOSS as a ready-to-build package."
+      content="Lay out your future website page by page in your browser — blocks, notes and photos — then send BOSS a ready-to-build package. Free, no account."
     />
-    <title>BOSS Blueprint</title>
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="canonical" href="https://frankyface.github.io/BOSS-Blueprint/" />
+
+    <!-- Self-hosted, base-path-rewritten by Vite. No CDN, no external request. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" sizes="32x32" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph. Absolute URLs on purpose: a relative og:image never unfurls. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="BOSS Blueprint" />
+    <meta property="og:title" content="Sketch your website — BOSS Blueprint" />
+    <meta
+      property="og:description"
+      content="Lay out your future website page by page in your browser — blocks, notes and photos — then send BOSS a ready-to-build package. Free, no account."
+    />
+    <meta property="og:url" content="https://frankyface.github.io/BOSS-Blueprint/" />
+    <meta property="og:image" content="https://frankyface.github.io/BOSS-Blueprint/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="BOSS Blueprint — sketch your website page by page" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sketch your website — BOSS Blueprint" />
+    <meta
+      name="twitter:description"
+      content="Lay out your future website page by page in your browser — blocks, notes and photos — then send BOSS a ready-to-build package. Free, no account."
+    />
+    <meta name="twitter:image" content="https://frankyface.github.io/BOSS-Blueprint/og-card.png" />
+    <meta
+      name="twitter:image:alt"
+      content="BOSS Blueprint — sketch your website page by page"
+    />
   </head>
   <body>
     <div id="root"></div>

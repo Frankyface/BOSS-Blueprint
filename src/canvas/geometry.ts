@@ -209,3 +209,33 @@ export function pageScaleForViewport(viewportWidth: number, zoomFactor = 1): num
 
   return clamp(rounded, MIN_PAGE_SCALE, MAX_PAGE_SCALE)
 }
+
+/**
+ * A scroller within this many pixels of its end counts as "at the end".
+ *
+ * Sub-pixel: fractional layout, a device pixel ratio that is not a whole number
+ * and the engines' own rounding all mean `scrollTop + clientHeight` lands a
+ * fraction short of `scrollHeight` at the very bottom. Without the tolerance the
+ * "there is more below" cue would never quite switch off.
+ */
+export const SCROLL_END_TOLERANCE_PX = 2
+
+/**
+ * Is there still page below the fold? (UX audit P5.)
+ *
+ * The audit's client scrolled the canvas only by accident: a 1200x1600 page in a
+ * 700px viewport gave no visual sign that anything continued past the bottom
+ * edge, so the parts of her own sketch below the fold might as well not have
+ * existed. `CanvasArea` fades the bottom edge while this is true.
+ *
+ * Pure arithmetic on three numbers the DOM already knows, so the rule is unit
+ * tested rather than eyeballed in three browsers.
+ */
+export function hasContentBelow(
+  scrollTop: number,
+  clientHeight: number,
+  scrollHeight: number,
+): boolean {
+  if (![scrollTop, clientHeight, scrollHeight].every((value) => Number.isFinite(value))) return false
+  return scrollHeight - (scrollTop + clientHeight) > SCROLL_END_TOLERANCE_PX
+}

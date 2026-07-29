@@ -92,6 +92,7 @@ interface BlueprintTestBridge {
     selectedBlockId: string | null
     editingBlockId: string | null
     addBlock: (type: BlockTypeId) => string
+    moveBlockBy: (id: string, deltaX: number, deltaY: number) => void
     resetCanvas: () => void
   }
   subscribe: (listener: () => void) => () => void
@@ -250,6 +251,35 @@ export async function seedBlocks(page: Page, type: BlockTypeId, count: number): 
     },
     { blockType: type, total: count },
   )
+}
+
+/**
+ * Park a block at an exact page position, through the store's own move action.
+ *
+ * For the tests whose SUBJECT is a gesture rather than a starting point: a drag
+ * has to begin and end inside the window, so a block sitting near an edge makes
+ * the app's chrome height decide whether the test runs at all. Both coordinates
+ * must be multiples of the 8px grid or the move will snap and the arithmetic in
+ * the caller will be off by a few pixels.
+ */
+export async function moveBlockTo(
+  page: Page,
+  id: string,
+  position: { x: number; y: number },
+): Promise<void> {
+  const before = await readBlock(page, id)
+
+  await page.evaluate(
+    ({ blockId, deltaX, deltaY }) => {
+      const store = (globalThis as BridgeHost).__blueprintStore
+      if (!store) throw new Error('The store test bridge is missing from this build')
+      store.getState().moveBlockBy(blockId, deltaX, deltaY)
+    },
+    { blockId: id, deltaX: position.x - before.x, deltaY: position.y - before.y },
+  )
+
+  const after = await readBlock(page, id)
+  expect({ x: after.x, y: after.y }).toEqual(position)
 }
 
 export async function readBlock(page: Page, id: string): Promise<StoredBlock> {

@@ -36,6 +36,16 @@ export const PREVIEW_BASE_URL = `http://${PREVIEW_HOST}:${PREVIEW_PORT}${BASE_PA
 export const DEPLOYED_BASE_URL = `https://frankyface.github.io${BASE_PATH}`
 
 /**
+ * The BOSS site the footer sends people to.
+ *
+ * Beside the deployment constants rather than inline in the footer component
+ * because it is the other half of the same question `DEPLOYED_BASE_URL` answers:
+ * where this app lives, and where the business that made it lives. `help.md`
+ * carries Cam's open item to add the return link ("Sketch your site") there.
+ */
+export const BOSS_SITE_URL = 'https://bossolutions.pro'
+
+/**
  * WHERE A FINISHED PACKAGE GOES.
  *
  * Download-first delivery (`docs/decisions.md` 2026-07-27 debate #2) makes this a

@@ -1,0 +1,57 @@
+/*
+ * App chrome, not content: the same ink as the header so the editor reads as a
+ * tool with a top and a bottom, and the client's white page sits between them.
+ * Never shrinks and never scrolls away — same rule as the header (App.css).
+ */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  height: var(--boss-footer-height);
+  padding: 0 1.25rem;
+  background: var(--boss-ink);
+  color: var(--boss-text-muted);
+  border-top: 1px solid var(--boss-ink-soft);
+}
+
+.app-footer__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--boss-radius);
+  font-size: 0.8125rem;
+  /* Contrast against --boss-ink: 8.9:1, well clear of the 4.5:1 floor. */
+  color: #c7d0e0;
+  text-decoration: none;
+}
+
+.app-footer__domain {
+  color: var(--boss-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.app-footer__link:hover .app-footer__domain,
+.app-footer__link:focus-visible .app-footer__domain {
+  text-decoration-thickness: 2px;
+}
+
+.app-footer__link:focus-visible {
+  outline: 2px solid var(--boss-accent);
+  outline-offset: 2px;
+}
+
+.app-footer__arrow {
+  color: var(--boss-accent);
+}
+
+/*
+ * On a phone the footer keeps its place at the bottom of the shell rather than
+ * scrolling with the stacked columns: it is the one link off this page, and the
+ * desktop guard's banner already owns the space above it.
+ */
+.app-shell[data-small-viewport='true'] .app-footer {
+  justify-content: center;
+}

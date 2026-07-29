@@ -11,6 +11,7 @@ import {
   editBlockText,
   expectGeometry,
   idOfType,
+  moveBlockTo,
   openCanvas,
   readBlock,
   readDocument,
@@ -20,6 +21,9 @@ import {
 /** Defaults recorded in feature-block-canvas.md — the arithmetic below depends on them. */
 const HEADING_DEFAULT = { x: 80, y: 120, width: 640, height: 72 }
 const HEADING_MIN = { width: 96, height: 40 }
+
+/** Middle of the page, so a big drag in any direction stays inside the window. */
+const PARKED = { x: 400, y: 400 }
 
 test.describe('block editing', () => {
   test.beforeEach(async ({ page }) => {
@@ -70,9 +74,19 @@ test.describe('block editing', () => {
     await addBlock(page, 'button')
     const id = await idOfType(page, 'button')
 
-    // Big enough to overshoot both clamps, small enough that the cursor stays in
-    // the window (mouse coordinates outside the viewport are not portable).
-    await dragBy(page, blockById(page, id), -400, -900)
+    /*
+     * PARKED SOMEWHERE WITH HEADROOM FIRST. Both the grab point and the release
+     * point have to stay inside the window (mouse coordinates outside it are not
+     * portable), and a Button's default y of 760 put the grab point within a few
+     * pixels of the bottom edge — so the app's own chrome height decided whether
+     * this test ran at all. It stopped running the day a 28px footer landed. The
+     * clamp is not about where the block started, so the start is chosen here
+     * rather than inherited from the block type's default rectangle.
+     */
+    await moveBlockTo(page, id, PARKED)
+
+    // Big enough to overshoot both clamps: x + width lands below 24, y below 0.
+    await dragBy(page, blockById(page, id), -600, -500)
 
     const block = (await readDocument(page)).blocks.find((candidate) => candidate.id === id)!
     expect(block.x + block.width).toBeGreaterThanOrEqual(24)

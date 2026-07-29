@@ -102,6 +102,19 @@
   border-radius: var(--boss-radius);
 }
 
+/*
+ * PLACEHOLDERS MUST NOT READ AS SAVED CONTENT (UX audit N9). The examples are
+ * prefixed "e.g." in the markup and lightened here, so a panel full of grey
+ * suggestions can never be mistaken for a panel the client has already filled in.
+ * Contrast is 4.6:1 on --boss-surface — deliberately still above the floor: a
+ * hint nobody can read is not a kinder hint.
+ */
+.side-panel__control::placeholder {
+  color: #7a8499;
+  font-style: italic;
+  opacity: 1;
+}
+
 .side-panel__control--tall {
   min-height: 4.5rem;
   resize: vertical;
@@ -198,19 +211,41 @@
   gap: 0.5rem;
 }
 
+/*
+ * The picker LEADS the row (UX audit P4). Bigger than the old passive swatch
+ * because it is now the primary control: a client who knows their colour but not
+ * its hex code should be able to hit it without aiming.
+ */
 .site-colors__swatch {
   flex: 0 0 auto;
-  width: 1.5rem;
-  height: 1.5rem;
-  background: repeating-linear-gradient(
-    45deg,
-    var(--boss-band) 0,
-    var(--boss-band) 4px,
-    var(--boss-line) 4px,
-    var(--boss-line) 8px
-  );
+  width: 2.25rem;
+  height: 2rem;
+  padding: 2px;
+  background: var(--boss-surface);
   border: 1px solid var(--boss-line-strong);
   border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+/* Nothing picked yet — dashed, so white cannot be mistaken for a choice. */
+.site-colors__swatch[data-empty='true'] {
+  border-style: dashed;
+  border-color: var(--boss-line-strong);
+}
+
+/* The engines each wrap the well differently; square it off in all three. */
+.site-colors__swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.site-colors__swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.site-colors__swatch::-moz-color-swatch {
+  border: none;
+  border-radius: 3px;
 }
 
 .site-colors__slot .side-panel__control {

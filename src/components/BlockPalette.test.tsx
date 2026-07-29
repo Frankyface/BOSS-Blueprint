@@ -1,25 +1,40 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { BLOCK_TYPES } from '../constants/blockTypes.ts'
+import { BLOCK_TYPES, PALETTE_ORDER } from '../constants/blockTypes.ts'
 import { selectCurrentBlocks, useCanvasStore } from '../store/canvasStore.ts'
 
 import { BlockPalette } from './BlockPalette.tsx'
 
 const EXPECTED_LABELS = ['Section', 'Heading', 'Text', 'Image', 'Button', 'Nav bar']
-const EXPECTED_IDS = ['section', 'heading', 'text', 'image', 'button', 'nav-bar']
+/**
+ * PALETTE order, not table order (UX audit P2): Section moved to the end, and
+ * this list is derived from the constant so the two can never disagree about it.
+ */
+const EXPECTED_IDS = [...PALETTE_ORDER]
 
 beforeEach(() => {
   useCanvasStore.getState().resetCanvas()
 })
 
 describe('BlockPalette', () => {
-  it('lists the six block types in order', () => {
+  it('lists the six block types in palette order, Section last', () => {
     render(<BlockPalette />)
 
     const buttons = screen.getAllByRole('button')
 
     expect(buttons.map((button) => button.getAttribute('data-block-type'))).toEqual(EXPECTED_IDS)
+    expect(buttons[0]).toHaveAttribute('data-block-type', 'heading')
+    expect(buttons.at(-1)).toHaveAttribute('data-block-type', 'section')
+  })
+
+  /** P2's other half: what a Section actually is, on the button itself. */
+  it('says what a Section looks like', () => {
+    render(<BlockPalette />)
+
+    expect(screen.getByTestId('palette-section')).toHaveTextContent(
+      'A coloured background band behind other blocks',
+    )
   })
 
   it('shows a human-readable label for every block type', () => {

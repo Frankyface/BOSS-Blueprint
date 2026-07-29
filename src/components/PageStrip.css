@@ -133,6 +133,16 @@
   border-radius: var(--boss-radius);
 }
 
+/*
+ * Why the confirm is greyed out (UX audit N4). Beside the field rather than
+ * under the button, because the fix is in the field.
+ */
+.page-strip__hint {
+  flex: 0 1 auto;
+  font-size: 0.8rem;
+  color: var(--boss-text-muted);
+}
+
 .page-strip__confirm-prompt {
   font-size: 0.85rem;
   font-weight: 600;
