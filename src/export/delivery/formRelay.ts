@@ -49,8 +49,12 @@ export const FORM_RELAY_ID = 'form-post'
 export const RELAY_MISCONFIGURED_PREFIX =
   '[BOSS Blueprint] DeliveryRelay is configured but unusable — nothing will be sent:'
 
-/** full → compressed → metadata-only, in shedding order (debate #2). */
-const LADDER: readonly PayloadVariant[] = ['full', 'compressed', 'metadata-only']
+/**
+ * The rungs that have to EARN their place, in shedding order (debate #2's ladder
+ * is full → compressed → metadata-only). The third rung is not in this list on
+ * purpose: it is the floor, and the floor is not a candidate.
+ */
+const OPTIONAL_RUNGS: readonly PayloadVariant[] = ['full', 'compressed']
 
 const HTTP_OK_FLOOR = 200
 const HTTP_OK_CEILING = 300
@@ -103,16 +107,17 @@ export function relayRequestBody(payload: NotificationPayload, config: RelayConf
 export function fitRelayRequest(payload: NotificationPayload, config: RelayConfig): RelayRequest {
   const limit = config.limitBytes ?? RELAY_PAYLOAD_LIMIT_BYTES
 
-  for (const variant of LADDER) {
+  for (const variant of OPTIONAL_RUNGS) {
     const candidate = demoteNotificationPayload(payload, variant)
     // A payload that arrived already degraded cannot climb back up.
     if (candidate.variant !== variant) continue
 
     const body = relayRequestBody(candidate, config)
     const byteLength = utf8Length(body)
-    if (byteLength <= limit || variant === 'metadata-only') return { variant, body, byteLength }
+    if (byteLength <= limit) return { variant, body, byteLength }
   }
 
+  // The floor — reached by falling through, never by measuring.
   const floor = demoteNotificationPayload(payload, 'metadata-only')
   const body = relayRequestBody(floor, config)
   return { variant: 'metadata-only', body, byteLength: utf8Length(body) }

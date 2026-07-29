@@ -166,9 +166,17 @@ controls. The remaining step is listed under *What Cam does next*.
   `demoteNotificationPayload` sheds in order, **leaves the source object untouched** (immutability),
   and returns the same reference rather than promoting.
 
-**Coverage — `npm run test:coverage`** → exit **0**. `src/export/delivery` **97.22% lines /
-100% functions / 96.96% statements** (the whole `src/export/**` glob stays over its 80% gate);
-`src/submit` 95.83% lines / 96% functions, unchanged.
+**Coverage — `npm run test:coverage`** → exit **0**. `src/export/delivery` **99.3% lines /
+100% functions / 98.78% statements**, with `formRelay.ts` itself at 100% statements and lines (the
+whole `src/export/**` glob stays over its 80% gate); `src/submit` 95.83% lines / 96% functions,
+unchanged.
+
+A self-review pass after the first green run rewrote `fitRelayRequest`: the loop now walks only the
+two rungs that must EARN their place, and `metadata-only` is reached by falling out of it. The
+"bottom rung is sent unconditionally" criterion is now readable rather than traceable, and the
+defensive branch that had been unreachable is gone. Re-verified afterwards: 68 delivery tests,
+**1685 unit**, lint clean, `npx tsc -b` clean, both builds clean, and
+`submit.spec.ts` + `notification-relay.spec.ts` **30/30 in three engines**.
 
 **Lint / typecheck / build** — `npm run lint` clean, `npx tsc -b` clean, `npm run build` clean.
 
