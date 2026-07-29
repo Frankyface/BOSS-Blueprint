@@ -287,6 +287,39 @@ same batch.
 that failed first, but the criteria are ticked by an independent pass, not by the agent that
 wrote the fix.
 
+**Re-verification (2026-07-29):** detached worktree pinned at 52fecbe, no tracked edits.
+Full re-run: `npm test` **92 files / 1607** · `vitest run scripts/` **179** · coverage exit 0 ·
+build exit 0 · e2e **672 passed / 3 skipped / 0 failed** (after the worktree-setup
+`npm ci --prefix scripts/roundtrip`). CI green at 52fecbe; live 200; deployed bundle is this
+commit.
+**The criterion-2 bounce is FIXED and holds in three real browsers** (independent probe suite,
+23 tests ×3 engines, deleted after): the exact repro — tour → step 2 (canvas) → Submit
+(bubble hides) → back → the bubble returns **count 5, step 2, target canvas** on chromium,
+firefox AND webkit; repeated from step 4 across two consecutive round trips; the returned
+bubble still anchored (≤200px, inside the viewport). The regression test asserts step, count
+AND target. Sentence budget re-measured independently: **93 words**, titles 1/1/1/1/1, bodies
+1/2/1/1/1 — countSentences() is real and its clause-separator test has teeth. All other
+criteria re-proved ×3 (ordering both paths, anchors, pass-through with a store-committed edit
+under the open bubble, three dismissal routes persisting, guard suppression both directions
+returning to the same step, reduced-motion pair with teeth).
+**One NEW defect found — pre-existing, and it bounces the feature (T-1): the help control
+never moves focus to the bubble, in any engine.** After clicking "Show me around" the bubble
+is up, anchored and visible, but document.activeElement is still the help button (chromium,
+firefox) or BODY (webkit). Mechanism MEASURED: the bubble renders visibility:hidden until
+anchored, and .focus() on a hidden element is a no-op (focusableWhenHidden false /
+focusableWhenVisible true); the focus effect's deps have all settled by the commit that mounts
+the still-hidden bubble, and the anchoring layout effect that reveals it re-runs nothing.
+jsdom does not implement the visibility rule, so OnboardingTour.test.tsx's "takes the focus
+with it" is a FALSE POSITIVE that cannot fail. **Explicitly not a regression from the bounce
+fix** — reproduced identically on a scratch build of 5d6e24a (pre-fix). Consequence: a
+keyboard user who asks for the tour is left several Tab stops from Skip/Next; the bubble is
+still announced via the aria-live region — reach, not silence.
+**Status: BOUNCE on Behaviour rule 2.** Exact changes: (1) gate + key the focus effect on the
+bubble being ANCHORED (position !== null) as well as hasBubble, keeping boolean deps so Next
+cannot yank focus; (2) assert the behaviour in e2e/onboarding-tour.spec.ts ×3 engines — the
+jsdom test cannot be the evidence; (3) correct the "takes focus" claims in the two log entries
+above by annotation, not deletion.
+
 ## Open Questions
 1. **Stepped bubbles or all five at once?** Five simultaneous callouts read faster but clutter a
    1440×900 layout and would overlap the canvas. **Recommendation:** stepped, with "1 of 5" and a

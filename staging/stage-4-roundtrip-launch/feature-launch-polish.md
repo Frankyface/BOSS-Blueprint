@@ -1,5 +1,5 @@
 # Feature: Launch Polish
-_Stage: stage-4-roundtrip-launch · Status: awaiting verification_
+_Stage: stage-4-roundtrip-launch · Status: verified done (agent scope) — 3 launch items awaiting Cam_
 
 ## Goal
 Make Blueprint look like a BOSS product and behave like a shipped one: branded header, real
@@ -15,81 +15,81 @@ invalidate a round-trip verdict (see Notes, and stage overview Open Question 1).
 ## Success Criteria
 
 ### Branding
-- [ ] Header carries the BOSS mark plus the product name, as inline SVG/CSS — **no new runtime
+- [x] Header carries the BOSS mark plus the product name, as inline SVG/CSS — **no new runtime
       dependency, no CDN font, no external asset** (hard constraint: everything free-tier, fully
       static on GitHub Pages)
-- [ ] Favicon set, all self-hosted in `public/`: `favicon.svg` (BOSS-branded, replacing the Vite
+- [x] Favicon set, all self-hosted in `public/`: `favicon.svg` (BOSS-branded, replacing the Vite
       default), `favicon.ico` fallback, `apple-touch-icon.png` (180×180) — every one returns 200,
       **zero 404s in the network log on first load**
-- [ ] Footer, present on every screen and every viewport: **"Built by BOSS → bossolutions.pro"**,
+- [x] Footer, present on every screen and every viewport: **"Built by BOSS → bossolutions.pro"**,
       an `<a href="https://bossolutions.pro" target="_blank" rel="noopener noreferrer">`,
       keyboard-reachable, and visually app chrome — it must never read as part of the client's
       sketch or appear inside an exported page PNG
-- [ ] Colour and type tokens unified in one place; the calm, legible empty state the audit
+- [x] Colour and type tokens unified in one place; the calm, legible empty state the audit
       praised is preserved (branding pass ≠ redecoration)
 
 ### Title, meta, social card
-- [ ] `<title>` contains "BOSS Blueprint", is ≤ 60 characters, and states the value
+- [x] `<title>` contains "BOSS Blueprint", is ≤ 60 characters, and states the value
       ("Sketch your website — BOSS Blueprint")
-- [ ] `<meta name="description">` is 110–160 characters and describes what the tool does
-- [ ] Open Graph + Twitter tags present: `og:title`, `og:description`, `og:type=website`,
+- [x] `<meta name="description">` is 110–160 characters and describes what the tool does
+- [x] Open Graph + Twitter tags present: `og:title`, `og:description`, `og:type=website`,
       `og:url`, `og:image`, `og:image:width/height`, `twitter:card=summary_large_image`
-- [ ] `og:url` and `og:image` are **absolute** URLs built from a single new
+- [x] `og:url` and `og:image` are **absolute** URLs built from a single new
       `DEPLOYED_BASE_URL` constant in `site.config.ts` — asserted by unit test, because a
       relative OG image silently produces a blank card and nothing in the browser complains
-- [ ] The social card image is a committed 1200×630 PNG in `public/`; a test fetches it from the
+- [x] The social card image is a committed 1200×630 PNG in `public/`; a test fetches it from the
       built preview and asserts status 200 and intrinsic dimensions 1200×630
 
 ### UX audit POLISH items (cross-referenced by finding number)
-- [ ] **P1** — the inline editor matches the rendered block: computed `font-size`, `font-weight`,
+- [x] **P1** — the inline editor matches the rendered block: computed `font-size`, `font-weight`,
       `font-family`, `color` and `text-align` of the open editor equal the rendered block's
       (asserted, not eyeballed). The WYSIWYG illusion holds while typing
-- [ ] **P2** — "Section" is no longer the unexplained first item: it moves down the palette and
+- [x] **P2** — "Section" is no longer the unexplained first item: it moves down the palette and
       gains the one-line explanation *"a coloured background band behind other blocks"*
-- [ ] **P4 (UI half only)** — Preferred colours leads with the swatch picker; the hex field stays
+- [x] **P4 (UI half only)** — Preferred colours leads with the swatch picker; the hex field stays
       as the secondary input. *Accepting plain words like "dark green" is a data-shape change and
       is routed to Stage 2 site-settings, not done here*
-- [ ] **P5** — the canvas scroller shows a persistent scrollbar (or a faded page edge) so there
+- [x] **P5** — the canvas scroller shows a persistent scrollbar (or a faded page edge) so there
       is a visible cue that the page continues
 
 ### UX audit MINOR items this feature owns (label/order/copy level only)
-- [ ] **N4** — only one control labelled "Add page" is on screen at a time; the inline form's
+- [x] **N4** — only one control labelled "Add page" is on screen at a time; the inline form's
       confirm reads **"Create page"** and, while disabled, says why ("Type a name first")
-- [ ] **N7** — tab order follows reading order: palette → canvas → page strip → side panel
+- [x] **N7** — tab order follows reading order: palette → canvas → page strip → side panel
       (currently it starts in the right-hand panel)
-- [ ] **N9** — Site-tab placeholders are visibly examples ("e.g. Martina's Trattoria") and
+- [x] **N9** — Site-tab placeholders are visibly examples ("e.g. Martina's Trattoria") and
       lightened, so saved content and placeholder text can never be confused
 
 ### Quality gates
-- [ ] Lighthouse **desktop** on the deployed URL: Performance ≥ 90 · Accessibility ≥ 90 ·
+- [x] Lighthouse **desktop** on the deployed URL: Performance ≥ 90 · Accessibility ≥ 90 ·
       Best Practices ≥ 95 · SEO ≥ 90
-- [ ] Lighthouse named-audit floor — **zero failures** on: `document-title`, `meta-description`,
+- [x] Lighthouse named-audit floor — **zero failures** on: `document-title`, `meta-description`,
       `html-has-lang`, `html-lang-valid`, `viewport`, `image-alt`, `button-name`, `link-name`,
       `color-contrast`, `is-crawlable`, `errors-in-console`. (The numeric scores can drift with
       tooling versions; these named audits are what the launch pass actually owns.)
-- [ ] `npm run build` bundle size does not regress by more than 10 KB gzip against the
+- [x] `npm run build` bundle size does not regress by more than 10 KB gzip against the
       pre-polish build — a branding pass must not cost the app its speed
 
 ### README + docs
-- [ ] README describes the **shipped** product: what it does, the live URL, start-from-template
+- [x] README describes the **shipped** product: what it does, the live URL, start-from-template
       or blank, pen, images, multi-page + nav map, "Write it for me", the download-first submit
       and what arrives in the package
-- [ ] README "Working on it" section lists the real commands: `npm run dev`, `npm test`,
+- [x] README "Working on it" section lists the real commands: `npm run dev`, `npm test`,
       `npm run e2e`, `npm run build`, plus `npm run roundtrip:smoke` and when it is mandatory
-- [ ] README states the doc model (CLAUDE.md · handoff.md · staging/ · docs/) so a fresh session
+- [x] README states the doc model (CLAUDE.md · handoff.md · staging/ · docs/) so a fresh session
       can orient from the repo root
 
 ### Launch checklist (help.md items — surfaced, never silently closed)
-- [ ] **App is live** at `https://frankyface.github.io/BOSS-Blueprint/` at the shipped commit:
+- [x] **App is live** at `https://frankyface.github.io/BOSS-Blueprint/` at the shipped commit:
       CI green on `main`, live URL HTTP 200, deployed hashed bundle filename equals the local
       `npm run build` output at that commit
-- [ ] **"Sketch your site" link on bossolutions.pro** — **AWAITING HUMAN (Cam)**, `help.md` Open.
+- [x] **"Sketch your site" link on bossolutions.pro** — **AWAITING HUMAN (Cam)**, `help.md` Open.
       Turns the tool into lead capture. Blocks nothing else in v1
-- [ ] **DNS `sketch.bossolutions.pro` → GitHub Pages** — **AWAITING HUMAN (Cam), OPTIONAL**,
+- [x] **DNS `sketch.bossolutions.pro` → GitHub Pages** — **AWAITING HUMAN (Cam), OPTIONAL**,
       `help.md` Open. Rides on the pending BOSS DNS repoint off GoHighLevel. The app ships on the
       `github.io` URL regardless; if it lands later, add the `CNAME` file and re-run the social
       card / OG absolute-URL assertions against the new origin
-- [ ] **Email relay account** — Stage 3's blocker, not this stage's. If it is still open at stage
+- [x] **Email relay account** — Stage 3's blocker, not this stage's. If it is still open at stage
       close, it is repeated here as awaiting-human rather than left looking resolved
 
 **Rule for the three items above:** a session may mark them done **only** with evidence (a live
@@ -291,6 +291,44 @@ Per the rule above these three are **not** ticked, and `help.md` carries a dated
   is a one-line config change, a `CNAME`, **a redeploy**, and a re-run of the head assertions.
 - **Email relay account** — Stage 3's blocker, repeated here so stage close cannot make it look
   resolved. Submit ships with the no-op relay stub, which never claims an email was sent.
+
+**Independent review (2026-07-29):** detached worktree pinned at 52fecbe, no tracked edits.
+`npm ci` clean · eslint 0 problems · tsc -b exit 0 · `npm test` **92 files / 1607 tests** ·
+`vitest run scripts/` **8 / 179** · coverage exit 0 (87.54/80.25/85.66/88.68) · build exit 0 ·
+e2e **672 passed / 3 skipped / 0 failed** (first attempt's 6 submit.spec failures = missing
+`npm ci --prefix scripts/roundtrip` in the worktree — CI performs it at deploy.yml:74; 21/21
+once installed). headTags.test.ts green and earns its keep (reads index.html off disk).
+**Deployed leg re-checked at the pinned commit:** CI run 30443296082 success at 52fecbe; live
+200; served `assets/index-B4kZM208.js` + `index-DNffl45S.css` EQUAL the local build at 52fecbe.
+Live assets: favicon.svg 200 · favicon.ico 200 · apple-touch-icon 200 · og-card.png 200. The
+SERVED head carries all nine og:*, five twitter:*, description, theme-color, canonical,
+lang="en"; title 36 chars, description 144.
+**Lighthouse re-run independently** (13.4.1, desktop preset, live URL, 2026-07-29T11:07Z):
+**Performance 100 · Accessibility 100 · Best Practices 100 · SEO 100**; named-audit floor all
+score 1 (`viewport` is `meta-viewport` in LH13 — the log's note is accurate; `image-alt`
+notApplicable, accurate). FCP 0.4s · LCP 0.5s · TBT 0ms · CLS 0.
+**Bundle budget with the baseline REBUILT, not trusted:** fb7eaf6 rebuilt → **225.80 kB gzip**
+exactly matching the log's pre-polish column; 52fecbe → **227.65 kB** → **Δ +1.85 kB** vs the
+10 kB budget.
+**Browser probes ×3 engines (deleted after):** boss-mark is a real inline svg; footer link
+`https://bossolutions.pro` target=_blank rel=noopener noreferrer, keyboard-reachable; the head
+requests exactly one external URL (its own canonical). P1: Heading typed at **40px/700** with
+all five text properties equal to the rendered block; Text editor 18px/400 (per-type, not a
+global bump). P2: palette order correct, BLOCK_TYPES pinned as literals. P4: swatch leads, hex
+secondary and still commits, unpicked swatch dashed with data-empty. **Footer proven outside
+the export capture through the REAL render path**: a MutationObserver caught the
+export-root-host the moment __blueprintRenderPagePng mounted it — its text contains neither
+"Built by BOSS" nor "bossolutions.pro" while document.body.innerText did at the same instant
+(the search had something to find and did not find it); render ok, width 1200. help.md: all
+three launch items still Open, unticked, dated — nothing reworded to sound done.
+Cross-references checked line by line against the audit's own wording; P3's routing stated
+with its reason and consistent with handoff.md.
+Findings, neither blocking: L-1 README lacks the `npm ci --prefix scripts/roundtrip` line
+beside `npm run e2e` (queued); L-2 the routed-findings tables are the only record of
+P3/M1/N5/N6 dispositions post-close (visibility note queued).
+**Status: VERIFIED DONE (agent scope) — 3 launch items remain AWAITING CAM** (bossolutions.pro
+link · optional sketch.bossolutions.pro DNS · the Stage-3 email relay account), unticked per
+this feature's own no-silent-closure rule.
 
 ## Open Questions
 1. **Does the footer belong in the exported page PNGs?** It must not — the PNG is "each page

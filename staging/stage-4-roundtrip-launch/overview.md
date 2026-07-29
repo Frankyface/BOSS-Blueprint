@@ -19,7 +19,7 @@ feature files below turn it into runnable code without softening a single thresh
       control
 - [x] feature-desktop-guard.md — small-viewport notice ("Blueprint works best on a computer")
       that warns about *editing* and never blocks *reading*
-- [ ] feature-launch-polish.md — BOSS branding pass, favicon, footer link to bossolutions.pro,
+- [x] feature-launch-polish.md — BOSS branding pass, favicon, footer link to bossolutions.pro,
       title/meta/social card, the UX audit's POLISH items, Lighthouse targets, README refresh,
       and the help.md launch items surfaced as awaiting-human
 

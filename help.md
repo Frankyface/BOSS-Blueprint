@@ -4,6 +4,12 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
 
 ## Open
 
+- [ ] **Re-authenticate the Claude Code CLI on this machine — BLOCKS the v1 round-trip runs.**
+  The live gauntlet spawns `claude` CLI builder sessions, and the machine's CLI OAuth token
+  expired (401; last written 2026-07-02). Fix: open a terminal, run `claude` and complete the
+  login (or `/login` inside it). Two-minute interactive step only you can do. Added 2026-07-29.
+  **Blocks: the three gating round-trip runs — the final v1 gate.** Everything else is done.
+
 - [ ] **Confirm the submit destination address** — the gated submit now ships, and its
   completion screen shows a real address (prefilled `mailto:` + copyable text). It is set to
   `cammer3034@gmail.com` in `site.config.ts` (`BOSS_SUBMIT_EMAIL`) — the working address this

@@ -364,3 +364,24 @@ phrase list (too broad). **Cost accepted knowingly:** a rhetorical "Should I hav
 No — the sketch shows cards." now fails H2, and R5.5 allows no hand-waving; the honest place to
 pay that is here, before any verdict exists · **Revisit if:** only with a fresh decisions entry
 and a full rerun. → R5.3 2a clause 3, R8.2 S3
+
+## 2026-07-29 — R4.6 purity predicate amended: baseline-sterility, not emptiness
+**Chose:** the builder/evaluator session-purity assertion (roundtrip harness R4.6) is amended
+from "zero plugins/agents/skills/slash_commands" to BASELINE STERILITY: plugins must be 0;
+agents/skills/slash_commands must equal EXACTLY the CLI's built-in set for the pinned CLI
+version (a committed builtin manifest, compared as sets — any entry beyond the builtins is a
+leak and aborts); memory paths must resolve only inside the run's own claude-home; the
+assertion fires on the STREAMING init event before any builder budget is spent; the memory
+check uses the fields the current CLI actually emits (memory_paths on 2.1.190) ·
+**Because:** the live-run attempt proved emptiness UNSATISFIABLE — Claude Code ships built-in
+agents/skills/commands in the binary that no CLAUDE_CONFIG_DIR can remove; the measured
+contrast (sterile: 0 plugins/5 agents/14 skills/27 commands vs the real config dir:
+1/16/99/114) is precisely the evidence that isolation works; the mock builder had masked this
+by emitting empty arrays; asserting post-session would burn a full builder budget before
+aborting · **Sign-off:** criterion amendment under R10.7; Cam delegated rulings via the
+standing /goal directive, and this corrects an impossible criterion rather than weakening a
+satisfiable one — the new predicate is STRICTER in practice (the old one never passed a real
+transcript; the new one catches any non-builtin leak) · **Rejected:** allowlisting counts
+without names (a swapped skill would pass), skipping purity when the CLI has builtins (gives
+up the leak check entirely) · **Revisit if:** a CLI upgrade changes the builtin set — the
+manifest is version-keyed and a mismatch is a loud PRECONDITION, never a silent pass.
