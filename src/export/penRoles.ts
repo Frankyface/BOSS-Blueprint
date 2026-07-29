@@ -68,24 +68,39 @@ function intersectionArea(box: Bbox, frame: Frame): number {
 }
 
 /**
+ * The fraction of one axis of the bbox that lies within the frame's span on that axis.
+ * A zero-extent axis (a perfectly straight stroke, or a dot) has no fraction to take:
+ * its single coordinate is either within the span or it is not.
+ */
+function axisContainedRatio(start: number, size: number, frameStart: number, frameSize: number): number {
+  if (size > 0) return overlap1D(start, size, frameStart, frameSize) / size
+  return start >= frameStart && start <= frameStart + frameSize ? 1 : 0
+}
+
+/**
  * How much of the stroke's bbox lies inside `frame`, as a ratio of the bbox's area.
  *
- * A perfectly straight stroke has a zero-area bbox, which would make every ratio
- * `0/0`. Such a stroke is treated by its EXTENT instead — the 1-D overlap fraction
- * along whichever axis has length — so a straight line drawn across a photo still
- * reads as a sketch of it rather than falling through to "annotation".
+ * A perfectly straight stroke has a zero-extent axis and therefore a zero AREA, which
+ * would make the ratio `0/0`. §4.5 asks how much of the bbox lies inside the slot, and
+ * that is a question BOTH axes answer, so the degenerate case is read per axis and the
+ * two fractions multiplied: on an axis with length that fraction is the 1-D overlap; on
+ * a zero-extent axis it is 1 when the coordinate falls within the frame's span and 0
+ * otherwise. Where both axes have length the product IS the area ratio
+ * (`(ovX·ovY)/(w·h) = (ovX/w)·(ovY/h)`), so this is the same rule read one axis at a
+ * time — not a second one.
+ *
+ * Reading only the axis with length (the pre-2026-07-29 fallback) ignored the other
+ * axis entirely, so a straight line drawn 100px clear of a photo classified as a sketch
+ * OF that photo because the photo's span on the ignored axis happened to contain it.
  */
 export function containedRatio(box: Bbox, frame: Frame): number {
   const area = box.w * box.h
   if (area > 0) return intersectionArea(box, frame) / area
 
-  if (box.w > 0) return overlap1D(box.x, box.w, frame.x, frame.w) / box.w
-  if (box.h > 0) return overlap1D(box.y, box.h, frame.y, frame.h) / box.h
-
-  // A single dot: inside or not, no fraction about it.
-  const inside =
-    box.x >= frame.x && box.x <= frame.x + frame.w && box.y >= frame.y && box.y <= frame.y + frame.h
-  return inside ? 1 : 0
+  return (
+    axisContainedRatio(box.x, box.w, frame.x, frame.w) *
+    axisContainedRatio(box.y, box.h, frame.y, frame.h)
+  )
 }
 
 function centerDistance(box: Bbox, frame: Frame): number {

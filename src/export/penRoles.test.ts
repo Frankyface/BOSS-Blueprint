@@ -94,17 +94,59 @@ describe('§4.5 the annotation target guess', () => {
     const far = heading('blk_0001', 900, 900, 20, 20)
     expect(strokeRole(box, [far]).targetBlockId).toBeNull()
   })
+})
 
-  it('treats a zero-area bbox (a perfectly straight stroke) by its extent', () => {
-    const line = { x: 0, y: 50, w: 100, h: 0 }
-    expect(containedRatio(line, { x: 0, y: 0, w: 100, h: 100 })).toBe(1)
-    expect(strokeRole(line, [slot('blk_0001', 0, 0, 100, 100)]).role).toBe('imageSketch')
+/**
+ * §4.5 asks how much of the bbox lies inside the slot — a question BOTH axes answer.
+ * A perfectly straight stroke has a zero-extent axis and therefore zero area, so the
+ * ratio needs a fallback; a fallback that reads only the axis with length classifies a
+ * line that misses the photo entirely as a sketch of it. Found by the Stage 4 harness
+ * dry-run (2026-07-29) with a straight annotation line drawn clear of a photo.
+ */
+describe('§4.5 degenerate bboxes — perfectly straight strokes', () => {
+  /** A photo occupying x 100–500, y 100–400. */
+  const photo = slot('blk_0001', 100, 100, 400, 300)
+
+  it('is a sketch when a horizontal line lies inside the slot', () => {
+    const line = { x: 150, y: 250, w: 300, h: 0 }
+    expect(containedRatio(line, photo.frame)).toBe(1)
+    expect(strokeRole(line, [photo])).toEqual({ role: 'imageSketch', targetBlockId: 'blk_0001' })
+  })
+
+  it('is a sketch when a vertical line lies inside the slot', () => {
+    const line = { x: 300, y: 150, w: 0, h: 200 }
+    expect(containedRatio(line, photo.frame)).toBe(1)
+    expect(strokeRole(line, [photo])).toEqual({ role: 'imageSketch', targetBlockId: 'blk_0001' })
+  })
+
+  it('is an annotation when a horizontal line sits below the slot it lines up with', () => {
+    // Horizontally within the photo's span, 200px clear of its bottom edge.
+    const line = { x: 150, y: 600, w: 300, h: 0 }
+    expect(containedRatio(line, photo.frame)).toBe(0)
+    expect(strokeRole(line, [photo]).role).toBe('annotation')
+  })
+
+  it('is an annotation when a vertical line sits clear of the slot it lines up with', () => {
+    // The harness repro: vertically within the photo's span, 100px clear of its right edge.
+    const line = { x: 600, y: 150, w: 0, h: 200 }
+    expect(containedRatio(line, photo.frame)).toBe(0)
+    expect(strokeRole(line, [photo]).role).toBe('annotation')
+  })
+
+  it('applies the 60% rule along the axis that has length', () => {
+    // 400 wide, 200 of it over the photo → 50%: not enough.
+    expect(containedRatio({ x: 300, y: 250, w: 400, h: 0 }, photo.frame)).toBeCloseTo(0.5, 10)
+    expect(strokeRole({ x: 300, y: 250, w: 400, h: 0 }, [photo]).role).toBe('annotation')
+    // 300 wide, 250 of it over the photo → 83%: enough.
+    expect(containedRatio({ x: 250, y: 250, w: 300, h: 0 }, photo.frame)).toBeCloseTo(250 / 300, 10)
+    expect(strokeRole({ x: 250, y: 250, w: 300, h: 0 }, [photo]).role).toBe('imageSketch')
   })
 
   it('treats a single dot as inside or outside, with no fraction about it', () => {
     const dot = { x: 50, y: 50, w: 0, h: 0 }
     expect(containedRatio(dot, { x: 0, y: 0, w: 100, h: 100 })).toBe(1)
     expect(containedRatio(dot, { x: 200, y: 0, w: 100, h: 100 })).toBe(0)
+    expect(containedRatio(dot, { x: 0, y: 200, w: 100, h: 100 })).toBe(0)
   })
 })
 

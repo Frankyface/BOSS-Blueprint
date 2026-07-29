@@ -330,6 +330,53 @@ table absent; ids ordinal-only. Gate C03/C04/V06/V01/V02/V03/V27 all PASS on tho
 CI green at 770c346 incl. the gate-selftest and schema-check steps; live 200, deployed hash
 matches this commit's local build. **VERIFIED DONE.**
 
+### 2026-07-29 — post-verification fix: §4.5 degenerate-bbox containment (status stays verified done)
+
+**Bug (real repro, found by the Stage 4 harness dry-run).** `containedRatio` in
+`src/export/penRoles.ts` fell back, for a zero-AREA bbox, to the 1-D overlap fraction along
+**whichever axis had length** — and ignored the other axis completely. A perfectly straight
+stroke (horizontal or vertical line → bbox with zero height or zero width) therefore scored 1.0
+against any `imageSlot` whose span on the *ignored* axis happened to contain it, however far
+away it was on the axis that mattered. Concretely: a straight annotation line drawn 100px clear
+of a photo classified as `role: "imageSketch"` **of that photo**. Both orientations were
+affected (vertical line clear of the slot horizontally; horizontal line clear of it vertically).
+Confirmed by test before the fix: both repros returned `1`.
+
+**Fix.** The degenerate branch now reads **both** axes and multiplies their contained fractions:
+an axis with length contributes its 1-D overlap fraction, a zero-extent axis contributes 1 when
+its single coordinate falls within the frame's span and 0 otherwise. This is §4.5's own rule read
+one axis at a time, not a second rule — where both extents are positive the product is
+identically the area ratio (`(ovX·ovY)/(w·h) = (ovX/w)·(ovY/h)`), so the positive-area path is
+left untouched byte-for-byte and the 60% boundary is unmoved. The single-dot case is subsumed
+(both axes zero → 1×1 inside, 0 outside), so its special case was deleted rather than kept.
+Rationale and the §4.5 citation are in the function's doc comment.
+
+**Tests** (`src/export/penRoles.test.ts`, new describe `§4.5 degenerate bboxes — perfectly
+straight strokes`): horizontal line inside a slot → `imageSketch`; vertical line inside → 
+`imageSketch`; horizontal line aligned with the slot horizontally but 200px below it →
+`annotation` (was `imageSketch`); vertical line aligned vertically but 100px clear to the right →
+`annotation` (was `imageSketch` — the harness repro); the 60% rule still applied along the axis
+with length (50% → annotation, 83% → imageSketch); dot inside/outside on **both** axes. Written
+RED first: `2 failed | 18 passed`, both failures `expected 1 to be +0`. Green after the fix.
+
+**Commands (2026-07-29, main tree)**
+
+| Command | Result |
+|---|---|
+| `npx vitest run src/export/penRoles.test.ts` | **20 passed** (was 2 failed / 18 passed pre-fix) |
+| `npm run lint` | clean, exit 0 |
+| `npm test` | **76 files / 1317 tests passed** |
+| `npm run test:coverage` | thresholds pass, exit 0 — 86.12 stmts / 79.11 branch / 83.46 funcs / 87.49 lines; `penRoles.ts` 98.36 / 87.5 / 100 / 100 |
+| `npm run build` | green, `dist/assets/index-*.js` 565.08 kB |
+| `npm run e2e` ×1 | **535 passed / 2 skipped**, 4.1m, incl. `submit.spec.ts` "passes the round-trip gate" in all three engines |
+
+**Nothing moved that was frozen.** Appendix A tests A–D re-run and green
+(`schemaSync.test.ts` + `specEquality.test.ts` + `siteJson.test.ts` → 37 passed) — §7.1's two
+strokes have non-degenerate bboxes (`stk_0001` x 810–1078.9 × y 188–402.6; `stk_0002`
+x 60–300.2 × y 468.4–522.3), so the fixture never touched the changed branch. No visual baseline
+shifted: `git status` after the full run shows only `penRoles.ts` and `penRoles.test.ts`
+modified.
+
 ## Open Questions
 - **V25 (right-overflow WARN) and V26 (blank button label / empty nav bar, client-facing
   BLOCK)** are proposed in `overview.md` Open Questions 3 and 4 and are implemented here once
