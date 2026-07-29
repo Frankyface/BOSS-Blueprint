@@ -254,10 +254,15 @@ Question below instructed once a measurement existed.
   non-existent local time there. `pack.test.ts` asserts the encoded 4-byte field against a
   value computed from the literal constants, so any regression to a UTC-derived timestamp
   fails on a machine that is not on UTC.
-- **Write order: the packer sorts.** §1's order is a property of the artifact, so
-  `orderEntries()` owns it (`site.json`, `brief.md`, `pages/*`, `assets/*`, then
-  lexicographic — which IS numeric order because §1 zero-pads both `NN` and `img_NNN`).
-  A shuffled input produces a byte-identical archive, asserted by hash.
+- **Write order: the packer sorts, by CODE UNIT.** §1's order is a property of the artifact, so
+  `orderEntries()` owns it (`site.json`, `brief.md`, `pages/*`, `assets/*`, then lexicographic
+  — which IS numeric order because §1 zero-pads both `NN` and `img_NNN`). A shuffled input
+  produces a byte-identical archive, asserted by hash. Deliberately **not** `localeCompare`:
+  the archive's bytes are supposed to be a function of the design and nothing else, and
+  collation is a function of whichever ICU data the engine ships — several collations treat `-`
+  and `_` as ignorable punctuation, which is one library update away from silently reordering
+  an entry list containing both. A test pins a pair (`01-ab` vs `02-a-b`) that the two rules
+  order differently.
 - **Rung 2 is a PORT, not a stub and not a dependency.** `runLadder` takes
   `{ quantizePng }`; the app binds `null` and the unit suite binds a fake quantizer, which
   is how "the ladder is ordered, deterministic, and obeys `hasStrokes`" stays a *proven*

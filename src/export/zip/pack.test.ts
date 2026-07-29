@@ -114,6 +114,24 @@ describe('§1 zip layout', () => {
     ])
   })
 
+  it('orders by code unit, so no collation table can reorder an archive', () => {
+    // `-` and `_` are ignorable in some collations, which would put these two
+    // the other way round under `localeCompare`.
+    const pages = [
+      renderEntry('pages/02-a-b.png', png(0x44), false),
+      renderEntry('pages/01-ab.png', png(0x55), false),
+    ]
+
+    expect(orderEntries(pages).map((entry) => entry.path)).toEqual([
+      'pages/01-ab.png',
+      'pages/02-a-b.png',
+    ])
+    expect(orderEntries([...pages].reverse()).map((entry) => entry.path)).toEqual([
+      'pages/01-ab.png',
+      'pages/02-a-b.png',
+    ])
+  })
+
   it('uses forward slashes and no relative prefixes', () => {
     const names = Object.keys(unzipSync(packZip(fixtureEntries())))
 

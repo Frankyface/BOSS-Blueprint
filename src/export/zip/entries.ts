@@ -51,11 +51,22 @@ function sectionOf(path: string): number {
  * §1 order. Inside `pages/` and `assets/` a plain string sort IS the required
  * order: both names are zero-padded (`01-`, `img_001`), so lexicographic and
  * numeric agree — which is exactly why §1 pads them.
+ *
+ * CODE-UNIT COMPARISON, not `localeCompare`. The archive's bytes are supposed to
+ * be a function of the design and nothing else, and collation is a function of
+ * the ICU data the engine happens to ship — some collations treat `-` and `_` as
+ * ignorable punctuation, which is one library update away from reordering an
+ * entry list that has both.
  */
+function comparePaths(left: string, right: string): number {
+  if (left === right) return 0
+  return left < right ? -1 : 1
+}
+
 export function orderEntries(entries: readonly PackageEntry[]): PackageEntry[] {
   return [...entries].sort((left, right) => {
     const bySection = sectionOf(left.path) - sectionOf(right.path)
-    return bySection === 0 ? left.path.localeCompare(right.path, 'en') : bySection
+    return bySection === 0 ? comparePaths(left.path, right.path) : bySection
   })
 }
 
