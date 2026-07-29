@@ -1,0 +1,443 @@
+{
+  "id": "A",
+  "title": "Cedar & Stone Landscaping",
+  "notes": "R1.2 — the primary ship gate. Template start (trades), so it exercises the highest-risk export machinery: fromTemplate clearing, the placeholder-leak guard, template nav rewiring, page rename/add/move. Coverage: all six block types on Home alone (R1.2a), both copy modes, lengthHint present and absent, 3 uploads + 1 empty slot, both fits, both pen roles, internal/external/none links, identical navs, a verbatim-typo trap, and exactly one untouched fromTemplate filler block (R1.2b).",
+  "start": { "mode": "template", "template": "trades" },
+  "settings": {
+    "businessName": "Cedar & Stone Landscaping",
+    "tagline": "Yards built to last in Guelph",
+    "about": "We're a two-crew landscaping company serving Guelph and Wellington County since 2016. We design and build patios, retaining walls, and full backyard makeovers, and we handle seasonal maintenance for about forty regular clients.",
+    "vibe": "modern",
+    "styleNotes": "Clean and outdoorsy. Big photos, lots of green, nothing corporate-looking.",
+    "colors": ["#2f5233", "#d9c7a7"]
+  },
+  "submit": { "name": "Riley Hodgson", "email": "riley@cedarstonelandscaping.ca" },
+  "pageActions": [
+    {
+      "action": "rename",
+      "target": "Get a Quote",
+      "to": "Contact",
+      "why": "R1.2d — the trades fixture ships Home · Services · Get a Quote; the target is Home · Services · Our Work · Contact."
+    },
+    {
+      "action": "add",
+      "name": "Our Work",
+      "why": "R1.2d — the inline add-page form appends last, so this lands fourth."
+    },
+    {
+      "action": "moveLeft",
+      "target": "Our Work",
+      "why": "R1.2d — one move-left reaches the target order. All three actions are real page-strip affordances."
+    }
+  ],
+  "pages": [
+    {
+      "name": "Home",
+      "slug": "home",
+      "deleteTemplateBlocks": ["trade-home-service-2", "trade-home-service-3", "trade-home-hero-cta"],
+      "blocks": [
+        {
+          "ref": "home-hero-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-home-hero-band" },
+          "frame": [0, 72, 1200, 424],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "home-services-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-home-services-band" },
+          "frame": [0, 496, 1200, 480],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "home-nav",
+          "type": "navBar",
+          "origin": { "kind": "template", "id": "trade-home-nav" },
+          "frame": [0, 0, 1200, 72],
+          "fromTemplate": false,
+          "items": [
+            { "label": "Home", "link": { "kind": "page", "page": "Home" } },
+            { "label": "Services", "link": { "kind": "page", "page": "Services" } },
+            { "label": "Our Work", "link": { "kind": "page", "page": "Our Work" } },
+            { "label": "Contact", "link": { "kind": "page", "page": "Contact" } }
+          ]
+        },
+        {
+          "ref": "home-hero-heading",
+          "type": "heading",
+          "origin": { "kind": "template", "id": "trade-home-hero-title" },
+          "frame": [80, 136, 624, 104],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Outdoor spaces you'll actually use",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "home-hero-photo",
+          "type": "imageSlot",
+          "origin": { "kind": "template", "id": "trade-home-hero-photo" },
+          "frame": [744, 136, 376, 296],
+          "fromTemplate": false,
+          "upload": "fixture-patio.jpg",
+          "fit": "cover",
+          "description": "Finished flagstone patio with a fire pit"
+        },
+        {
+          "ref": "home-hero-intro",
+          "type": "text",
+          "origin": { "kind": "template", "id": "trade-home-hero-sub" },
+          "frame": [80, 264, 560, 72],
+          "fromTemplate": false,
+          "copyMode": "generate",
+          "text": "",
+          "generateDescription": "Two friendly sentences introducing a local landscaping company that designs and builds patios and full backyards",
+          "lengthHint": "~2 sentences"
+        },
+        {
+          "ref": "home-hero-cta",
+          "type": "button",
+          "origin": { "kind": "insert" },
+          "frame": [80, 360, 264, 56],
+          "fromTemplate": false,
+          "label": "Get a free quote",
+          "link": { "kind": "page", "page": "Contact" }
+        },
+        {
+          "ref": "home-why-heading",
+          "type": "heading",
+          "origin": { "kind": "template", "id": "trade-home-services-title" },
+          "frame": [80, 544, 496, 56],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Why folks pick us",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "home-why-text",
+          "type": "text",
+          "origin": { "kind": "template", "id": "trade-home-service-1" },
+          "frame": [80, 624, 320, 240],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "We beleive every yard deserves a plan, not just a crew with shovels. Fixed quotes, tidy sites, and we answer the phone.",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "home-review-cta",
+          "type": "button",
+          "origin": { "kind": "template", "id": "trade-home-services-cta" },
+          "frame": [80, 888, 280, 56],
+          "fromTemplate": false,
+          "label": "Leave us a Google review",
+          "link": { "kind": "external", "url": "https://g.page/cedar-stone-example" }
+        }
+      ],
+      "pen": [
+        {
+          "ref": "big-note",
+          "role": "annotation",
+          "target": "home-hero-heading",
+          "color": "red",
+          "width": "bold",
+          "meaning": "BIG! written beside the hero heading with an arrow pointing at it. Deliberately probes 1x PNG handwriting legibility — the known revisit trigger. Every stroke carries a little slant and jitter because handwriting does; a mathematically straight polyline is a synthesis artefact, and one of them tripped a real §4.5 edge (see the upstream finding in the feature file's Notes).",
+          "strokes": [
+            [[500, 216], [498, 186], [500, 152], [520, 158], [526, 168], [510, 180], [502, 184], [522, 190], [530, 200], [516, 212], [500, 216]],
+            [[548, 152], [551, 176], [553, 196], [552, 216]],
+            [[614, 164], [598, 152], [582, 158], [574, 174], [574, 190], [584, 206], [600, 210], [612, 202], [614, 188], [600, 187]],
+            [[632, 152], [635, 172], [637, 190], [636, 200]],
+            [[696, 184], [672, 183], [652, 186], [664, 174], [653, 185], [665, 195]]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "slug": "services",
+      "deleteTemplateBlocks": [
+        "trade-svc-a-title",
+        "trade-svc-b-title",
+        "trade-svc-b-photo",
+        "trade-svc-b-cta"
+      ],
+      "blocks": [
+        {
+          "ref": "svc-header-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-svc-header-band" },
+          "frame": [0, 72, 1200, 200],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "svc-a-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-svc-a-band" },
+          "frame": [0, 272, 1200, 400],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "svc-b-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-svc-b-band" },
+          "frame": [0, 672, 1200, 440],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "svc-nav",
+          "type": "navBar",
+          "origin": { "kind": "template", "id": "trade-svc-nav" },
+          "frame": [0, 0, 1200, 72],
+          "fromTemplate": false,
+          "items": [
+            { "label": "Home", "link": { "kind": "page", "page": "Home" } },
+            { "label": "Services", "link": { "kind": "page", "page": "Services" } },
+            { "label": "Our Work", "link": { "kind": "page", "page": "Our Work" } },
+            { "label": "Contact", "link": { "kind": "page", "page": "Contact" } }
+          ]
+        },
+        {
+          "ref": "svc-heading",
+          "type": "heading",
+          "origin": { "kind": "template", "id": "trade-svc-title" },
+          "frame": [80, 120, 600, 64],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "What we do",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "svc-patios",
+          "type": "text",
+          "origin": { "kind": "template", "id": "trade-svc-a-body" },
+          "frame": [80, 392, 496, 224],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Patios & walkways. Flagstone, natural stone and pavers, laid on a base that survives a Guelph winter.",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "svc-photo",
+          "type": "imageSlot",
+          "origin": { "kind": "template", "id": "trade-svc-a-photo" },
+          "frame": [624, 320, 496, 304],
+          "fromTemplate": false,
+          "upload": "fixture-wall.jpg",
+          "fit": "cover",
+          "description": "Crew building a stone retaining wall"
+        },
+        {
+          "ref": "svc-filler",
+          "type": "text",
+          "origin": { "kind": "template", "id": "trade-svc-b-body" },
+          "frame": [80, 792, 496, 224],
+          "fromTemplate": true,
+          "expect": "untouched-filler",
+          "textFromFixture": { "template": "trades", "blockId": "trade-svc-b-body" }
+        },
+        {
+          "ref": "svc-walls",
+          "type": "text",
+          "origin": { "kind": "insert" },
+          "frame": [624, 720, 496, 152],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Retaining walls. Engineered block or armour stone, drained properly so they stay where we put them.",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "svc-maintenance",
+          "type": "text",
+          "origin": { "kind": "insert" },
+          "frame": [624, 896, 496, 152],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Seasonal maintenance. Spring cleanups, bed edging, mulch and fall tidy-ups for about forty regular clients.",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "svc-quoting",
+          "type": "text",
+          "origin": { "kind": "insert" },
+          "frame": [624, 128, 496, 128],
+          "fromTemplate": false,
+          "copyMode": "generate",
+          "text": "",
+          "generateDescription": "A short reassuring paragraph about how our quoting process works, from site visit to fixed quote",
+          "lengthHint": null
+        }
+      ],
+      "pen": []
+    },
+    {
+      "name": "Our Work",
+      "slug": "our-work",
+      "blocks": [
+        {
+          "ref": "work-nav",
+          "type": "navBar",
+          "origin": { "kind": "insert" },
+          "frame": [0, 0, 1200, 72],
+          "fromTemplate": false,
+          "items": [
+            { "label": "Home", "link": { "kind": "page", "page": "Home" } },
+            { "label": "Services", "link": { "kind": "page", "page": "Services" } },
+            { "label": "Our Work", "link": { "kind": "page", "page": "Our Work" } },
+            { "label": "Contact", "link": { "kind": "page", "page": "Contact" } }
+          ]
+        },
+        {
+          "ref": "work-heading",
+          "type": "heading",
+          "origin": { "kind": "insert" },
+          "frame": [80, 120, 640, 72],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Recent projects",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "work-garden-photo",
+          "type": "imageSlot",
+          "origin": { "kind": "insert" },
+          "frame": [80, 240, 496, 320],
+          "fromTemplate": false,
+          "upload": "fixture-garden.jpg",
+          "fit": "contain",
+          "description": "Perennial garden bed we planted last June"
+        },
+        {
+          "ref": "work-empty-slot",
+          "type": "imageSlot",
+          "origin": { "kind": "insert" },
+          "frame": [624, 240, 496, 320],
+          "fromTemplate": false,
+          "upload": null,
+          "fit": "cover",
+          "description": "Drone shot of a full backyard makeover — we don't have this photo yet"
+        },
+        {
+          "ref": "work-invite",
+          "type": "heading",
+          "origin": { "kind": "insert" },
+          "frame": [80, 640, 640, 72],
+          "fromTemplate": false,
+          "copyMode": "generate",
+          "text": "",
+          "generateDescription": "A one-line invitation to browse our project photos",
+          "lengthHint": null
+        }
+      ],
+      "pen": [
+        {
+          "ref": "backyard-sketch",
+          "role": "imageSketch",
+          "target": "work-empty-slot",
+          "color": "ink",
+          "width": "fine",
+          "meaning": "A house outline, two tree lobes and a winding path, drawn inside the empty slot so the export computes role imageSketch against a real drawn stroke (§4.5's 60% rule).",
+          "strokes": [
+            [[688, 456], [688, 384], [744, 344], [800, 384], [800, 456], [688, 456]],
+            [[900, 400], [884, 372], [900, 348], [928, 348], [944, 372], [928, 400], [900, 400]],
+            [[1000, 424], [988, 400], [1000, 380], [1024, 380], [1036, 400], [1024, 424], [1000, 424]],
+            [[672, 512], [736, 496], [816, 512], [896, 488], [980, 508], [1064, 492]]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Contact",
+      "slug": "contact",
+      "deleteTemplateBlocks": [
+        "trade-quote-contact-title",
+        "trade-quote-badges",
+        "trade-quote-contact-body",
+        "trade-quote-area-title",
+        "trade-quote-area-body"
+      ],
+      "blocks": [
+        {
+          "ref": "contact-header-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-quote-header-band" },
+          "frame": [0, 72, 1200, 224],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "contact-contact-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-quote-contact-band" },
+          "frame": [0, 296, 1200, 440],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "contact-area-band",
+          "type": "section",
+          "origin": { "kind": "template", "id": "trade-quote-area-band" },
+          "frame": [0, 736, 1200, 336],
+          "fromTemplate": false,
+          "background": null
+        },
+        {
+          "ref": "contact-nav",
+          "type": "navBar",
+          "origin": { "kind": "template", "id": "trade-quote-nav" },
+          "frame": [0, 0, 1200, 72],
+          "fromTemplate": false,
+          "items": [
+            { "label": "Home", "link": { "kind": "page", "page": "Home" } },
+            { "label": "Services", "link": { "kind": "page", "page": "Services" } },
+            { "label": "Our Work", "link": { "kind": "page", "page": "Our Work" } },
+            { "label": "Contact", "link": { "kind": "page", "page": "Contact" } }
+          ]
+        },
+        {
+          "ref": "contact-heading",
+          "type": "heading",
+          "origin": { "kind": "template", "id": "trade-quote-title" },
+          "frame": [80, 120, 624, 64],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "Let's talk about your yard",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "contact-details",
+          "type": "text",
+          "origin": { "kind": "template", "id": "trade-quote-intro" },
+          "frame": [80, 208, 704, 120],
+          "fromTemplate": false,
+          "copyMode": "real",
+          "text": "hello@cedarstonelandscaping.ca\n519-555-0142\nMon–Sat 7am–6pm",
+          "generateDescription": null,
+          "lengthHint": null
+        },
+        {
+          "ref": "contact-instagram",
+          "type": "button",
+          "origin": { "kind": "template", "id": "trade-quote-area-cta" },
+          "frame": [624, 848, 264, 56],
+          "fromTemplate": false,
+          "label": "Instagram",
+          "link": { "kind": "none" }
+        }
+      ],
+      "pen": []
+    }
+  ]
+}

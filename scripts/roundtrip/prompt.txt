@@ -1,0 +1,4 @@
+A client has delivered a package for you in ./package/ — it contains its own
+instructions. Read ./package/brief.md and carry out what it says. Create your build
+output in ./site/ inside the current directory. Work until you are finished, then print
+exactly BUILD COMPLETE as your final line.

@@ -44,7 +44,13 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
+    /**
+     * The round-trip harness's own rules are covered by `npm test`
+     * (`feature-roundtrip-harness.md`, Deliverables). A gate whose rules are only
+     * exercised when the gate runs is a gate nobody notices breaking — and R10.1's
+     * threshold pins, R5's scan rules and R2.2's driver-purity grep all live there.
+     */
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.mjs'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

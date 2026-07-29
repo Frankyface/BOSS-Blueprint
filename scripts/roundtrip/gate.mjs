@@ -25,10 +25,14 @@ import { loadSchema, extractExampleSiteJson } from './lib/schema-extract.mjs';
 import { deriveCanonicalOrder } from './lib/key-order.mjs';
 import { runAllChecks } from './lib/rules/index.mjs';
 import { renderReport, tally, failedIds, warnedIds } from './lib/report.mjs';
+import { loadScenario } from './scenario-load.mjs';
+import { diffManifest } from './manifest-diff.mjs';
+import { POSITION_TOLERANCE_PX } from './thresholds.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 /** Drop-in location is <repo>/scripts/roundtrip/, so the spec is two levels up. */
 const DEFAULT_SPEC = path.resolve(HERE, '..', '..', 'docs', 'export-format.md');
+const REPO_ROOT = path.resolve(HERE, '..', '..');
 
 export async function runGate(argvOptions) {
   const options = argvOptions;
@@ -38,18 +42,41 @@ export async function runGate(argvOptions) {
   const canonical = await loadCanonicalOrder(specPath);
   const pkg = await loadPackage(options.packagePath);
   const internalIds = await loadInternalIds(options.internalIdsPath);
+  const manifest = await runManifestStep(options, pkg);
 
-  const checks = runAllChecks(pkg, { schema, options, internalIds, canonical });
+  const checks = runAllChecks(pkg, { schema, options, internalIds, canonical, manifest });
 
   const header = [
     `package : ${pkg.basename} (${(pkg.zipBytes / 1024).toFixed(1)} KB, ${pkg.entryNames.length} entries)`,
     `schema  : ${source}`,
     `steps   : protocol §2.1 layout · §2.2 ajv · §2.3 validator replay V1-V27` +
-      `${options.noManifest ? ' · §2.4 skipped (--no-manifest)' : ''}`,
+      `${options.noManifest ? ' · §2.4 skipped (--no-manifest)' : ''}` +
+      `${manifest ? ` · §2.4 manifest diff vs scenario ${manifest.scenarioId}` : ''}`,
     '',
   ];
 
-  return { pkg, checks, header, schemaText, schemaSource: source };
+  return { pkg, checks, header, schemaText, schemaSource: source, manifest };
+}
+
+/**
+ * Protocol §2 step 4. The scenario is schema-validated first (R1.4): an invalid
+ * scenario is an INFRA fault in the harness, not a product FAIL, so it exits 2 rather
+ * than producing a verdict nobody should trust.
+ */
+async function runManifestStep(options, pkg) {
+  if (options.noManifest || !options.scenarioPath) return null;
+  const scenario = await loadScenario(options.scenarioPath);
+  if (pkg.site === null) {
+    return {
+      scenarioId: scenario.id,
+      tolerancePx: POSITION_TOLERANCE_PX,
+      matched: [],
+      notes: [],
+      problems: ['site.json is missing or unparseable — the manifest diff cannot run'],
+    };
+  }
+  const result = await diffManifest({ site: pkg.site, scenario, repoRoot: REPO_ROOT });
+  return { scenarioId: scenario.id, tolerancePx: POSITION_TOLERANCE_PX, ...result };
 }
 
 /**
@@ -99,7 +126,7 @@ async function main() {
     process.exit(2);
   }
 
-  const { checks, header, schemaText, schemaSource } = result;
+  const { checks, header, schemaText, schemaSource, manifest } = result;
   const counts = tally(checks);
   const exitCode = counts.FAIL > 0 ? 1 : 0;
 
@@ -113,6 +140,21 @@ async function main() {
     checks: checks.map((c) => ({ ...c, problems: [...c.problems] })),
   };
 
+  /**
+   * The Stage 4 dependency contract's machine output
+   * (`feature-roundtrip-harness.md`, "Dependency contract on gate.mjs"):
+   * `{ ok, steps: [{ id, ok, detail }], failures: [{ code, message, path }] }`.
+   * Derived from the same checks as `report.json`, never a second source of truth —
+   * `report.json` keeps Stage 3's richer shape unchanged.
+   */
+  const gateReport = {
+    ok: exitCode === 0,
+    steps: checks.map((c) => ({ id: c.id, ok: c.status !== 'FAIL', detail: c.detail || c.title })),
+    failures: checks
+      .filter((c) => c.status === 'FAIL')
+      .flatMap((c) => c.problems.map((message) => ({ code: c.id, message, path: options.packagePath }))),
+  };
+
   if (options.json) {
     process.stdout.write(`${JSON.stringify(machine, null, 2)}\n`);
   } else {
@@ -124,7 +166,15 @@ async function main() {
   if (options.outDir) {
     await mkdir(options.outDir, { recursive: true });
     await writeFile(path.join(options.outDir, 'report.json'), `${JSON.stringify(machine, null, 2)}\n`, 'utf8');
+    await writeFile(path.join(options.outDir, 'gate-report.json'), `${JSON.stringify(gateReport, null, 2)}\n`, 'utf8');
     await writeFile(path.join(options.outDir, 'extracted-schema.json'), schemaText, 'utf8');
+    if (manifest) {
+      await writeFile(
+        path.join(options.outDir, 'manifest-diff.json'),
+        `${JSON.stringify(manifest, null, 2)}\n`,
+        'utf8',
+      );
+    }
   }
 
   process.exit(exitCode);

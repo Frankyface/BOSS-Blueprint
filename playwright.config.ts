@@ -26,6 +26,13 @@ const VIEWPORT = { width: 1920, height: 1000 }
  */
 export default defineConfig({
   testDir: './e2e',
+  /**
+   * The round trip runs from `playwright.roundtrip.config.ts` and NOWHERE else
+   * (`feature-roundtrip-harness.md` R2.1). Dragged in here it would run three times and
+   * inherit `retries: 2` in CI — both fatal to the protocol's determinism and its flake
+   * policy, and it would spend a builder budget per engine.
+   */
+  testIgnore: ['roundtrip/**'],
   fullyParallel: true,
   forbidOnly: isCi,
   retries: isCi ? CI_RETRIES : 0,
