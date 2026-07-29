@@ -236,7 +236,8 @@ describe('S3 deterministic half (R8.2)', () => {
   })
 
   it('estimates a frame’s character capacity from its own geometry', () => {
-    expect(estimateFrameChars({ w: 800, h: 240 })).toBe(1000)
+    // Body text: 800/8 = 100 per line × 240/28 = 8 lines.
+    expect(estimateFrameChars({ w: 800, h: 240 })).toBe(800)
     expect(estimateFrameChars({ w: 0, h: 0 })).toBe(1)
   })
 
@@ -257,7 +258,7 @@ describe('S3 deterministic half (R8.2)', () => {
   })
 
   it('falls back to 0.3–3× the frame estimate when there is no hint', () => {
-    const frame = { w: 600, h: 120 } // 75 × 5 = 375 chars
+    const frame = { w: 600, h: 120 } // body text: 75 per line × 4 lines = 300 chars
     const result = checkCopyLength({ written: 'x'.repeat(200), lengthHint: null, frame })
     expect(result.rule).toBe('frame estimate')
     expect(result.ok).toBe(true)

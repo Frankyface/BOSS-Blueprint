@@ -57,8 +57,44 @@ export const S3_LENGTH_MAX_RATIO = 3;
  * Frame → character estimate, at the export's 1200px design width. Roughly a 16px
  * body face: ~8px of advance per glyph, ~24px per line box.
  */
-export const FRAME_CHAR_WIDTH_PX = 8;
-export const FRAME_LINE_HEIGHT_PX = 24;
+/**
+ * S3 · how many characters a frame holds, PER BLOCK TYPE.
+ *
+ * Derived from the app's own typography tokens in `src/components/BlockView.css`, so drift
+ * between the estimator and what the canvas actually renders is visible at the citation:
+ *
+ *   .canvas-block (defaults, i.e. Text box)  font-size 18px · weight 400 · line-height 1.55
+ *   .canvas-block--heading                   font-size 40px · weight 700 · line-height 1.15
+ *
+ * `charWidthPx` keeps this file's original calibration of **0.44 em** average advance width
+ * for mixed-case proportional text — that is exactly where the old flat `8` came from
+ * (8 ÷ 18px body = 0.444), so the text column below is the previous behaviour restated, not
+ * a new guess. `lineHeightPx` is font-size × the token's line-height ratio.
+ *
+ *   text     18 × 0.44 =  8 px/char   18 × 1.55 = 27.9 → 28 px/line
+ *   heading  40 × 0.44 = 18 px/char   40 × 1.15 = 46   → 46 px/line
+ *
+ * WHY THIS EXISTS: one flat pair of numbers costed a 640×72 HEADING frame at ~240 characters
+ * (body metrics), which put the band's lower edge at 72 — above what a correct one-line
+ * heading can hold. The 96.93 run failed on exactly that: a builder wrote a 41-character
+ * heading for a description that said "a one-line invitation" and was marked unsane for
+ * obeying it (docs/decisions.md, 2026-07-29).
+ *
+ * ONLY `heading` AND `text` APPEAR HERE, and that is complete rather than partial: the export
+ * contract gives `copyMode` / `generateDescription` / `lengthHint` to those two block types
+ * only (`docs/export-format.md` §2.2 `headingBlock`/`textBlock`, and `src/export/serialize.ts`
+ * — `button` serialises `label`/`link`, `navBar` serialises `items`). Nothing else can be
+ * `copyMode: "generate"`, so buttons, nav bars, section bands and image slots can never reach
+ * the copy-length check. If that contract ever widens, `frameMetricsFor` falls back to the
+ * text column and this comment is the place to add the new row.
+ */
+export const FRAME_TYPE_METRICS = Object.freeze({
+  heading: Object.freeze({ charWidthPx: 18, lineHeightPx: 46 }),
+  text: Object.freeze({ charWidthPx: 8, lineHeightPx: 28 }),
+});
+
+/** The column used for any block type the table does not name. */
+export const FRAME_DEFAULT_BLOCK_TYPE = 'text';
 
 /** A `lengthHint` counted in sentences is met within ±1 of the stated number. */
 export const S3_SENTENCE_HINT_TOLERANCE = 1;

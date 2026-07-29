@@ -21,7 +21,14 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { renderedSurfaceHeight, scoreImagePlacement, verticalThird } from './evaluate.mjs'
+import {
+  checkCopyLength,
+  estimateFrameChars,
+  frameMetricsFor,
+  renderedSurfaceHeight,
+  scoreImagePlacement,
+  verticalThird,
+} from './evaluate.mjs'
 import { S4_FLOOR, S4_THIRD_TOLERANCE } from './thresholds.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -229,5 +236,102 @@ describe('REGRESSION REPLAY — the c8c1540 capture that scored S4 = 0', () => {
     const result = scoreImagePlacement(site, sunk)
     expect(result.items.every((i) => i.ok)).toBe(false)
     expect(result.floorMet).toBe(false)
+  })
+})
+
+/**
+ * S3 · the frame estimate is BLOCK-TYPE-AWARE (docs/decisions.md 2026-07-29).
+ *
+ * The 96.93 near miss failed on `blk_0026`: a HEADING whose brief said "a one-line
+ * invitation", built as 41 characters, judged against a band derived from BODY-TEXT metrics
+ * (640×72 -> ~240 chars, band 72-720). The builder was penalised for obeying its instruction.
+ * These pin the real geometry from src/components/BlockView.css.
+ */
+describe('S3 frame estimate — per block type', () => {
+  const HEADING_FRAME = { x: 80, y: 640, w: 640, h: 72 } // blk_0026, verbatim
+
+  it('a heading frame estimates roughly ONE heading line, not a paragraph', () => {
+    // 640/18 = 35 chars per line; 72/46 = 1 line.
+    expect(estimateFrameChars(HEADING_FRAME, 'heading')).toBe(35)
+    // The same rectangle costed as body copy is 4.6x bigger — the wrong answer, and the
+    // shape of the bug. (The run that actually failed used a flat 24px line height and got
+    // 240; the historical numbers are in docs/decisions.md, the live behaviour is here.)
+    expect(estimateFrameChars(HEADING_FRAME, 'text')).toBe(160)
+  })
+
+  it('THE REGRESSION: blk_0026 — a 41-char one-line heading now PASSES', () => {
+    const result = checkCopyLength({
+      written: "Have a look around the yards we've built.", // 41 chars, the real copy
+      lengthHint: null,
+      frame: HEADING_FRAME,
+      blockType: 'heading',
+    })
+    expect(result.rule).toBe('frame estimate')
+    expect(result.measured).toBe(41)
+    expect(result.ok).toBe(true)
+    expect(result.min).toBeLessThanOrEqual(41)
+  })
+
+  it('and it would have FAILED under the old body-text metrics — the bug, pinned', () => {
+    const asText = checkCopyLength({
+      written: "Have a look around the yards we've built.",
+      lengthHint: null,
+      frame: HEADING_FRAME,
+      blockType: 'text',
+    })
+    expect(asText.ok).toBe(false)
+    // 41 characters sits below the body-text floor for this rectangle — which is precisely
+    // why a correct one-line heading was scored unsane.
+    expect(asText.min).toBe(48)
+    expect(asText.measured).toBeLessThan(asText.min)
+  })
+
+  it('a 500-character heading in the same frame still FAILS', () => {
+    const result = checkCopyLength({
+      written: 'x'.repeat(500),
+      lengthHint: null,
+      frame: HEADING_FRAME,
+      blockType: 'heading',
+    })
+    expect(result.ok).toBe(false)
+    expect(result.max).toBeLessThan(500)
+  })
+
+  it('replays BOTH attempt-7 text blocks unchanged — they still pass', () => {
+    // blk_0021: no hint, 297 chars in a 496x128 text frame.
+    const blk0021 = checkCopyLength({
+      written: 'x'.repeat(297),
+      lengthHint: null,
+      frame: { x: 624, y: 128, w: 496, h: 128 },
+      blockType: 'text',
+    })
+    expect(blk0021.rule).toBe('frame estimate')
+    expect(blk0021.ok).toBe(true)
+
+    // blk_0006: carries "~2 sentences", so the sentence rule applies and type is irrelevant.
+    const blk0006 = checkCopyLength({
+      written:
+        "We're a two-crew landscaping company in Guelph, designing and building patios, walkways and full backyards since 2016. Tell us how you want to use your yard and we'll draw up the plan, price it, and build it properly.",
+      lengthHint: '~2 sentences',
+      frame: { x: 80, y: 264, w: 560, h: 72 },
+      blockType: 'text',
+    })
+    expect(blk0006.rule).toBe('lengthHint')
+    expect(blk0006.ok).toBe(true)
+  })
+
+  it('an unknown block type falls back to body text rather than throwing', () => {
+    expect(frameMetricsFor('button')).toEqual(frameMetricsFor('text'))
+    expect(frameMetricsFor(undefined)).toEqual(frameMetricsFor('text'))
+    // Buttons and nav bars cannot actually reach this path — the export contract gives
+    // copyMode only to heading and text — but the fallback keeps it total.
+    expect(estimateFrameChars({ w: 264, h: 56 }, 'button')).toBe(estimateFrameChars({ w: 264, h: 56 }, 'text'))
+  })
+
+  it('the 0.3–3x band multipliers are untouched', () => {
+    const r = checkCopyLength({ written: 'x'.repeat(35), lengthHint: null, frame: HEADING_FRAME, blockType: 'heading' })
+    expect(r.estimate).toBe(35)
+    expect(r.min).toBe(Math.max(1, Math.round(35 * 0.3)))
+    expect(r.max).toBe(Math.round(35 * 3))
   })
 })

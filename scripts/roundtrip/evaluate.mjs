@@ -13,8 +13,8 @@ import path from 'node:path';
 import {
   DELTA_E_MAX,
   DHASH_MAX_HAMMING,
-  FRAME_CHAR_WIDTH_PX,
-  FRAME_LINE_HEIGHT_PX,
+  FRAME_DEFAULT_BLOCK_TYPE,
+  FRAME_TYPE_METRICS,
   S1_MEAN_FLOOR,
   S1_PAGE_FLOOR,
   S3_LENGTH_MAX_RATIO,
@@ -354,7 +354,7 @@ function checkGenerateSanity(site, digests) {
         // R8.2's length rule. It was specified and never implemented: a builder that
         // wrote three words where a two-sentence paragraph belongs used to pass the
         // deterministic half untouched.
-        length = checkCopyLength({ written, lengthHint: block.lengthHint, frame: block.frame });
+        length = checkCopyLength({ written, lengthHint: block.lengthHint, frame: block.frame, blockType: block.type });
         if (!length.ok) {
           problems.push(
             `copy length ${String(length.measured)} ${length.unit} is outside the ${length.rule} band ` +
@@ -424,9 +424,23 @@ export function findWrittenCopy({ digest, sitePage, block }) {
 }
 
 /** How many characters the block's frame can hold at the 1200px design width. */
-export function estimateFrameChars(frame) {
-  const perLine = Math.max(1, Math.floor((frame?.w ?? 0) / FRAME_CHAR_WIDTH_PX));
-  const lines = Math.max(1, Math.floor((frame?.h ?? 0) / FRAME_LINE_HEIGHT_PX));
+/** The typography column for a block type, falling back to body text. */
+export function frameMetricsFor(blockType) {
+  return FRAME_TYPE_METRICS[blockType] ?? FRAME_TYPE_METRICS[FRAME_DEFAULT_BLOCK_TYPE];
+}
+
+/**
+ * How many characters this frame holds — measured with the metrics of the type that will
+ * actually be rendered into it, not with body text for everything.
+ *
+ * A 640×72 heading is one 40 px line of ~35 characters; the same rectangle of 18 px body copy
+ * would be ~240. Costing the former as the latter is what failed a correct one-line heading
+ * in the 96.93 run.
+ */
+export function estimateFrameChars(frame, blockType = FRAME_DEFAULT_BLOCK_TYPE) {
+  const { charWidthPx, lineHeightPx } = frameMetricsFor(blockType);
+  const perLine = Math.max(1, Math.floor((frame?.w ?? 0) / charWidthPx));
+  const lines = Math.max(1, Math.floor((frame?.h ?? 0) / lineHeightPx));
   return perLine * lines;
 }
 
@@ -454,7 +468,7 @@ function countWords(text) {
  * The hint wins when the client gave one; the frame is the fallback the scenario's
  * no-lengthHint generate block exists to exercise.
  */
-export function checkCopyLength({ written, lengthHint, frame }) {
+export function checkCopyLength({ written, lengthHint, frame, blockType = FRAME_DEFAULT_BLOCK_TYPE }) {
   const hint = parseLengthHint(lengthHint);
   if (hint !== null) {
     if (hint.unit === 'sentences') {
@@ -469,7 +483,7 @@ export function checkCopyLength({ written, lengthHint, frame }) {
     return { ok: measured >= min && measured <= max, rule: 'lengthHint', unit: hint.unit, measured, min, max };
   }
 
-  const estimate = estimateFrameChars(frame);
+  const estimate = estimateFrameChars(frame, blockType);
   const min = Math.max(1, Math.round(estimate * S3_LENGTH_MIN_RATIO));
   const max = Math.round(estimate * S3_LENGTH_MAX_RATIO);
   const measured = written.length;

@@ -530,3 +530,41 @@ capture — the very run that scored S4 = 0 — now scores both images as placed
 document still fails. `npx vitest run scripts/` green, 249 passed · **Revisit if:** the tolerance
 ever passes a placement a human judge calls wrong — tighten it with that evidence in hand, not
 speculatively.
+
+## 2026-07-29 — S3 frame estimate made block-type-aware
+**Chose:** `estimateFrameChars(frame, blockType)` costs a frame with the metrics of the type that
+will actually be rendered into it, from a table (`FRAME_TYPE_METRICS`) derived from the app's own
+typography tokens in `src/components/BlockView.css` and citing them, so drift is visible at the
+citation: `.canvas-block` defaults (the Text box) are **18 px / 400 / line-height 1.55**;
+`.canvas-block--heading` is **40 px / 700 / line-height 1.15**. Character width keeps this file's
+original calibration of **0.44 em** average advance — that is exactly where the old flat `8` came
+from (8 ÷ 18 = 0.444), so the text column is the previous behaviour restated rather than a new
+guess. Line height is font-size × the token ratio. Result: **text 8 px/char, 28 px/line; heading
+18 px/char, 46 px/line.** A 640×72 heading frame now estimates **35 characters** — one heading line
+— against **160** if costed as body copy · **Because:** one flat pair of numbers costed every frame
+at body-text metrics, so the 640×72 heading `blk_0026` was assumed to hold a paragraph and its band
+floor sat above what a heading can physically contain. The 96.93 near-miss run failed on exactly
+that: the brief said «**A one-line invitation** to browse our project photos», the builder wrote
+"Have a look around the yards we've built." — 41 characters, one line, precisely as asked — and S3's
+deterministic half marked it unsane, missing the floor and failing an otherwise green run (all eight
+hard gates PASS, five of six floors met, 96.93/100). The description was not vague, so the report's
+auto-route to "description-field coaching" was wrong; the ruler was · **Harness-side only.** The
+brief generator is untouched and Appendix test B is unaffected · **Rejected:** emitting a
+`lengthHint` for headings (a product change to the frozen brief to work around a harness defect,
+and it would still leave the estimator wrong for any block without a hint); excluding headings from
+the band entirely (loses the signal in smoke mode, where the LLM judge does not run — a heading
+stuffed with 500 characters would then pass unchallenged) · **Scope is complete, not partial:** only
+`heading` and `text` appear in the table because only those two block types can carry
+`copyMode: "generate"` — `docs/export-format.md` §2.2 defines `copyMode`/`generateDescription`/
+`lengthHint` on `headingBlock` and `textBlock` alone, and `src/export/serialize.ts` serialises
+`button` as `label`/`link` and `navBar` as `items`. **Buttons and nav bars cannot reach the
+copy-length check at all.** `frameMetricsFor` still falls back to the text column so the function is
+total if that contract ever widens · **Verification:** the 0.3–3× band multipliers and the sentence
+rule are UNCHANGED and pinned as such. New tests cover: a heading frame estimating one line (35) vs
+the same rectangle as text (160); **the exact `blk_0026` case — 41 chars, `lengthHint: null`, 640×72
+— now PASSES**; the same string still FAILING when costed as text (floor 48 > 41), which pins the
+bug itself; a 500-character heading in that frame still FAILING; **both attempt-7 text blocks
+replayed unchanged and still passing** (`blk_0021` via the frame estimate, `blk_0006` via its
+`~2 sentences` hint); and an unknown block type falling back to text rather than throwing.
+`npx vitest run scripts/` green, 257 passed · **Revisit if:** the typography tokens in
+`BlockView.css` change — the table cites them by value, so the two will visibly disagree.

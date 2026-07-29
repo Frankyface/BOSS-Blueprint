@@ -39,12 +39,20 @@ describe('R10.1 — the pinned inventory', () => {
     expect(T.S5_DET_POINTS + T.S5_EVAL_POINTS).toBe(T.SCORE_WEIGHTS.S5)
   })
 
-  it('pins the S3 length rule (R8.2)', () => {
+  it('pins the S3 length rule (R8.2) — the 0.3–3× band is UNCHANGED', () => {
     expect(T.S3_LENGTH_MIN_RATIO).toBe(0.3)
     expect(T.S3_LENGTH_MAX_RATIO).toBe(3)
-    expect(T.FRAME_CHAR_WIDTH_PX).toBe(8)
-    expect(T.FRAME_LINE_HEIGHT_PX).toBe(24)
     expect(T.S3_SENTENCE_HINT_TOLERANCE).toBe(1)
+  })
+
+  it('pins the per-type frame metrics against src/components/BlockView.css', () => {
+    // text: 18px × 0.44 em = 8 px/char ; 18 × 1.55 line-height = 27.9 -> 28
+    expect(T.FRAME_TYPE_METRICS.text).toEqual({ charWidthPx: 8, lineHeightPx: 28 })
+    // heading: 40px × 0.44 em = 17.6 -> 18 px/char ; 40 × 1.15 = 46
+    expect(T.FRAME_TYPE_METRICS.heading).toEqual({ charWidthPx: 18, lineHeightPx: 46 })
+    expect(T.FRAME_DEFAULT_BLOCK_TYPE).toBe('text')
+    // Only the two block types the export contract lets carry copyMode: "generate".
+    expect(Object.keys(T.FRAME_TYPE_METRICS).sort()).toEqual(['heading', 'text'])
   })
 
   it('pins the geometry and image-matching constants', () => {
