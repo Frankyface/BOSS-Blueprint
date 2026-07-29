@@ -14,8 +14,9 @@ machine-checkable rule of **`docs/export-format.md` v2.4 (FROZEN) §5 (V1–V27)
 bytes, which is the whole point: a gate that called `src/export/validate` would agree with
 the app by construction and could never catch a validator bug. The JSON Schema is
 **extracted at run time from the fenced block in `docs/export-format.md` §2.2**, so the spec
-stays the single source of truth and the gate keeps working before `src/export/schema/`
-exists (it does not exist yet — checked 2026-07-28).
+stays the single source of truth and the gate does not depend on an app artifact.
+`src/export/schema/site.v1.schema.json` landed on 2026-07-28 and is byte-identical to the fence
+(Appendix A equality test A); extraction stays the default anyway — see §5 step 5.
 
 ---
 

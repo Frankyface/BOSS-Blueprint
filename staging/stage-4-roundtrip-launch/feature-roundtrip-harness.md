@@ -34,8 +34,8 @@ package; if any is untrue, fix `gate.mjs` in Stage 3, do not shim around it here
 | CLI | `node scripts/roundtrip/gate.mjs --package <zip> [--scenario <file>] [--out <dir>] [--no-manifest]` |
 | Exit code | `0` = all checks pass · `1` = a check failed · `2` = harness/infra error (unreadable zip, missing schema) |
 | Machine output | writes `<out>/gate-report.json`: `{ ok, steps: [{ id, ok, detail }], failures: [{ code, message, path }] }` |
-| Schema source | imports `src/export/schema/site.v1.schema.json` from the app source — one schema, no copy (`docs/export-format.md` §2.2, equality test A) |
-| Validator source | imports the app's own shared validator module — one validator, three call sites (`docs/export-format.md` §5) |
+| Schema source | **extracted at run time from the §2.2 fenced block in `docs/export-format.md`** — the spec is the single source of truth, and `src/export/schema/site.v1.schema.json` is proven byte-identical to it by Appendix A equality test A. `--schema <file>` overrides for the deliberate gate-against-the-repo-file case. |
+| Validator source | **none — the gate imports no app code at all** and re-derives §5 V1–V27 from the spec and the package bytes (`docs/export-format.md` §5). A gate that called `src/export/validate` would agree with the app by construction and could never catch a validator bug. |
 
 ## Deliverables
 
