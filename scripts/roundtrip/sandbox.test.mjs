@@ -95,8 +95,80 @@ describe('R4.3 / R4.5 — the assembled argv', () => {
  * starts from the COMMITTED manifest, so these tests fail if a non-builtin appears — and
  * they also fail if someone quietly empties the manifest.
  */
-describe('R4.6 — baseline sterility', () => {
-  const VERSION = pinnedVersions()[0]
+/** What `run.mjs`'s mock builder claims — the newest measured entry, by `.at(-1)`. */
+const MOCK_VERSION = pinnedVersions().at(-1)
+
+describe('R4.6 — the committed manifest, across EVERY measured CLI version', () => {
+  const VERSIONS = pinnedVersions()
+
+  it('covers both versions the harness has measured, oldest first', () => {
+    // Order is load-bearing: run.mjs's mock builder claims `.at(-1)`, so the newest entry
+    // must be last or `--mock-builder` stops exercising the CLI the operator actually has.
+    expect(VERSIONS).toEqual(['2.1.190', '2.1.220'])
+  })
+
+  it.each([
+    ['2.1.190', 5, 14, 27],
+    ['2.1.220', 5, 16, 43],
+  ])('%s is a measured baseline, not an empty stub', (version, agents, skills, commands) => {
+    const baseline = builtinsFor(version)
+    expect(baseline.agents).toHaveLength(agents)
+    expect(baseline.skills).toHaveLength(skills)
+    expect(baseline.slash_commands).toHaveLength(commands)
+    expect(baseline.agents).toContain('statusline-setup')
+    expect(baseline.output_style).toBe('default')
+    expect(baseline.memoryField).toBe('memory_paths')
+  })
+
+  it('2.1.220 is a pure SUPERSET of 2.1.190 — the delta reviewed by name, nothing removed', () => {
+    const older = builtinsFor('2.1.190')
+    const newer = builtinsFor('2.1.220')
+    const added = (field) => newer[field].filter((name) => !older[field].includes(name))
+    const removed = (field) => older[field].filter((name) => !newer[field].includes(name))
+
+    for (const field of ['agents', 'skills', 'slash_commands']) expect(removed(field)).toEqual([])
+    expect(added('agents')).toEqual([])
+    expect(added('skills')).toEqual(['dataviz', 'doctor'])
+    expect(added('slash_commands')).toEqual([
+      'dataviz',
+      'doctor',
+      'agents',
+      'color',
+      'effort',
+      'fast',
+      'mcp',
+      'model',
+      '__remote-workflow',
+      'workflow-launch-exec',
+      'rename',
+      'ultrareview',
+      'recap',
+      'design',
+      'design-consent',
+      'design-revoke',
+    ])
+  })
+
+  it('every entry carries all three sets as arrays of unique, non-empty names', () => {
+    for (const version of VERSIONS) {
+      const baseline = builtinsFor(version)
+      for (const field of ['agents', 'skills', 'slash_commands']) {
+        expect(Array.isArray(baseline[field])).toBe(true)
+        expect(baseline[field].length).toBeGreaterThan(0)
+        expect(baseline[field].every((name) => typeof name === 'string' && name !== '')).toBe(true)
+        expect(new Set(baseline[field]).size).toBe(baseline[field].length)
+      }
+    }
+  })
+
+  it('an unmeasured version still has NO entry — block-on-unknown has something to block', () => {
+    expect(builtinsFor('2.1.221')).toBeNull()
+    expect(builtinsFor('2.1.189')).toBeNull()
+    expect(builtinsFor('')).toBeNull()
+  })
+})
+
+describe.each(pinnedVersions())('R4.6 — baseline sterility (CLI %s)', (VERSION) => {
   const BASELINE = builtinsFor(VERSION)
   const CLAUDE_HOME = path.join('C:', 'runs', 'r1', 'builder', 'claude-home')
 
@@ -117,15 +189,6 @@ describe('R4.6 — baseline sterility', () => {
     },
   ]
   const check = (extra) => assertSessionPurity(init(extra), { configDir: CLAUDE_HOME })
-
-  it('the committed manifest is the measured 2.1.190 baseline, not an empty stub', () => {
-    // The counts the live-run abort named, and the contrast that proved isolation works.
-    expect(VERSION).toBe('2.1.190')
-    expect(BASELINE.agents).toHaveLength(5)
-    expect(BASELINE.skills).toHaveLength(14)
-    expect(BASELINE.slash_commands).toHaveLength(27)
-    expect(BASELINE.agents).toContain('statusline-setup')
-  })
 
   it('accepts a session carrying EXACTLY the built-ins, and reports the resolved model', () => {
     const purity = check({})
@@ -178,7 +241,7 @@ describe('R4.6 — baseline sterility', () => {
   })
 
   describe('the memory half (finding 2 — it was checking fields this CLI never emits)', () => {
-    it('reads memory_paths, the field 2.1.190 actually emits', () => {
+    it('reads memory_paths, the field this version actually emits', () => {
       const purity = check({ memory_paths: { auto: 'C:/Users/Cam/.claude/projects/x/memory' } })
       expect(purity.ok).toBe(false)
       expect(purity.problems.join(' ')).toContain('outside')
@@ -209,6 +272,9 @@ describe('R4.6 — baseline sterility', () => {
  * The mask that hid the defect: `--mock-builder` emitted `{ agents: [], skills: [] }`, so
  * the ONLY transcript R4.6 had ever judged was one written to satisfy it. These two tests
  * run the real predicate over the real emitter.
+ *
+ * The mock claims the NEWEST measured version (`run.mjs` reads `.at(-1)`), so it tracks the
+ * CLI an operator actually has rather than the oldest entry the manifest still remembers.
  */
 describe('the mock builder emits a REALISTIC init', () => {
   const CLAUDE_HOME = path.join('C:', 'runs', 'r1', 'builder', 'claude-home')
@@ -217,12 +283,13 @@ describe('the mock builder emits a REALISTIC init', () => {
     const purity = assertSessionPurity(mockBuilderEvents({ claudeHome: CLAUDE_HOME }), { configDir: CLAUDE_HOME })
     expect(purity.problems).toEqual([])
     expect(purity.ok).toBe(true)
+    expect(purity.version).toBe(MOCK_VERSION)
   })
 
   it('ABORTS when a non-builtin skill is planted in it', () => {
     const events = mockBuilderEvents({
       claudeHome: CLAUDE_HOME,
-      extra: { skills: [...builtinsFor(pinnedVersions()[0]).skills, 'supabase'] },
+      extra: { skills: [...builtinsFor(MOCK_VERSION).skills, 'supabase'] },
     })
     const purity = assertSessionPurity(events, { configDir: CLAUDE_HOME })
     expect(purity.ok).toBe(false)
@@ -308,7 +375,7 @@ describe('R4.6 fires on the STREAMING init, before the budget is spent', () => {
     })
 
     expect(result.code).toBe(0)
-    expect(result.init?.claude_code_version).toBe(pinnedVersions()[0])
+    expect(result.init?.claude_code_version).toBe(MOCK_VERSION)
   })
 })
 

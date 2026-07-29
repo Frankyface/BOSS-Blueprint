@@ -416,3 +416,43 @@ implemented and MOCK-verified only. No notification has reached an inbox; the fe
 `awaiting verification` until Cam pastes his provider values and runs one real submission ·
 **Revisit if:** the provider Cam picks needs a shape this config cannot express (header-borne
 credential, multipart, signed request) — that is a new config field, not a rewrite.
+
+## 2026-07-29 — Builtin manifest extended to CLI 2.1.220; block-on-unknown-version policy affirmed
+**Chose:** `scripts/roundtrip/builtin-manifest.json` gains a `2.1.220` entry taken verbatim from
+the attempt-3 sterile capture (`C:\bp-runs\2026-07-29T15-21-12-533Z_B_b3129f9\builder\transcript.jsonl`
+— the harness's OWN path: `createSterileConfigDir` → `scrubEnvironment` → `runSession`, exactly one
+credential, scrubbed env, which is row 1 of the manifest's sensitivity table and the only
+configuration a harness run can ever see). `2.1.190` is KEPT, oldest first; the newest entry is last
+because `run.mjs`'s mock builder claims `.at(-1)`. The delta was reviewed **BY NAME** before adding,
+and it is a pure superset — nothing removed: **agents 5 → 5, identical name for name**; **skills
+14 → 16, `+dataviz`, `+doctor`**; **slash_commands 27 → 43, `+16`: `dataviz`, `doctor`, `agents`,
+`color`, `effort`, `fast`, `mcp`, `model`, `__remote-workflow`, `workflow-launch-exec`, `rename`,
+`ultrareview`, `recap`, `design`, `design-consent`, `design-revoke`**; **`plugins` and `mcp_servers`
+still 0** — every addition is an Anthropic-shipped builtin, no third-party agent, skill, command,
+plugin or MCP server anywhere in it. `output_style: default` and `memoryField: memory_paths` are
+unchanged, so R4.6's vacuity guard keeps biting. **The block-on-unknown behavior STAYS:** a CLI
+version this file has never measured still aborts as **PRECONDITION**, and its captured init becomes
+the candidate entry for a named-delta review plus a decisions entry — this procedure, which is now
+the only way the manifest ever grows · **Because:** an auto-updating binary must never silently
+widen the builder's capabilities — that is exactly the "zero extra context" premise the round-trip
+test exists to prove, and a manifest that waved new versions through would let a future update
+introduce a real leak wearing a version bump as camouflage. The abort-capture-review loop makes
+extension cheap (the data is already captured, faithfully, by the harness itself) without weakening
+the guard by one predicate. The guard already proved its worth: attempt 3 caught the 2.1.190 →
+2.1.220 update mid-run, wrote no `verdict.txt`, and stayed invisible to `ship-gate.mjs` ·
+**Rejected:** waving new versions through / auto-recapturing on mismatch (silent capability creep —
+the failure mode the whole rule exists to prevent, and it would make the manifest a rubber stamp);
+pinning or downgrading the CLI to 2.1.190 (it is Cam's primary tool, no 2.1.190 image survives on
+disk — `~/.local/share/claude/versions/` holds only `2.1.89` — so this means a machine-wide network
+reinstall of the tool he works in, to serve a test harness); relaxing R4.6 to "no third-party
+entries" instead of set equality (loses the version-mismatch branch that correctly classified this
+event as *not the pinned CLI* rather than a leak) · **Rule-file note:** `builtin-manifest.json` is in
+`RULE_FILES` and is hashed at run start and end (R9.3). This edit is committed BEFORE the gauntlet
+and the hashes are byte-identical within each run, which is the distinction that matters: extending
+the baseline between runs, on the record, is not the same act as relaxing it mid-run ·
+**Verification:** manifest-shape tests now cover BOTH versions — the full R4.6 sterility suite is
+parameterised over every pinned version, plus explicit assertions that 2.1.220 is a pure superset
+with the 16 new commands named, that neither entry is an empty stub, and that an unmeasured version
+still returns `null` so block-on-unknown has something to block. `npx vitest run scripts/` green,
+227 passed · **Revisit if:** a delta ever contains a non-builtin or third-party entry — that is a
+leak, not a version bump, and it routes to the leak branch and a stop, not to another manifest entry.
