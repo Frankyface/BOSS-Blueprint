@@ -1,5 +1,5 @@
 # Feature: Launch Polish
-_Stage: stage-4-roundtrip-launch · Status: not started_
+_Stage: stage-4-roundtrip-launch · Status: awaiting verification_
 
 ## Goal
 Make Blueprint look like a BOSS product and behave like a shipped one: branded header, real
@@ -156,7 +156,92 @@ an awaiting-human item into a done-sounding one is the failure mode this rule ex
 8. Record all commands, exit codes, scores, sizes and screenshots below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-29 — built, local gate green, awaiting the deployed leg
+
+**What landed**
+
+| Area | Files |
+|---|---|
+| Head + social card | `index.html`, `src/meta/headTags.ts` (+ `.test.ts`), `public/og-card.png`, `public/favicon.ico`, `public/apple-touch-icon.png`, `scripts/brand/make-brand-assets.mjs` |
+| Branding | `src/components/BossMark.tsx`, `AppHeader.tsx/.css`, `AppFooter.tsx/.css`, `src/styles/theme.css` (`--boss-footer-height`), `site.config.ts` (`BOSS_SITE_URL`) |
+| P1 | `src/components/BlockView.css` — per-type typography tokens on `.canvas-block`, read by both the face and `.block-editor` |
+| P2 | `src/constants/blockTypes.ts` (`PALETTE_ORDER`, `PALETTE_BLOCK_TYPES`, Section's hint), `BlockPalette.tsx` |
+| P4 (UI half) | `src/components/SiteSettingsPanel.tsx`, `SidePanel.css` — `<input type="color">` leads the row |
+| P5 | `src/canvas/geometry.ts` (`hasContentBelow`), `CanvasArea.tsx/.css` |
+| N4 | `src/components/PageNameForm.tsx`, `PageStrip.tsx/.css` |
+| N9 | `src/components/SiteSettingsPanel.tsx`, `SidePanel.css` (`::placeholder`) |
+| Tests | `e2e/launch-polish.spec.ts` (16 × 3 engines), `src/meta/headTags.test.ts` (29), `src/constants/blockTypes.test.ts` (11), `geometry.test.ts` (+7) |
+
+**Commands and exit codes** (Windows, Node v24.15.0)
+
+```
+npm run lint            → exit 0
+npm run test:coverage   → exit 0 · 92 files / 1579 tests passed · thresholds met
+npm run build           → exit 0
+npm run e2e             → exit 0 · 672 passed, 3 skipped, 0 failed (5.1m, 3 engines)
+npx playwright test e2e/launch-polish.spec.ts  → 47 passed, 1 skipped (WebKit link tab order)
+npx playwright test e2e/export-visual.spec.ts  → 7 passed, 2 skipped — BASELINES UNCHANGED
+```
+
+The export visual baselines were **not** regenerated and did not move, which is the evidence that
+this pass is chrome and not page content (task instruction; stage overview Open Question 1).
+
+**Bundle size — the ≤ 10 KB gzip budget**
+
+| Artifact (gzip) | Pre-polish `fb7eaf6` | Post-polish | Δ |
+|---|---|---|---|
+| `index.html` | 0.39 kB | 0.94 kB | +0.55 |
+| `assets/index-*.css` | 5.74 kB | 6.20 kB | +0.46 |
+| `assets/dist-*.js` | 3.06 kB | 3.06 kB | 0 |
+| `assets/ajv-*.js` | 33.56 kB | 33.57 kB | +0.01 |
+| `assets/index-*.js` | 183.05 kB | 183.88 kB | +0.83 |
+| **total** | **225.80 kB** | **227.65 kB** | **+1.85 kB** |
+
+**Lighthouse — preview** (`lighthouse` CLI 13.4.1, `--preset=desktop`, headless Chrome 
+against `http://127.0.0.1:4173/BOSS-Blueprint/`)
+
+| Category | Score | Target |
+|---|---|---|
+| Performance | **99** | ≥ 90 |
+| Accessibility | **100** | ≥ 90 |
+| Best Practices | **100** | ≥ 95 |
+| SEO | **100** | ≥ 90 |
+
+Named-audit floor — zero failures:
+
+```
+document-title    PASS    button-name       PASS
+meta-description  PASS    link-name         PASS
+html-has-lang     PASS    color-contrast    PASS
+html-lang-valid   PASS    is-crawlable      PASS
+meta-viewport     PASS    errors-in-console PASS
+image-alt         n/a  (the first-load page renders no <img>; a photo only exists once uploaded)
+```
+
+Two notes on the floor list, recorded rather than quietly adjusted:
+- the spec names the audit **`viewport`**; Lighthouse 13 renamed it **`meta-viewport`**. Same audit,
+  and it passes. The criteria text is left as written.
+- Lighthouse's Accessibility score is **100 with N6 still open** (canvas blocks are not
+  keyboard-focusable). Open Question 3 anticipated it dragging the score down; it does not, because
+  Lighthouse does not audit for it. N6 is still real and still routed to Stage 2 — the number is
+  reported honestly, not treated as evidence that N6 is fixed.
+
+**Awaiting the deployed leg** — CI, live 200, deployed-bundle identity and the deployed Lighthouse
+run are recorded in the next entry, after this commit reaches `main`.
+
+### 2026-07-29 — help.md launch items, restated rather than closed
+
+Per the rule above these three are **not** ticked, and `help.md` carries a dated line on each:
+
+- **"Sketch your site" link on bossolutions.pro** — AWAITING CAM. The app now sends traffic the
+  other way (every screen carries "Built by BOSS → bossolutions.pro"); the inbound link is his half.
+- **DNS `sketch.bossolutions.pro`** — AWAITING CAM, OPTIONAL, still riding the pending GoHighLevel
+  repoint. `help.md` now also records the part that is easy to miss: a DNS record alone is not
+  enough. `DEPLOYED_BASE_URL` and `BASE_PATH` are baked into the head and the bundle, so the switch
+  is a one-line config change, a `CNAME`, **a redeploy**, and a re-run of the head assertions.
+- **Email relay account** — Stage 3's blocker, repeated here so stage close cannot make it look
+  resolved. Submit ships with the no-op relay stub, which never claims an email was sent.
 
 ## Open Questions
 1. **Does the footer belong in the exported page PNGs?** It must not — the PNG is "each page
@@ -197,3 +282,45 @@ _Empty — nothing verified yet._
   after a green sequence, re-run A-preview and say why (stage overview Open Question 1).
 - README is documentation of a shipped tool, not a changelog — no stage history, no roadmap
   restatement; `docs/master_plan.md` already owns the vision and `handoff.md` owns the state.
+
+### Decisions taken while building (2026-07-29)
+
+- **`DEPLOYED_BASE_URL` already existed** (`site.config.ts`, added by the round-trip harness), so
+  this feature used it rather than adding a second one. `BOSS_SITE_URL` is new, beside it.
+- **The head is hand-written and pinned by test, not injected by a build plugin.** `index.html` is
+  static and there is no head manager; `src/meta/headTags.test.ts` reads the file off disk and
+  asserts it equals the module's constants (the same shape as Appendix A's spec-fixture tests).
+  A Vite `transformIndexHtml` plugin would have been machinery in the build for a file a test can
+  simply read.
+- **P4 reverses an earlier local call against `<input type="color">`.** That call lived in a code
+  comment, not in `docs/decisions.md`. Two of its three reasons are stale — WebKit has shipped the
+  control since Safari 12.1, and the control's value IS `#rrggbb`, which is exactly what the export
+  stores. The third (it cannot express "no colour") is why the hex field stays as the secondary
+  input and why an unpicked swatch is drawn dashed rather than pretending white was chosen.
+- **P5 shipped as the faded page edge, not the persistent scrollbar.** The criteria allow either.
+  The engines disagree about whether a scrollbar takes layout space at all — WebKit's are overlays —
+  so "always show the scrollbar" is a cue that simply does not appear on a Mac, and an E2E assertion
+  on scrollbar width would have been unassertable on one of the three engines.
+- **P2 did not touch the block-type table.** The palette order is a new `PALETTE_ORDER` constant;
+  `BLOCK_TYPES` keeps its order, its ids and its rectangles, and `src/constants/blockTypes.test.ts`
+  pins all six discriminators and default rectangles as literals so a future reorder cannot move
+  them silently.
+- **N7's stated order has two items swapped.** The criteria say "palette → canvas → page strip";
+  the page strip renders ABOVE the canvas inside the stage column, so reading order down the screen
+  is header → palette → page strip → canvas → panel → footer. That is what shipped and what the
+  E2E asserts, and it satisfies the binding assertion the verification steps name (the palette comes
+  before the right-hand panel). **The DOM was already in this order** — the audit's "it starts in
+  the right-hand panel" is what happens after dismissing the start card, because the browser resumes
+  sequential focus from where that card used to be, not from the top of the document.
+- **Specs updated in the same commit, and why** (Open Question 4's rule):
+  - `e2e/shell.spec.ts` — palette label order (P2) and `<title>` (the title changed by design).
+  - `e2e/block-editing.spec.ts` "a block cannot be dragged fully off the page" — this one is worth
+    naming. It grabbed a Button at its default `y = 760`, which at the suite's 1920×1000 viewport
+    put the grab point ~19px above the window's bottom edge; the 28px footer moved it onto the
+    footer and the drag stopped happening. The clamp is not about where the block started, so the
+    test now parks the block mid-page first (`moveBlockTo`, new in `e2e/support/canvas.ts`) and the
+    gesture no longer depends on the app's chrome height.
+- **The footer is behind the desktop guard's banner on a phone, not above it.** Lifting it clear
+  would have put it exactly where `e2e/desktop-guard.spec.ts` probes for "a point on the canvas
+  clear of the banner", breaking a verified feature to satisfy a cosmetic one. The guard is a
+  dismissible notice; the footer is underneath it and is there the moment it is dismissed.

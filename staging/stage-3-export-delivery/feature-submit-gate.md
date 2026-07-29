@@ -249,6 +249,44 @@ Follow-ups carried to Stage 4 (not blockers): F1 — no test asserts focus-to-fi
 (unit-only coverage of the staged-asset branch; seed one uploaded image into the submit
 fixture). **VERIFIED DONE.**
 
+### 2026-07-29 — review follow-ups F1, F2, F3, F7 closed (status unchanged: verified done)
+
+Folded into the Stage 4 launch-polish batch; none of them changed a success criterion, and the
+whole gate was re-run green afterwards (`npm run lint`, `npm run test:coverage` 92 files / 1579
+tests, `npm run build`, `npm run e2e` 672 passed / 3 skipped / 0 failed across three engines).
+
+- **F1 — focus-to-first-finding is now asserted.** `e2e/submit.spec.ts` adds
+  `await expect(findings.first()).toBeFocused()` on the BLOCK screen. It was behaviour that had
+  only ever been eyeballed; a client who presses Send and stays where they are has no idea anything
+  happened, so this is the assertion that keeps it.
+- **F2 — the journey's package now carries a real `assets/` entry.** New
+  `seedFixturePhoto()` in `e2e/support/submit.ts` uploads a canvas-generated 640×420 JPEG into the
+  fixture's `home-photo` slot **through the real file input**, so the bytes go through
+  compression-on-ingest exactly as a client's would. The spec now asserts `site.assets` has one
+  entry, that its path matches `assets/img_001.<ext>` (read off `site.json`, not hard-coded — the
+  extension follows the engine's own encoder), and that those bytes are present in the shipped zip.
+  The entry-list assertion was updated to include it. **This is what makes the journey's
+  `scripts/roundtrip/gate.mjs` run exercise §4.6, the V04 asset-reference fix pass and V21's
+  "the manifest matches the bytes" on real bytes rather than on synthetic unit fixtures** — the
+  gate still exits 0, and the V12 negative control still fails as it should.
+- **F3 — `submitStore.runPipeline` has a targeted unit test.** New
+  `src/store/submitStore.pipeline.test.ts` (8 tests) stubs `runSubmit` and the browser ports and
+  asserts the store's reaction to each outcome shape: which screen each lands on, that the progress
+  meter is cleared on every path out, that the previous run's findings and failure are cleared
+  before the next starts, that the autosave is flushed before any rendering, that `retry` re-runs
+  the whole pipeline, and both halves of the late-relay rule — the completion screen goes up before
+  the relay settles, and a relay for a submission that has since been superseded is dropped.
+  `src/store/submitStore.ts` moved from ~55% lines to **88.09% lines / 86.95% statements**; the
+  `src/store/**` glob threshold is unchanged and still met.
+- **F7 — `role="alert"` moved off the finding `<li>`.** It now sits on the message `<span>` inside
+  it. A role on a list item replaces its implicit `listitem`, which takes the list apart for a
+  screen reader: the `<ul>` stops reporting how many things need fixing and each row stops saying
+  which of them it is. The urgency belongs to the sentence anyway — the row also carries a button.
+  `e2e/submit.spec.ts` asserts both halves (the first finding is still an `LI`, and it contains a
+  visible `role="alert"`), and the two existing `getByRole('alert')` assertions elsewhere in the
+  spec — "a failing relay changes nothing the client sees" and "an untouched form carries no alerts
+  at all" — still pass unchanged.
+
 ## Open Questions
 - **Where Submit lives.** **Recommendation: a dedicated Submit view that takes over the canvas
   area** with a "Back to editing" control — not a modal. Stage 2 rejected modals for the settings

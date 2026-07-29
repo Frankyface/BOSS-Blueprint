@@ -18,14 +18,29 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
   destination address (cammer3034@gmail.com or a BOSS address — your pick), and paste the
   public key/form ID into the project when asked. **Blocks: Stage 3 (Export & delivery)
   verification** — everything before that proceeds without it.
+  - 2026-07-29 (launch polish): repeated here so stage close cannot make it look resolved. Submit
+    ships with the no-op `DeliveryRelay` stub, which never claims an email was sent; the client
+    gets their package by download and sends it themselves, and that path is fully verified. The
+    relay is a nice-to-have notification, not a dependency.
 
 - [ ] **DNS: point `sketch.bossolutions.pro` at GitHub Pages** — optional custom domain for
   launch. Note your BOSS DNS repoint off GoHighLevel is still pending, so this rides on that.
   Until then the app lives at `https://frankyface.github.io/BOSS-Blueprint/`.
   **Blocks: nothing in v1** — custom domain is launch polish (Stage 4).
+  - 2026-07-29 (launch polish): still open, and still optional. Worth knowing before you do it:
+    **a DNS record on its own is not enough.** The page's canonical link and its social-card tags
+    are absolute URLs naming the current origin, and Vite bakes the `/BOSS-Blueprint/` base path
+    into the bundle. Switching domains is a one-line change to `DEPLOYED_BASE_URL` (and `BASE_PATH`)
+    in `site.config.ts`, a `CNAME` file, and **a redeploy** — plus a re-run of the head assertions
+    (`src/meta/headTags.test.ts`, `e2e/launch-polish.spec.ts`) and the Lighthouse pass. Say the word
+    and it is a ten-minute job; nothing is blocked while it waits.
 
 - [ ] **Add a "Sketch your site" link on bossolutions.pro** once the app is live — turns the
   tool into lead capture. **Blocks: Stage 4 launch step only.**
+  - 2026-07-29 (launch polish): the app is live and branded, and every screen now carries a
+    "Built by BOSS → bossolutions.pro" footer link, so traffic flows *from* Blueprint *to* BOSS.
+    The link in the other direction is the half only you can add. **Still open, still awaiting you** —
+    nothing in the product is waiting on it.
 
 ## Done
 
