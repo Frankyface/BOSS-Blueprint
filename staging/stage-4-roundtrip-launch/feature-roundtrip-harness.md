@@ -213,9 +213,15 @@ polylines, settings panel fill, submit form fill, Submit click. A unit test grep
 `addInitScript(` and **fails if any appears**. (Reading a value with `locator.inputValue()` or
 `getAttribute()` is not state injection and is allowed.)
 
-**R2.3 First step is dismissing the tour** (feature-onboarding-tour.md) via its real dismiss
-control, screenshotted as step 00. The guard notice must not be present at 1440×900; if it is,
-that is a desktop-guard defect and the run aborts as PRECONDITION.
+**R2.3 The tour is dismissed via its real control** (feature-onboarding-tour.md) — `tour-skip` —
+and the dismissal is screenshotted as its own filmstrip step. It runs at the FIRST POINT THE TOUR
+CAN EXIST, not literally step 00: the shipped tour suppresses itself behind the template picker
+(`OnboardingTour.tsx` suppression order — template picker > desktop guard > tour), so the driver
+picks the start template first and dismisses the tour immediately after the canvas is up. The
+driver may not seed the seen-flag instead: `addInitScript` is banned by R2.2, and seeding would
+skip the path this step exists to prove. Absence of the tour on a fresh profile is a regression
+and fails the run. The guard notice must not be present at 1440×900; if it is, that is a
+desktop-guard defect and the run aborts as PRECONDITION.
 
 **R2.4 Placement tolerance ±24px per edge**, `POSITION_TOLERANCE_PX` in `thresholds.mjs`, used by
 both the driver's post-placement assertion and the manifest diff. All scenario coordinates are

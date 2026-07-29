@@ -42,7 +42,8 @@ Options:
   --schema <file>        use this JSON Schema file instead of extracting from the spec.
   --internal-ids <file>  newline- or JSON-array-delimited list of the app's internal ids,
                          enabling the exact V24 leak scan (see README limitations).
-  --out <dir>            write report.json (+ extracted-schema.json) here.
+  --out <dir>            write report.json, gate-report.json, extracted-schema.json
+                         (and manifest-diff.json with --scenario) here.
   --max-zip-mb <n>       V10 budget in MB (default 15).
   --strict-conventions   promote §1 file-convention WARNs to FAIL.
   --json                 print the machine report to stdout instead of the text table.

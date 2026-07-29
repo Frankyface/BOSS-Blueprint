@@ -1,5 +1,6 @@
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
@@ -105,7 +106,12 @@ const PALETTE_ID: Record<ScenarioBlock['type'], string> = {
 
 /* ─────────────────────────── run wiring ─────────────────────────── */
 
-const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+/**
+ * `fileURLToPath`, never a hand-rolled `new URL(...).pathname` — the URL form
+ * percent-encodes, so any repo path containing a space resolves to a directory that
+ * does not exist and the scenario file fails to open before a single test runs.
+ */
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(HERE, '..', '..')
 
 const scenarioId = process.env.ROUNDTRIP_SCENARIO ?? 'A'
@@ -142,18 +148,6 @@ test(`round-trip client · scenario ${scenarioId} · ${scenario.title}`, async (
   })
 
   await step(page, 'dismiss the first-run surfaces', async () => {
-    /**
-     * R2.3 — the tour is dismissed FIRST, through its real control, so its dismissal
-     * path becomes part of the gating evidence rather than something the harness routes
-     * around. `feature-onboarding-tour.md` is still `not started` on this branch, so the
-     * control legitimately does not exist yet; absence is handled, presence is honoured,
-     * and the run records which it saw.
-     */
-    const tourDismiss = page.getByTestId('onboarding-tour-dismiss')
-    const tourPresent = (await tourDismiss.count()) > 0
-    if (tourPresent) await tourDismiss.click()
-    findings.tourPresent = tourPresent
-
     // R2.3 — the desktop guard must be ABSENT at 1440×900. A guard here is a
     // desktop-guard defect, not a product FAIL, and it aborts the run as PRECONDITION.
     await expect(
@@ -170,6 +164,32 @@ test(`round-trip client · scenario ${scenarioId} · ${scenario.title}`, async (
     }
     await expect(page.getByTestId('template-picker')).toBeHidden()
     await expect(page.getByTestId('canvas-page')).toBeVisible()
+  })
+
+  await step(page, 'dismiss the onboarding tour', async () => {
+    /**
+     * R2.3 — the tour is dismissed through its REAL control, so its dismissal path is
+     * gating evidence rather than something the harness routes around. The driver may
+     * not seed the seen-flag: `addInitScript` is banned outright by R2.2, and seeding
+     * would skip the very path this step exists to prove.
+     *
+     * It runs here rather than before the template pick because the tour SUPPRESSES
+     * itself behind the picker (`OnboardingTour.tsx`: "template picker > desktop guard >
+     * tour"), so there is nothing to dismiss until the canvas is up. On the production
+     * bundle in a fresh profile the tour therefore always auto-starts at this point, and
+     * its absence would be a real regression — hence an assertion, not a tolerated skip.
+     *
+     * Leaving it open is not harmless: the bubble takes pointer events even though its
+     * layer does not, and it parks over the lower-left canvas for the rest of the run.
+     */
+    const bubble = page.getByTestId('tour-bubble')
+    await expect(bubble, 'the first-run tour did not auto-start on a fresh profile').toBeVisible()
+    findings.tourPresent = true
+    findings.tourFirstStep = await bubble.getAttribute('data-tour-step')
+    findings.tourStepCount = await bubble.getAttribute('data-tour-count')
+
+    await page.getByTestId('tour-skip').click()
+    await expect(bubble, 'Skip did not close the tour').toBeHidden()
   })
 
   await step(page, 'fill the site settings', async () => {
