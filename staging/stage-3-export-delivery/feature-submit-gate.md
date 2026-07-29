@@ -125,7 +125,7 @@ relay at all** — that is a Stage 3 DoD item, not a caveat.
 ### 2026-07-28 — built and exercised end to end (awaiting independent verification)
 
 **Unit — `npx vitest run src/submit src/store/submitStore.test.ts src/export/delivery`**
-→ 39 + 16 tests, 0 failed. Full suite: **1312 passed** (1203 before this batch).
+→ 39 + 16 tests, 0 failed. Full suite: **1313 passed** (1203 before this batch).
 
 - `src/submit/submitFlow.test.ts` (12) — the orchestration order is asserted with a
   literal call log:
@@ -170,7 +170,7 @@ relay at all** — that is a Stage 3 DoD item, not a caveat.
 batch, with `src/submit/appPorts.ts` excluded under the same rule `src/platform/**`
 follows (it is the one file that names a renderer, a download and a relay).
 
-**E2E — `npx playwright test`** → **532 passed / 2 skipped** on chromium + firefox +
+**E2E — `npx playwright test`** → **535 passed / 2 skipped** on chromium + firefox +
 webkit, 7.4 min locally. `e2e/submit.spec.ts` (6 tests × 3 engines):
 
 1. *the full journey* — seed a design, open Submit, and:
@@ -336,7 +336,7 @@ swapping in a BOSS mailbox is a one-constant change and is now an open item in `
   re-grepped after the change, `submit-stub`, `relay-fail`, `stub-failing`,
   `__blueprintRenderPagePng`, `__blueprintStore` and `export-engine` are all **0 occurrences**
   in `dist/`, and the only surviving `render-fail` match is the product's own
-  `kind: 'render-failed'` outcome. Production build 565.07 kB.
+  `kind: 'render-failed'` outcome. Production build 565.09 kB.
 - **Submit takes over the whole editor body.** Not a modal (Stage 2's reasons), and not the
   304px panel (too narrow for a form plus a findings list). Unmounting the canvas costs
   nothing: the document lives in the store, and the PNG renderer mounts its own offscreen root.

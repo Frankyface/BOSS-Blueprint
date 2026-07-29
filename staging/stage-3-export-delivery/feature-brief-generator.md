@@ -288,7 +288,7 @@ first-divergence output recorded. Fixes assigned to the zip/submit batch.
 Status stays `awaiting verification`: the reviewer re-verifies after this lands.
 
 **(1) The E2E now exercises `generateBrief` end to end.** `e2e/submit.spec.ts`, 6 tests ×
-chromium/firefox/webkit, all green inside the 532-test suite. It submits through the real UI,
+chromium/firefox/webkit, all green inside the 535-test suite. It submits through the real UI,
 captures the browser download, and reads `brief.md` back out of the zip — asserting the header
 comment carries the same `submission <uuid>` as `site.json`. V7 itself is replayed on that very
 package by `scripts/roundtrip/gate.mjs`, which the test requires to exit 0:
@@ -341,7 +341,7 @@ red tests across three files, and the exact prose line that moved — the sensit
 
 **Stale counts corrected in this pass:** the implementer entry's "49 files / 876 tests" and the
 review entry's "62 files / 1203 tests · e2e 514" were both true when written and are both
-superseded; as of this batch the suite is **76 files / 1312 unit tests** and **532 E2E / 2
+superseded; as of this batch the suite is **76 files / 1313 unit tests** and **535 E2E / 2
 skipped**. Equality test B's hash is unchanged (`e8ae78bf…`, 14 016 B) — this batch touched no
 narration rule.
 

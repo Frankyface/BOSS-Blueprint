@@ -144,10 +144,10 @@ Everything about this feature is in service of that one moment.
 - `size.test.ts` (5) — `~0/1/24/1024 KB`, then `~1.0 MB` once the KB figure passes 1024;
   the bands switch at `SIZE_TARGET_BYTES` and at V10's 15 MB.
 
-**Coverage — `npm run test:coverage`** → `src/export/zip` 96.83% statements, 98.51%
+**Coverage — `npm run test:coverage`** → `src/export/zip` 96.27% statements, 98.54%
 lines, 100% functions, against the 80% lines+functions gate on `src/export/**`.
 
-**E2E — `npx playwright test`** → 532 passed / 2 skipped across chromium, firefox and
+**E2E — `npx playwright test`** → 535 passed / 2 skipped across chromium, firefox and
 webkit (7.4 min locally, parallel; 514 before this batch). `e2e/submit.spec.ts` captures
 the real browser download, unzips it in Node, and asserts the entry list equals the
 expectation **derived from the package's own `site.json`**, plus the filename convention,

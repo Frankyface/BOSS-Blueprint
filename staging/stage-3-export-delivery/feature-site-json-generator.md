@@ -297,7 +297,7 @@ Status stays `awaiting verification`: the reviewer re-verifies after this lands.
    nothing in this file compares against a re-serialization any more.
    `npx vitest run src/export/siteJson.test.ts` → **23 passed**.
 2. **Verify steps 6 and 7 are discharged.** `e2e/submit.spec.ts` (6 tests × chromium, firefox,
-   webkit — all green in the 532-test suite) drives a design through the real submit UI into
+   webkit — all green in the 535-test suite) drives a design through the real submit UI into
    `buildExportPayload` → `validatePackage` → `generateBrief` → the zip, captures the browser
    download, unzips it in Node, and asserts `schemaVersion`, the `pg_`/`blk_` id patterns, the
    §1 entry list derived from `site.json` itself, and the no-BOM / no-CR / 2-space contract.

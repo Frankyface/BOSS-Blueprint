@@ -189,11 +189,11 @@ unchanged; only the surrounding counts grew.)_
 | `npm install @zumer/snapdom@2.23.1 html-to-image@1.11.13` | both **MIT**, verified in `node_modules/*/LICENSE` and `npm view` |
 | `npm run lint` | clean |
 | `npx tsc -b` | clean |
-| `npm test` | branch: **860 unit tests / 46 files**; on `main` after the merge train: **1203 / 62**, and **1312 / 76** after the zip + submit batch — 55 of the originals new (6 files under `src/export/png/`) |
+| `npm test` | branch: **860 unit tests / 46 files**; on `main` after the merge train: **1203 / 62**, and **1313 / 76** after the zip + submit batch — 55 of the originals new (6 files under `src/export/png/`) |
 | `npm run test:coverage` | exit 0; `src/export/png` **94.84% stmts / 96.13% lines** at branch time, **94.81 / 96.11** today; global 80.4% stmts |
 | `npm run build` | 295.11 kB at branch time → **300.67 kB** on `main` — seam **absent** either way: `__blueprintRenderPagePng`, `export-engine`, `snapdom` all grep-negative |
 | `npm run build:e2e` | 467.53 kB — all three grep-**positive** |
-| full E2E ×3 engines, runs 1–4 | **454 passed, 2 skipped** every time (4.1 / 4.5 / 4.1 / 4.0 min); **514** after the merge train, **532** after the zip + submit batch |
+| full E2E ×3 engines, runs 1–4 | **454 passed, 2 skipped** every time (4.1 / 4.5 / 4.1 / 4.0 min); **514** after the merge train, **535** after the zip + submit batch |
 | the 4 new specs alone, ×3 engines, ×4 | **52 passed, 2 skipped** every time |
 
 The 2 skips are the cross-engine test declining to run a second and third time — it drives all
