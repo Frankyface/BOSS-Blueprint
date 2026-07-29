@@ -1,43 +1,46 @@
 # Handoff — BOSS Blueprint
-_Last updated: 2026-07-28 · Current stage: stage-2-full-sketching_
+_Last updated: 2026-07-28 · Current stage: stage-3-export-delivery_
 
 ## 🎯 Goals
-Finish Stage 2 (full sketching): batch 2 (pen layer + image upload) and batch 3 (templates +
-design file), with independent review of every batch, then Stage 3 (export & delivery).
+Finish Stage 3: implement the last two features (package-zip, submit-gate with download-first
+delivery + relay STUB), verify the whole stage, then Stage 4's round-trip gauntlet decides v1.
 
 ## 📍 Current State
-- **Stage 1 CLOSED** — all 5 features `verified done` with stage-close review evidence; DoD met.
-- Stage 2 batch 1 (multi-page/nav, copy blocks, site settings) implemented on document schema
-  v2 with v1→v2 migration: 463 unit / 237 E2E ×2 green, CI green, deployed. **Awaiting
-  independent verification** (reviewer running).
-- Stage 3 fully pre-specced in parallel: docs/export-format.md (frozen v2-final),
-  docs/roundtrip-protocol.md, draft feature files incoming; template fixtures validated in
-  design-assets/templates/.
-- Live: https://frankyface.github.io/BOSS-Blueprint/ (multi-page editor).
+- **Stage 1 + Stage 2 CLOSED** — 12/12 features verified done incl. the all-element capstone
+  E2E; UX-hardening batch landed (type-to-edit, containment clamp, picker file-open, quota
+  rescue messaging).
+- **Stage 3 core INTEGRATED on main (14cfba4)**: src/export/ (site.json generator, validator
+  V1–V27, byte-exact brief generator — Appendix A tests A/B/C/D green), src/export/png/
+  (snapdom renderer + Linux+Windows visual baselines), scripts/roundtrip/ (external gate,
+  45/45 mutation-proven). All three awaiting independent verification.
+- **Contract FROZEN at v2.4** (docs/export-format.md) after 5 adversarial hardening rounds.
+- 1203 unit / 514 E2E green on Windows AND Linux CI; live: frankyface.github.io/BOSS-Blueprint.
 
 ## 📂 Files I'm Working On
-- staging/stage-2-full-sketching/feature-pen-layer.md + feature-image-upload.md — batch 2 (next).
-- staging/stage-2-full-sketching/ batch-1 feature files — in independent review.
+- staging/stage-3-export-delivery/feature-package-zip.md + feature-submit-gate.md — next build.
+- staging/stage-3-export-delivery/feature-{site-json-generator,brief-generator,png-renderer}.md
+  — in independent review.
 
 ## ✅ Things I've Changed
-- 2026-07-28: Stage 1 closed formally (statuses, criteria, overview DoD all flipped w/ evidence).
-- 2026-07-28: Stage 2 batch 1 landed (schema v2 + migration; 3 features).
-- 2026-07-28: Export format v2 + round-trip protocol + template fixtures landed in docs/.
-- 2026-07-28: Block-editing bounce fixed (chrome-scroll HIGH) + undo/autosave bounce fixed.
-- 2026-07-28: Debate verdicts recorded (DOM/SVG canvas · download-first delivery).
+- 2026-07-28: Merge train — export-core + gate-v24-sync + png-renderer branches landed;
+  .gitattributes normalization; Linux baselines via workflow_dispatch.
+- 2026-07-28: Stage 2 closed (7/7 verified + capstone); UX hardening batch (3 addenda).
+- 2026-07-28: Export contract frozen at v2.4; Stage 4 specs landed pre-ruled.
 
 ## ❌ Watch Out
-- ONE repo writer at a time; reviewers use detached worktrees; never `git add -A` mid-flight.
-- Additive document fields (e.g. batch-2 penStrokes) must NOT bump schemaVersion — extend
-  blueprintFile validation with defaults instead; version bump = migration, reserved for breaks.
-- Email relay stays LAST (Cam's directive): submit ships download-first with a stubbed
-  DeliveryRelay port; docs/export-format.md is the binding package contract.
+- ONE main-tree writer at a time; reviewers in detached worktrees; branch merges via the train
+  pattern (merge.renormalize is set).
+- The contract is FROZEN — changes need a decisions entry + version bump + round-trip
+  justification. Email relay stays LAST (Cam): submit ships with the DeliveryRelay no-op stub.
+- snapdom MUST get dpr:1 + scale:1 (retina would 2× renders); the export-visual baseline gate
+  hard-fails in CI by design.
 
 ## ➡️ Next Up
-1. Batch-2 implementer (pen layer + image upload) in main repo; batch-1 reviewer in worktree.
-2. On batch-1 verdict: apply flips; then batch 3 (templates + design file — fixtures ready in
-   design-assets/templates/).
-3. Stage 2 close review → Stage 3 implementation per scratchpad stage3-specs (landing soon).
+1. Implement feature-package-zip.md + feature-submit-gate.md (main tree; download-first,
+   honeypot, V23 filler warning UI, businessName enforced at submit only).
+2. Independent review of the three integrated Stage 3 core features (worktree).
+3. Stage 3 close → Stage 4: harness scenarios + tour + guard + polish → three clean round-trip
+   runs (docs/roundtrip-protocol.md) → launch checklist (help.md items awaiting Cam).
 
 ## 🔗 Pointer
-→ Current stage folder: `staging/stage-2-full-sketching/` · Active feature files: `staging/stage-2-full-sketching/feature-pen-layer.md`, `staging/stage-2-full-sketching/feature-image-upload.md`
+→ Current stage folder: `staging/stage-3-export-delivery/` · Active feature files: `staging/stage-3-export-delivery/feature-package-zip.md`, `staging/stage-3-export-delivery/feature-submit-gate.md`
