@@ -1145,9 +1145,10 @@ credential, R3.3/R3.4) → `scrubEnvironment` (R3.7) → `runSession` — agains
 clean ancestor chain, and reading the sets straight off the streamed `system`/`init` event.
 **The CLI's OAuth token is expired and the init still arrives before the 401** — verified: the
 transcript is `init → api_retry → api_retry → assistant → result("…401 OAuth access token has
-expired…")`, and the init it carries is byte-for-byte the same shape as the one live-run attempt
-3 recorded in `C:\bp-runs\2026-07-29T10-56-34-241Z_B_52fecbe`. So the manifest is measured from a
-live run of the pinned binary, not reconstructed from a transcript.
+expired…")`, and the init it carries lists **exactly the same** agents, skills and
+slash_commands as the one live-run attempt 3 recorded in
+`C:\bp-runs\2026-07-29T10-56-34-241Z_B_52fecbe`, name for name. So the manifest is measured from
+a live run of the pinned binary, not reconstructed from a transcript.
 
 **Measured while capturing it, and worth knowing: the builtin set is not a constant of the
 binary — it moves with things the harness already pins.** Same machine, same 2.1.190, same hour:
