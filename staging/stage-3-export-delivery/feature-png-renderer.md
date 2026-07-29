@@ -1,5 +1,5 @@
 # Feature: Page PNG Renderer
-_Stage: stage-3-export-delivery · Status: awaiting verification_
+_Stage: stage-3-export-delivery · Status: verified done_
 
 ## Goal
 Render each page to one PNG of exactly `1200 × page.height`, with the pen layer baked in and
@@ -15,88 +15,88 @@ fallback, and day-one CI visual regression across all three browser engines.
 ## Success Criteria
 
 ### The render contract
-- [ ] Every page PNG is **exactly `1200 × page.height`** where `page.height` is the value in
+- [x] Every page PNG is **exactly `1200 × page.height`** where `page.height` is the value in
       `site.json` (§4.2), at 1:1 scale — **no `devicePixelRatio` multiplication** (§4.3, ruled
       2026-07-28; revisit to 2× only as a spec revision, never as an ad-hoc toggle)
-- [ ] The render is a dedicated **export root**, not a screenshot of the live editor: the editor
+- [x] The render is a dedicated **export root**, not a screenshot of the live editor: the editor
       page is fit-to-window scaled and carries chrome. The HEIGHT is not a difference between them
       — §4.2 v2.2 gave both **one shared function**, `clamp(1600, ceil((bottom+160)/8)*8, 8000)`,
       and the renderer calls the shipped `pageHeightForContent` rather than a second formula. The
       renderer sizes itself from `site.json` only
-- [ ] **No editor chrome**: no selection outlines, resize handles, grid dots, hover states,
+- [x] **No editor chrome**: no selection outlines, resize handles, grid dots, hover states,
       cursors, page tabs or toolbars. White page background beneath the blocks
-- [ ] **Pen layer baked in, above all blocks, exactly as drawn** — rendered from the in-memory
+- [x] **Pen layer baked in, above all blocks, exactly as drawn** — rendered from the in-memory
       `page.penStrokes`, **without** the RDP simplification `site.json` applies at ε = 0.75 (§4.5),
       so the PNG shows exactly what the editor showed. (Stage 2 already thins once on commit; the
       export's RDP pass is a second, JSON-only reduction and must not be written back into the
       strokes the renderer reads — that would make the promise "the PNG loses nothing" false by a
       round of double-thinning.)
-- [ ] Empty image slots render their dashed placeholder frame + description text, as the editor
+- [x] Empty image slots render their dashed placeholder frame + description text, as the editor
       shows them (§4.3 — the PNG must show what the client saw)
-- [ ] Filled image slots render the uploaded image with its `fit`, straight from the block's
+- [x] Filled image slots render the uploaded image with its `fit`, straight from the block's
       `imageData` **data URI** — Stage 2 already stores compressed photos that way, which
       satisfies debate #1's same-origin constraint with no conversion step and removes canvas
       tainting as a failure mode
-- [ ] File name `pages/<NN>-<slug>.png`, `NN` zero-padded 2-digit 1-based page order, matching
+- [x] File name `pages/<NN>-<slug>.png`, `NN` zero-padded 2-digit 1-based page order, matching
       `page.screenshot` exactly (V17 recomputes it if not)
 
 ### The clip rule (resolves the Stage 1 close-out INFO, item 8)
-- [ ] **The exported page rectangle is `[0, 1200) × [0, page.height)` and the PNG is that
+- [x] **The exported page rectangle is `[0, 1200) × [0, page.height)` and the PNG is that
       rectangle, pixel for pixel.** PNG pixel `(px, py)` shows page point `(px, py)`. No scaling,
       no translation, no letterboxing, no "fit the content" mode, and the render **never widens**
       to accommodate an overflowing block. The export width IS the page
-- [ ] A block with `x + w > 1200` (still reachable — **not** by dragging: `clampPosition` now
+- [x] A block with `x + w > 1200` (still reachable — **not** by dragging: `clampPosition` now
       enforces full containment, so no gesture in the editor can push a block past the right edge.
       An IMPORTED `.blueprint` file can carry any geometry it likes, and that is the case this rule
       exists for) renders its on-page part and is **cut at the exact pixel column 1199** — not
       shrunk, not nudged left
-- [ ] The same clip applies at `x < 0` and at `y < 0` (§4.3 already states the negative-y clip);
+- [x] The same clip applies at `x < 0` and at `y < 0` (§4.3 already states the negative-y clip);
       there is no bottom clip, because `page.height` is derived from the lowest content
-- [ ] Mechanically the clip is the export root's own box: `width: 1200px; height: <H>px;
+- [x] Mechanically the clip is the export root's own box: `width: 1200px; height: <H>px;
       overflow: hidden`, asserted by a test on the computed style — one CSS property is the whole
       rule, and it cannot be accidentally disabled without that test going red
-- [ ] The three companion behaviours live where they belong and are cross-referenced here:
+- [x] The three companion behaviours live where they belong and are cross-referenced here:
       `site.json` keeps the **true** frame (`feature-site-json-generator.md`; the schema permits
       `x`/`w` past 1200 per §2.6 and the builder needs the real geometry), `brief.md` marks the
       bullet (**[N13]**, `feature-brief-generator.md`), and the validator **WARNs** (**V25**) —
       never BLOCKs, because a clipped sliver must not stop a client from submitting
 
 ### One interface, two engines
-- [ ] A single exported function `renderPagePng(spec): Promise<PageRenderResult>` is the only
+- [x] A single exported function `renderPagePng(spec): Promise<PageRenderResult>` is the only
       way anything in the app produces a page PNG. Engines implement one small interface and are
       selected inside it; no caller ever names an engine
-- [ ] **snapdom is primary, html-to-image is the API-comparable fallback** (debate #1 verdict).
+- [x] **snapdom is primary, html-to-image is the API-comparable fallback** (debate #1 verdict).
       Both are MIT and both are hard dependencies — the fallback is not optional, it is the
       mitigation
-- [ ] `PageRenderResult` reports `{ blob, width, height, engine, attempts, inkRatio,
+- [x] `PageRenderResult` reports `{ blob, width, height, engine, attempts, inkRatio,
       hasStrokes }`; `hasStrokes` is how the zip's compression ladder learns which pages are
       lossless-only (§4.3), so the packer never has to re-derive it
 
 ### Sanity validation, retry and fallback (binding mitigation)
-- [ ] Every produced PNG passes **client-side sanity validation before packaging proceeds**:
+- [x] Every produced PNG passes **client-side sanity validation before packaging proceeds**:
       (a) it **decodes**; (b) its dimensions are **exactly** `1200 × page.height` — checked twice,
       once from the decoded bitmap and once by parsing the PNG IHDR bytes (a pure function,
       unit-testable without a browser); (c) it is **non-blank** by pixel variance
-- [ ] Non-blank is defined, not vibes: sample the decoded image downscaled by a named
+- [x] Non-blank is defined, not vibes: sample the decoded image downscaled by a named
       `INK_SAMPLE_DIVISOR`, and require **at least two distinct luminance buckets** always, plus
       `inkRatio ≥ MIN_INK_RATIO` (fraction of sampled pixels differing from the page white by
       more than a named threshold) whenever the page has ≥1 block. A near-empty page is a V9
       WARN, not a renderer failure — the check must not punish it
-- [ ] **Ladder: primary → primary retry → fallback engine → V6 BLOCK.** The retry first awaits
+- [x] **Ladder: primary → primary retry → fallback engine → V6 BLOCK.** The retry first awaits
       `document.fonts.ready` and one animation frame (the classic cause of a blank or
       wrong-font capture); the fallback runs the other engine on the same export root; a failure
       after all three attempts raises V6 with the client-facing "export hiccup, try again"
       wording and the engine/attempt detail for the console
-- [ ] A guard rejects impossible geometry before rendering: `page.height > MAX_SAFE_RENDER_HEIGHT_PX`
+- [x] A guard rejects impossible geometry before rendering: `page.height > MAX_SAFE_RENDER_HEIGHT_PX`
       fails sanity rather than silently producing a truncated or empty canvas
 
 ### CI visual regression across the three engines (day-one, binding)
-- [ ] A committed fixture design renders in chromium, firefox and webkit, and each engine's
+- [x] A committed fixture design renders in chromium, firefox and webkit, and each engine's
       output is compared against **its own committed baseline** with a small pixel tolerance
-- [ ] Plus a **cross-engine** assertion no per-engine baseline can give: the three engines agree
+- [x] Plus a **cross-engine** assertion no per-engine baseline can give: the three engines agree
       on exact dimensions, and their `inkRatio` values lie within a named tolerance band of each
       other — this is what catches "WebKit rendered half the page" on the first run
-- [ ] Baselines are per Playwright project **and** platform (Playwright's own suffixing); a
+- [x] Baselines are per Playwright project **and** platform (Playwright's own suffixing); a
       missing baseline fails loudly rather than passing silently
 
 ## How We'll Verify
@@ -260,6 +260,24 @@ inspected, committed, and the six comparisons now run and pass on Linux CI (run 
 superseded MAX_SAFE_RENDER_HEIGHT_PX recommendation block below is archived history — main's
 clampPosition is now full-containment (blocks cannot be dragged past any page edge), and the
 constant was deliberately kept at its strictly-safe old ceiling (see merge commit e485210).
+
+**Independent review (2026-07-28):** re-ran at 4168a2a — lint clean · **62 files / 1203
+tests** · coverage exit 0 (`src/export/png` 94.81 / 96.55 / 96.11) · build **300.67 kB** with
+all four seams grep-negative · e2e ×2 both **514 passed / 2 skipped**, 0 flaky, **all six
+per-engine visual comparisons ran and passed** (no baseline-missing warning — the -win32 set
+was genuinely compared). All **12 committed baselines** (6 win32 + 6 linux) inspected
+byte-level with the round-trip gate's own decoder: every one exactly **1200×1600**, IHDR
+agreeing with the bitmap, non-blank, variance 1896–2416; Linux and win32 variances agree
+within **0.2%** — positive evidence the Linux set is a real render, not a placeholder. The
+`dpr: 1` guard confirmed at browserPngPorts.ts:60 (+ pixelRatio: 1 at :74). Baseline-gate
+logic verified in source AND empirically at both ends (CI green on Linux at 14cfba4; local
+Windows comparisons executed). Live site 200 serving hashes byte-identical to a local build.
+Merge-train integration calls all APPROVED on inspection (MIN_ON_PAGE_PX test rebuilt at full
+strength incl. the unclamped 8160 case; MAX_SAFE_RENDER_HEIGHT_PX kept as strictly-safe
+headroom; baseline gate hard-fails in CI / skips-with-warning off-CI, both directions proven).
+**VERIFIED DONE.** Doc-only corrections assigned to the zip/submit batch: mark the Linux-
+baselines Open Question RESOLVED (the file currently contradicts its own merge-train note) and
+refresh stale branch-time numbers (tests 860/46 → 1203/62, E2E 454 → 514, build → 300.67 kB).
 
 ## Open Questions
 

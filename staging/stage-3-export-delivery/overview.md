@@ -24,7 +24,7 @@ wired LAST, per Cam. Submit is fully functional without it.
       the shared validator module (V1–V24 + the two additions) with a red-path test per rule
 - [ ] feature-brief-generator.md — `generateBrief(siteJson)`, the §3.2 template + [N1]–[N12]
       narration algorithms, escaping §3.3, and the byte-exact CI equality test against §7.2
-- [ ] feature-png-renderer.md — one page PNG at exactly `1200 × page.height`, pen baked in,
+- [x] feature-png-renderer.md — one page PNG at exactly `1200 × page.height`, pen baked in,
       snapdom → html-to-image behind ONE interface, sanity validation + retry + engine
       fallback, the x>1200 clip rule, tri-engine visual regression
 - [ ] feature-package-zip.md — §1 layout, deterministic compression ladder, size meter, UUID

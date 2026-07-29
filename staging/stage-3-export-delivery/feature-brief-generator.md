@@ -263,6 +263,23 @@ geometry.mjs` clusters with an **exclusive** box intersection while [N7] v2.3 ru
 **inclusive**; the two differ only for exactly-touching expanded boxes, but it is a real
 divergence.
 
+**Independent review (2026-07-28):** re-ran at 4168a2a — lint clean · **62 files / 1203
+tests** · coverage exit 0 (`src/export/brief` 96.99 / 98.4 / 98.09) · build green · e2e ×2
+both **514 passed / 2 skipped**. **Equality test B independently reproduced byte-for-byte:**
+both sides **14 016 B**, sha256
+`e8ae78bfe7596b3acbf610ab690677d984a950af68a31f263fc09d910c750412` — identical to the recorded
+hash, recomputed fresh with both blocks extracted from the current **v2.4 FROZEN** doc at test
+time. Test B shown genuinely **sensitive**: single-character mutations at twelve offsets each
+break equality; a whitespace-only re-wrap is caught. Test C's normalize-match + byte-mismatch
+both hold. generateBrief on a non-fixture document leaked no internal id; the [N11] KB
+formatter is load-bearing (halving bytes moves `~210 KB` → `~105 KB`).
+**NOT VERIFIED DONE — BOUNCE.** Blockers: (1) no E2E exercises generateBrief (discharging via
+the zip/submit batch's gate-exit-0 E2E); (2) the committed wide-fixture snapshot file specified
+by Verify step 6 does not exist — RULED: commit it via toMatchFileSnapshot (the readable-diff
+rationale stands), keeping the 21 invariant tests; (3) step 1's deliberate-failure
+demonstration against src/export/brief/ still unrun — one real rule-constant mutation with the
+first-divergence output recorded. Fixes assigned to the zip/submit batch.
+
 ## Open Questions
 _All three were **RULED and applied** in the export-format v2.1 amendment (rule 10 unwrapped
 logical lines + regenerated §7.2; frame-tuple-anchored V7; [N13] and the `*` escape), and v2.3

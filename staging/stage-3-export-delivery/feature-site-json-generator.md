@@ -236,6 +236,32 @@ and documented in §7: its stroke arrays are abridged, "V22 would WARN on marks 
 a real zip, `designCreatedAt` (exported `null` — the caller supplies it), and the V25/V26/V27
 message wording once the submit UI exists.
 
+**Independent review (2026-07-28):** re-ran everything in a detached worktree at 4168a2a.
+`npm ci` 260 pkgs · `npm run lint` clean · `npm test` **62 files / 1203 tests** ·
+`npm run test:coverage` exit 0 (`src/export` 94.03 stmts / **100** funcs / 97.43 lines;
+`validate/rules` 94.66 / 98.56 / 96.22) · `npm run build` 300.67 kB ·
+`npm run e2e` ×2 both **514 passed / 2 skipped**, 0 flaky ·
+`scripts/roundtrip/selftest/run.mjs` **green + 45/45 mutations caught**.
+Appendix A **A** byte-identical (9432 B); **D**'s property holds (§7.1 fence 8649 B sha
+`28c5d5e2…` ≡ canonical serializer output). A **non-fixture** document (semantic ids, 2 pages,
+one photo in two slots, a sketch stroke ≥60% over a slot and an annotation overlapping only a
+section band) driven through buildExportPayload → validatePackage → generateBrief: id remap
+**total** (no internal id in site.json OR brief.md; remap table absent), pen roles correct
+(sketch → the slot; annotation → `null`, **refusing the section** per §4.5 v2.4), slugs
+`index-page`/`menu`, heights recomputed independently and matching, two slots sharing one photo
+→ **one img_001, one staged file**, empty slot → `assetId: null`, V27 clean, C02 clean, report
+`level: ok` + one legitimate V22 WARN. Validator classes each probed: V11 FIX applied AND
+reported, input bundle unmutated; V19 first with its human sentence and jumpTo, never an ajv
+path; V02 audience:bug; V01 strictly last, ajv-formats proven live. Six red-path fixtures
+rebuilt from scratch — all fired, all silent on green. No purity violations; no test theatre.
+**NOT VERIFIED DONE — BOUNCE.** Blockers: (1) Appendix A test D is REQUIRED by the frozen v2.4
+contract and asserted nowhere CI runs — siteJson.test.ts compares vs §7.1 *re-serialized* (the
+option decisions.md explicitly rejected) under a NOTE whose "hand-formatted/810.0" claim is
+measurably false since v2.4; (2) Verify steps 6/7 unexecuted — no E2E touches
+buildSiteJson/validatePackage (genuinely blocked on zip/submit, now discharging via that
+batch); (3) the "three call sites … gate.mjs" criterion contradicts the gate's deliberate
+no-app-imports design — reword to the Stage 4 harness. Fixes assigned to the zip/submit batch.
+
 ## Open Questions
 - **V25 (right-overflow WARN) and V26 (blank button label / empty nav bar, client-facing
   BLOCK)** are proposed in `overview.md` Open Questions 3 and 4 and are implemented here once
