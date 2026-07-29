@@ -1291,6 +1291,13 @@ one; they agree, so the copy is faithful and the token is genuinely dead at sour
 14:49 UTC is when the **previous** commit's CI finished (`07f909b` pushed 14:14:01Z + 35m07s), so
 the live bundle is still `07f909b`'s. **Both blockers must clear before run 3 (A/deployed).**
 
+**Update — this blocker has since cleared (15:13 UTC).** CI `30461384988` finished green (40m26s)
+and Pages now serves `assets/index-CQhEMnMO.js` (`Last-Modified: 15:12:55 GMT`) — **byte-identical
+to the local HEAD build**. Confirmed still true at the HEAD this entry was committed at: this
+commit is docs-only, and `npm run build` at it emits the same `index-CQhEMnMO.js`, so the
+in-flight docs deploy cannot move the bundle either. **R3.6 is satisfied; auth is the only
+remaining blocker.**
+
 **THE VALUABLE HALF — all three previously-fixed blockers now proven live, at HEAD, against the
 real CLI rather than the mock.** Until this run each had only been exercised by `--mock-builder` or
 by a standalone probe; here they ran inside a real gating-shaped run:
@@ -1313,9 +1320,9 @@ failure-class routing table — neither routes to Stage 2 or Stage 3, and neithe
 
 **Nothing was weakened.** No threshold, scan rule, scenario, prompt, rubric or manifest was edited.
 
-**To resume:** (1) Cam runs `claude` interactively and `/login`, verified by a scrubbed-env probe;
-(2) CI `30461384988` finishes and the live bundle hash equals the local HEAD build; (3) re-run
-How-We'll-Verify 6–11 unchanged.
+**To resume — one blocker left:** Cam runs `claude` interactively and `/login`, confirmed by a
+**scrubbed-env** probe (not the file timestamp), then re-run How-We'll-Verify 6–11 unchanged. The
+deploy precondition is already met, so all three legs can go as soon as auth is live.
 
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
