@@ -18,7 +18,7 @@
 import { execFile } from 'node:child_process';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import AdmZip from 'adm-zip';
@@ -381,7 +381,10 @@ async function assertDeployedFreshness(manifest) {
     // Windows resolves `npm` through a .cmd shim, which Node will not spawn directly.
     shell: process.platform === 'win32',
   });
-  const { DEPLOYED_BASE_URL } = await import(path.join(REPO_ROOT, 'site.config.ts'));
+  // ESM import() takes a URL, not a filesystem path. On Windows an absolute path is read
+  // as the protocol "c:" and rejected, which aborted the deployed leg as INFRA before it
+  // could run at all. manifest-diff.mjs already converts; this matches it.
+  const { DEPLOYED_BASE_URL } = await import(pathToFileURL(path.join(REPO_ROOT, 'site.config.ts')).href);
   const check = await assertDeployedIsHead({
     distIndexHtml: path.join(REPO_ROOT, 'dist', 'index.html'),
     deployedUrl: DEPLOYED_BASE_URL,
