@@ -1,0 +1,331 @@
+/*
+ * The submit takeover replaces the whole editor body, so it owns the scrolling
+ * the same way `.canvas-area__viewport` does — `min-height: 0` on the flex child,
+ * `overflow: auto` inside. Nothing here may make the app shell taller than the
+ * window (see the block comment in App.css).
+ */
+
+.submit {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--boss-canvas-bg);
+}
+
+.submit__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--boss-surface);
+  border-bottom: 1px solid var(--boss-line);
+}
+
+.submit__heading {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.submit__header .submit__secondary {
+  margin-left: auto;
+}
+
+.submit__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.submit__form,
+.submit__findings,
+.submit__complete {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  /* A form is a reading task: a 40-em measure beats a 1900px one. */
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line);
+  border-radius: var(--boss-radius);
+}
+
+.submit__lede {
+  margin: 0 0 0.5rem;
+  color: var(--boss-text-muted);
+}
+
+.submit__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.submit__label-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.submit__control,
+.submit__address {
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  color: var(--boss-text);
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+}
+
+.submit__control[aria-invalid='true'] {
+  border-color: var(--boss-danger);
+}
+
+.submit__error {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--boss-danger);
+}
+
+/*
+ * THE HONEYPOT. Off-screen rather than `display: none` — a bot that skips hidden
+ * fields is exactly the bot this is for. Unfocusable via `tabIndex={-1}` in the
+ * component, so no keyboard user can ever land in it by accident.
+ */
+.submit__quill {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.submit__send {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border: 1px solid transparent;
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.submit__send:hover {
+  filter: brightness(1.06);
+}
+
+.submit__secondary,
+.submit__link-button {
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--boss-text);
+  background: var(--boss-band);
+  border: 1px solid var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.submit__link-button {
+  align-self: flex-start;
+}
+
+.submit__secondary:hover,
+.submit__link-button:hover {
+  border-color: var(--boss-select);
+}
+
+.submit__progress {
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  background: var(--boss-surface);
+  border: 1px solid var(--boss-line);
+  border-radius: var(--boss-radius);
+}
+
+/* Findings and warnings ---------------------------------------------------- */
+
+.submit__findings-heading,
+.submit__step-heading,
+.submit__filler-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.submit__findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submit__finding {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--boss-band);
+  border-left: 3px solid var(--boss-accent);
+  border-radius: 0 var(--boss-radius) var(--boss-radius) 0;
+}
+
+.submit__finding-message {
+  font-size: 0.9rem;
+}
+
+/* The V23 pre-flight ------------------------------------------------------- */
+
+.submit__filler {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--boss-band);
+  border: 1px dashed var(--boss-line-strong);
+  border-radius: var(--boss-radius);
+}
+
+.submit__filler-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submit__filler-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.submit__filler-where {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--boss-text-muted);
+}
+
+.submit__filler-text {
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.submit__filler-note,
+.submit__note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--boss-text-muted);
+}
+
+/* The completion screen ---------------------------------------------------- */
+
+.submit__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submit__step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--boss-line);
+  border-radius: var(--boss-radius);
+}
+
+.submit__step--done {
+  background: var(--boss-band);
+  border-color: var(--boss-line-strong);
+}
+
+.submit__step p {
+  margin: 0;
+}
+
+.submit__filename {
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.submit__size {
+  font-size: 0.85rem;
+  color: var(--boss-text-muted);
+}
+
+.submit__mailto {
+  padding: 0.55rem 1rem;
+  font-weight: 700;
+  color: var(--boss-text-invert);
+  text-decoration: none;
+  background: var(--boss-ink);
+  border-radius: var(--boss-radius);
+}
+
+.submit__address-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.submit__address {
+  min-width: 14rem;
+  font-size: 0.85rem;
+}
+
+.submit__reference {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--boss-text-muted);
+}
+
+.submit__warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--boss-line);
+}
+
+/* The header control ------------------------------------------------------- */
+
+.submit-open {
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--boss-ink);
+  background: var(--boss-accent);
+  border: 1px solid transparent;
+  border-radius: var(--boss-radius);
+  cursor: pointer;
+}
+
+.submit-open:hover {
+  filter: brightness(1.06);
+}

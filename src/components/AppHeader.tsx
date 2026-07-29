@@ -1,3 +1,5 @@
+import { SubmitButton } from './submit/SubmitButton.tsx'
+
 import { DesignFileControls } from './DesignFileControls.tsx'
 
 import './AppHeader.css'
@@ -16,6 +18,8 @@ export function AppHeader() {
       <p className="app-header__tagline">{APP_TAGLINE}</p>
       {/* Whole-design actions, deliberately away from the per-block toolbar. */}
       <DesignFileControls />
+      {/* The ending. Last in the row because it is the last thing you do. */}
+      <SubmitButton />
     </header>
   )
 }

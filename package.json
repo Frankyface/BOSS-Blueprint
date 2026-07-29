@@ -23,6 +23,7 @@
     "@zumer/snapdom": "^2.23.1",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "fflate": "^0.8.3",
     "html-to-image": "^1.11.13",
     "perfect-freehand": "^1.2.3",
     "react": "^19.2.7",

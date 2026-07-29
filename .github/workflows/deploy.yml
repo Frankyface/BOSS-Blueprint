@@ -65,6 +65,26 @@ jobs:
       - name: Unit tests with coverage
         run: npm run test:coverage
 
+      # The round-trip package gate is a SEPARATE program with its own lockfile:
+      # it imports no app code on purpose (scripts/roundtrip/README.md), so a
+      # validator bug in src/export cannot hide from it. Its dependencies are not
+      # vendored, and e2e/submit.spec.ts shells out to it, so it must be installed
+      # before the E2E run.
+      - name: Install round-trip gate dependencies
+        run: npm ci --prefix scripts/roundtrip
+
+      # 45 mutations of a known-good package, each of which must be caught by the
+      # RIGHT check. This is what makes "the gate passed" mean something.
+      - name: Round-trip gate self-test
+        run: node selftest/run.mjs
+        working-directory: scripts/roundtrip
+
+      # Appendix A equality test A, runnable without the app's test runner: the
+      # shipped schema must byte-match the fenced block in export-format.md §2.2.
+      - name: Schema sync check (Appendix A test A)
+        run: node extract-schema.mjs --check ../../src/export/schema/site.v1.schema.json
+        working-directory: scripts/roundtrip
+
       # Production-mode build that additionally carries the window store seam
       # Playwright asserts on (see src/store/testBridge.ts). Same base path, same
       # bundler settings — only the test hook differs from the deployed build.

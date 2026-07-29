@@ -10,8 +10,10 @@ import { DesignToast } from './components/DesignToast.tsx'
 import { PageStrip } from './components/PageStrip.tsx'
 import { SidePanel } from './components/SidePanel.tsx'
 import { StorageNotice } from './components/StorageNotice.tsx'
+import { SubmitView } from './components/submit/SubmitView.tsx'
 import { TemplatePicker } from './components/TemplatePicker.tsx'
 import { requestDesignImport } from './store/designFileSession.ts'
+import { useSubmitStore } from './store/submitStore.ts'
 
 import './App.css'
 
@@ -39,6 +41,14 @@ function draggedDesignFile(event: ReactDragEvent<HTMLDivElement>): File | null {
  *    so dragging a photo onto the palette still does what the browser would do.
  */
 export function App() {
+  /*
+   * Submit TAKES OVER the editor body rather than floating above it (see
+   * `SubmitView`). Nothing is lost by unmounting the canvas — the document lives
+   * in the store, and the PNG renderer mounts its own offscreen root — and it
+   * means the form gets the whole width instead of a 304px column.
+   */
+  const isSubmitting = useSubmitStore((state) => state.screen !== 'closed')
+
   const handleDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
     if (event.defaultPrevented) return
     // Without preventDefault the browser refuses the drop and opens the file itself.
@@ -62,13 +72,19 @@ export function App() {
       <DesignImportConfirm />
       <DesignToast />
       <div className="app-shell__body">
-        <BlockPalette />
-        <div className="app-shell__stage">
-          <PageStrip />
-          <CanvasArea />
-          <BlankStartCoach />
-        </div>
-        <SidePanel />
+        {isSubmitting ? (
+          <SubmitView />
+        ) : (
+          <>
+            <BlockPalette />
+            <div className="app-shell__stage">
+              <PageStrip />
+              <CanvasArea />
+              <BlankStartCoach />
+            </div>
+            <SidePanel />
+          </>
+        )}
       </div>
       <TemplatePicker />
     </div>

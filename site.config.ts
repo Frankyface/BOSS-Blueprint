@@ -22,3 +22,18 @@ export const PREVIEW_HOST = '127.0.0.1'
 
 /** Full URL of the previewed production build, including the Pages base path. */
 export const PREVIEW_BASE_URL = `http://${PREVIEW_HOST}:${PREVIEW_PORT}${BASE_PATH}`
+
+/**
+ * WHERE A FINISHED PACKAGE GOES.
+ *
+ * Download-first delivery (`docs/decisions.md` 2026-07-27 debate #2) makes this a
+ * PUBLIC BUSINESS ADDRESS, not a secret: the client's own mail client sends to it
+ * and the completion screen shows it as copyable text. It lives here beside the
+ * other deployment constants rather than inline in a component so there is one
+ * place to change it (`feature-submit-gate.md` open question).
+ *
+ * The value is the address `help.md` names as the working destination today. Cam
+ * has an open item there to confirm it or swap in a BOSS mailbox — a one-line
+ * change with no code around it.
+ */
+export const BOSS_SUBMIT_EMAIL = 'cammer3034@gmail.com'
