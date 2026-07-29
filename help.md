@@ -4,6 +4,14 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
 
 ## Open
 
+- [ ] **Confirm the submit destination address** — the gated submit now ships, and its
+  completion screen shows a real address (prefilled `mailto:` + copyable text). It is set to
+  `cammer3034@gmail.com` in `site.config.ts` (`BOSS_SUBMIT_EMAIL`) — the working address this
+  file already named. Say the word and it becomes a BOSS mailbox instead: it is one constant,
+  no code around it. Worth knowing before launch: the address is visible on a public page, so
+  a BOSS mailbox may be preferable to a personal one. **Blocks: nothing** — submit is fully
+  functional today; this is a "is that the inbox you want it landing in?" question.
+
 - [ ] **Create the email relay account** — the app has no backend, so submissions are emailed
   via a client-side relay service. Which service is decided by Fable debate #2 (see
   docs/decisions.md once recorded). When decided, create the free-tier account, configure the

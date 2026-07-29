@@ -92,27 +92,38 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
       client-facing BLOCK rules → bug-class BLOCK rules → V1 schema → WARN rules. A client who
       left a text box empty sees "write something or switch it to 'Write it for me'", never a
       schema error
-- [ ] The same module runs unchanged in three call sites (§5): the app at submit, Vitest against
-      fixtures, and `scripts/roundtrip/gate.mjs` against an extracted zip
+- [ ] The same module runs unchanged in its three call sites (§5): the app at submit, Vitest
+      against fixtures, and the **Stage 4 round-trip harness** against an extracted package.
+      (Corrected 2026-07-28: `scripts/roundtrip/gate.mjs` is deliberately NOT one of them — it
+      imports no app code, precisely so that a validator bug in `src/export/validate` cannot
+      agree with itself into a green gate. See `scripts/roundtrip/README.md`.)
 - [ ] `src/export/**` holds ≥80% lines and functions under `npm run test:coverage`
 
 ## How We'll Verify
 
+_(File names corrected 2026-07-28 to what was actually built. The transform's per-topic tests
+landed as `describe` blocks inside `src/export/siteJson.test.ts` rather than as separate files,
+and the per-rule validator files landed as one `rules.test.ts` plus `schemaCheck.test.ts` for
+the async V1. The assertions below are unchanged; only the paths were drifting.)_
+
 1. **Unit — transform (`npm test`)**
-   - `src/export/ids.test.ts` — §4.8 ordinal assignment across a 3-page fixture with
-     interleaved z; asserts `pg_0001..`, site-wide `blk_0001..`, `nav_0001..`, `stk_0001..`;
-     asserts `link.pageId` and `targetBlockId` were rewritten to the new ids; asserts
+   - `src/export/siteJson.test.ts` › **§4.8 identity remap** — ordinal assignment across the
+     fixture; asserts `pg_0001..`, site-wide `blk_0001..`, `nav_0001..`, `stk_0001..`; asserts
+     `link.pageId` and `targetBlockId` were rewritten to the new ids; asserts
      `JSON.stringify(siteJson).includes('rest-home-hero-title') === false` for a document seeded
      with semantic internal ids.
    - `src/export/slug.test.ts` — table test: `"Café Münster" → cafe-munster`; `"🙂🙂" → page-3`
      (3rd page); `"Menu" ×3 → menu, menu-2, menu-3`; each reserved name → `<name>-page`; a
      42-char name truncates to ≤36 at a `-` boundary and still admits `-2` under the schema's
      40-char cap; `"---" → page-N`.
-   - `src/export/pageHeight.test.ts` — `maxBottom` from a block, from a stroke point below every
-     block, the **1600 floor** (v2.2 unified heights) on a near-empty page, and the ceil-to-8
-     rounding; asserts the §7.1 numbers exactly: Home and Contact both floor-clamp to `1600`
-     (Home bottom 1060 → 1224 → clamped; Contact bottom 640 → 800 → clamped).
-   - `src/export/assets.test.ts` — first-use numbering when the second page reuses the first
+   - `src/export/siteJson.test.ts` › **§4.2 page height** (with `src/canvas/geometry.test.ts` ›
+     `pageHeightForContent`, which owns the shared function itself) — `maxBottom` from a block,
+     from a stroke point below every block, the **1600 floor** (v2.2 unified heights) on a
+     near-empty page, and the ceil-to-8 rounding; asserts the §7.1 numbers exactly: Home and
+     Contact both floor-clamp to `1600` (Home bottom 1060 → 1224 → clamped; Contact bottom
+     640 → 800 → clamped).
+   - `src/export/siteJson.test.ts` › **§4.6 assets** (with `src/export/imageHeader.test.ts` for
+     the header parsing) — first-use numbering when the second page reuses the first
      page's photo (stays `img_001`, one staged file, both slots pointing at it);
      extension-from-MIME for all three types; `bytes` equals the decoded base64 length;
      `width`/`height` parsed from committed PNG, JPEG and WebP fixture headers and asserted
@@ -122,9 +133,13 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
      overlap-most vs nearest-center-within-200px vs `null`; RDP ε = 0.75 removes collinear
      points and keeps endpoints; 1-decimal rounding.
    - `src/export/siteJson.test.ts` — full transform on the §7.1-equivalent document:
-     `expect(serialize(buildSiteJson(fixture))).toBe(readSection71())` after substituting the
-     minted submission block, proving key order, indentation and `'' → null` in one assertion.
-2. **Unit — validator (`npm test`)** — `src/export/validate/rules/*.test.ts`, one file per rule.
+     `expect(serializeSiteJson(buildSiteJson(fixture, submission))).toBe(readSection71())`,
+     proving key order, indentation and `'' → null` in one assertion — plus **Appendix A
+     equality test D** in its own describe: `serializeSiteJson(JSON.parse(§7.1 text)) === §7.1
+     text`, both sides read from `docs/export-format.md` at test time (added 2026-07-28).
+2. **Unit — validator (`npm test`)** — `src/export/validate/rules/rules.test.ts` (V2–V27, one
+   describe per rule family) and `src/export/validate/rules/schemaCheck.test.ts` (V1, which is
+   async and needs its own ajv-formats proof).
    Each asserts (a) the rule is silent on the §7.1 fixture, (b) its red fixture produces exactly
    one finding with the right `rule`, `audience` and `jumpTo`, and (c) for FIX rules, the
    returned package is corrected and re-validates clean. V1's red set includes
@@ -134,9 +149,13 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
    simultaneously V19-dirty (blank real text) and V1-invalid asserts the report's first
    client-facing finding is V19, not V1; a package that is only FIX-dirty returns
    `level: 'ok'` with fixes applied and a schema-valid package.
-4. **Schema sync (`npm test`)** — `src/export/spec-sync.test.ts` **equality test A**: read the
-   fenced ```json block from `docs/export-format.md` §2.2 and
-   `src/export/schema/site.v1.schema.json`; `expect(fromDoc).toBe(fromRepo)` byte-for-byte.
+4. **Schema sync (`npm test`)** — `src/export/schema/schemaSync.test.ts` **equality test A**:
+   read the fenced ```json block from `docs/export-format.md` §2.2 and
+   `src/export/schema/site.v1.schema.json`; `expect(fromDoc).toBe(fromRepo)` byte-for-byte. Also
+   enforced OUTSIDE the app's runner from 2026-07-28, as a CI step:
+   `node extract-schema.mjs --check ../../src/export/schema/site.v1.schema.json` in
+   `scripts/roundtrip` (gate README §5.3) — verified locally:
+   `OK  ../../src/export/schema/site.v1.schema.json byte-matches export-format.md §2.2 (9430 B)`.
 5. **Coverage** — `npm run test:coverage` with a new per-glob threshold
    `'src/export/**': { lines: 80, functions: 80 }` in `vite.config.ts`; record the actual
    percentages in the log.
@@ -144,7 +163,9 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
    produced by the E2E submit: exits 0, prints the layout check, the ajv result and the
    validator replay. A deliberately corrupted zip (rename `site.json` → `Site.json`) exits
    non-zero naming the layout rule (V12). Both runs recorded.
-7. **E2E (`npm run e2e`)** — `e2e/export-sitejson.spec.ts`, ×3 engines: seed a fixture document
+7. **E2E (`npm run e2e`)** — `e2e/submit.spec.ts`, ×3 engines (the spec landed under that name
+   with the submit gate rather than as a separate `export-sitejson.spec.ts`, because a
+   `site.json` can only reach a browser THROUGH the submit flow): seed a fixture document
    through the test-only store seam (`npm run build:e2e` bundle only), submit through the real
    UI, capture the download, unzip in the test with `fflate`, `JSON.parse` `site.json` and
    assert: `schemaVersion === 1`; ids match `^pg_\d{4}$` / `^blk_\d{4}$`; every `link.pageId`
@@ -262,6 +283,34 @@ buildSiteJson/validatePackage (genuinely blocked on zip/submit, now discharging 
 batch); (3) the "three call sites … gate.mjs" criterion contradicts the gate's deliberate
 no-app-imports design — reword to the Stage 4 harness. Fixes assigned to the zip/submit batch.
 
+### 2026-07-28 — bounce blockers discharged by the zip/submit batch
+
+Status stays `awaiting verification`: the reviewer re-verifies after this lands.
+
+1. **Appendix A test D now exists and runs in CI.** `src/export/siteJson.test.ts` opens with
+   `describe('Appendix A equality test D — the canonical serializer owns §7.1')` asserting
+   `serializeSiteJson(JSON.parse(specSiteJsonText)) === specSiteJsonText`, both sides read from
+   `docs/export-format.md` at test time. The stale NOTE that claimed §7.1 was hand-formatted
+   (`810.0`, multi-value lines) is DELETED — measured this session, the §7.1 fence is byte-identical
+   to `JSON.stringify(parse, null, 2) + '\n'` (8643 B), so the strong form was available all
+   along. The fixture comparison was tightened to `toBe(specSiteJsonText)` at the same time, so
+   nothing in this file compares against a re-serialization any more.
+   `npx vitest run src/export/siteJson.test.ts` → **23 passed**.
+2. **Verify steps 6 and 7 are discharged.** `e2e/submit.spec.ts` (6 tests × chromium, firefox,
+   webkit — all green in the 532-test suite) drives a design through the real submit UI into
+   `buildExportPayload` → `validatePackage` → `generateBrief` → the zip, captures the browser
+   download, unzips it in Node, and asserts `schemaVersion`, the `pg_`/`blk_` id patterns, the
+   §1 entry list derived from `site.json` itself, and the no-BOM / no-CR / 2-space contract.
+   Step 6's gate run is in `feature-package-zip.md`'s log: **exit 0, `GATE PASSED — 35 pass,
+   2 warn, 0 fail, 1 skip`**, with the corrupted-zip negative control asserted in the same test
+   (an extra `notes.txt` → non-zero, naming V12).
+3. **The "three call sites … gate.mjs" criterion is reworded** to name the Stage 4 harness, with
+   the reason (`gate.mjs` imports no app code by design) stated inline.
+
+Also repaired in this pass: the mangled "Export page height ≠ editor page height" bullet (it had
+been half-overwritten by the v2.2 unification edit and read as a sentence fragment), the drifted
+test filenames in How We'll Verify, and the schema-sync path.
+
 ## Open Questions
 - **V25 (right-overflow WARN) and V26 (blank button label / empty nav bar, client-facing
   BLOCK)** are proposed in `overview.md` Open Questions 3 and 4 and are implemented here once
@@ -304,13 +353,15 @@ no-app-imports design — reword to the Stage 4 harness. Fixes assigned to the z
 - **Binding contract:** `docs/export-format.md` §2 (shape), §4.1 (slugs), §4.2 (height), §4.5
   (pen semantics), §4.6 (assets), §4.7 (discriminators), §4.8 (identity remap), §5 (V1–V24),
   §6 (forward compatibility). `docs/decisions.md` 2026-07-28 "Export format v2 adopted".
-- **Export page height ≠ editor page height, and that is deliberate.** The editor derives
-  `max(1600, lowest bottom + 160)` capped at 8000 (`feature-block-canvas.md` Notes); the export
-  uses §4.2's unified formula (v2.2: `clamp(1600, ceil((bottom+160)/8)*8, 8000)`, shared with the editor — heights now MATCH the editor exactly). In the §7 example both pages land on the 1600 floor (v2.2 unified heights).
-  between a 1600px on-screen page and an 800px PNG for Contact. `page.height` is the number the
-  PNG must match exactly (V6), so the renderer sizes itself from *this* module's output, never
-  from the live canvas DOM. Both formulas keep their own named constants; neither is "fixed" to
-  match the other.
+- **Export page height = editor page height, since v2.2** (this bullet used to say the opposite,
+  and was left as a mangled half-sentence by the v2.2 edit — repaired 2026-07-28). The editor
+  and the export now share ONE function, `pageHeightForContent` in `src/canvas/geometry.ts`,
+  implementing §4.2's `clamp(1600, ceil((bottom + 160) / 8) * 8, 8000)`. In the §7 example both
+  pages land on the 1600 floor. The earlier split — an 800px export floor against a 1600px
+  on-screen page — was what made "the PNG shows what the client saw" merely approximately true;
+  unifying it is what lets §4.3 say *literally*. `page.height` is still the number the PNG must
+  match exactly (V6), so the renderer sizes itself from **this module's output**, never from the
+  live canvas DOM.
 - **`z` is the array index, not a stored field.** Stage 1 ruled paint order = array order with
   no z-index field to drift (`feature-block-canvas.md` Notes). The export materializes `z` from
   the index, which is why V3's "z unique per page and `blocks[]` sorted ascending" is true by

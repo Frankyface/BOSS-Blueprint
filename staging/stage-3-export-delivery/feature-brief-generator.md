@@ -189,7 +189,10 @@ because they are properties of this generator's output.
 6. **Wider snapshot (`npm test`)** — `src/export/brief/__snapshots__/wide-fixture.md` committed
    as a file (not an inline snapshot) so review diffs are readable; regenerating it requires an
    explicit `-u` and shows up in the PR.
-7. **E2E (`npm run e2e`)** — `e2e/export-brief.spec.ts`, ×3 engines: submit a fixture design,
+7. **E2E (`npm run e2e`)** — `e2e/submit.spec.ts`, ×3 engines (landed under that name with the
+   submit gate rather than as a separate `export-brief.spec.ts`: a `brief.md` only reaches a
+   browser through the submit flow, and the round-trip gate is the thing that replays V7 on the
+   real package): submit a fixture design,
    unzip, read `brief.md`, and assert against the same `site.json` from the same zip: every page
    slug heading present; marker counts equal generate-block and empty-slot counts; every
    `blk_\d{4}` printed exists in `site.json`; inventory rows equal page count with matching
@@ -279,6 +282,68 @@ by Verify step 6 does not exist — RULED: commit it via toMatchFileSnapshot (th
 rationale stands), keeping the 21 invariant tests; (3) step 1's deliberate-failure
 demonstration against src/export/brief/ still unrun — one real rule-constant mutation with the
 first-divergence output recorded. Fixes assigned to the zip/submit batch.
+
+### 2026-07-28 — bounce blockers discharged by the zip/submit batch
+
+Status stays `awaiting verification`: the reviewer re-verifies after this lands.
+
+**(1) The E2E now exercises `generateBrief` end to end.** `e2e/submit.spec.ts`, 6 tests ×
+chromium/firefox/webkit, all green inside the 532-test suite. It submits through the real UI,
+captures the browser download, and reads `brief.md` back out of the zip — asserting the header
+comment carries the same `submission <uuid>` as `site.json`. V7 itself is replayed on that very
+package by `scripts/roundtrip/gate.mjs`, which the test requires to exit 0:
+
+```
+PASS  V07   brief.md cross-checks against site.json (markers, inventory, ids, quotes)
+              — 1 WRITE THIS COPY, 1 SOURCE AN IMAGE, 8 block bullets
+GATE PASSED — 35 pass, 2 warn, 0 fail, 1 skip (38 checks)     EXIT=0
+```
+
+That is V7 against a real package rather than a fixture, by a program that imports no app code
+— which is exactly what Verify step 7 asked for.
+
+**(2) The wide-fixture snapshot is now a committed file.**
+`src/export/brief/__snapshots__/wide-fixture.md`, **13 799 B / 157 lines**, written by a new
+`toMatchFileSnapshot` assertion at the end of `wideFixture.test.ts`. The **21 invariant tests
+are kept** — the file makes narration changes readable in a PR diff, the invariants are what
+still hold if the file is ever deliberately re-blessed. `npx vitest run
+src/export/brief/wideFixture.test.ts` → **22 passed** (21 + the snapshot); the file is LF-only
+(`.gitattributes` normalizes it).
+
+**(3) The deliberate-failure demonstration, run for real against `src/export/brief/`.**
+Mutation: `src/export/brief/layout.ts` `W_HALF_MIN` **600 → 300**, then
+`npx vitest run src/export/brief/`:
+
+```
+ ❯ src/export/brief/layout.test.ts (20 tests | 1 failed)
+     × treats w = 600 as about half the width and 599 as narrow
+ ❯ src/export/brief/wideFixture.test.ts (22 tests | 1 failed)
+     × matches the committed wide-fixture brief
+ ❯ src/export/brief/specEquality.test.ts (11 tests | 2 failed)
+     × is byte-exact
+     × hashes identically on both sides
+
+[test B] expected 14016 bytes sha256 e8ae78bfe7596b3acbf610ab690677d984a950af68a31f263fc09d910c750412
+[test B] actual   14100 bytes sha256 7c862ad3558e98b604967d9133db18aaceea7b75b1e6780b900283bda3bacaaf
+```
+
+First divergence in test B's diff (Home page walkthrough, [N4] width bucket):
+
+```
+- - **Text** narrow, on the left (80, 280, 560, 120): **WRITE THIS COPY** — …
++ - **Text** about half the width, on the left (80, 280, 560, 120): **WRITE THIS COPY** — …
+```
+
+with two further bullets flipping the same way (the 360-wide image slot and the 400-wide "Our
+story" heading). Reverted immediately; `git diff src/export/brief/layout.ts` is empty and
+`npx vitest run src/export/brief/` is back to **4 files / 68 tests passed**. One constant, four
+red tests across three files, and the exact prose line that moved — the sensitivity is real.
+
+**Stale counts corrected in this pass:** the implementer entry's "49 files / 876 tests" and the
+review entry's "62 files / 1203 tests · e2e 514" were both true when written and are both
+superseded; as of this batch the suite is **76 files / 1312 unit tests** and **532 E2E / 2
+skipped**. Equality test B's hash is unchanged (`e8ae78bf…`, 14 016 B) — this batch touched no
+narration rule.
 
 ## Open Questions
 _All three were **RULED and applied** in the export-format v2.1 amendment (rule 10 unwrapped

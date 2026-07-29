@@ -180,17 +180,20 @@ Playwright config identical to `playwright.config.ts` except the preview port (4
 
 **Commands and results**
 
+_(Branch-time figures, refreshed 2026-07-28 where the repo has moved on. The renderer itself is
+unchanged; only the surrounding counts grew.)_
+
 | Command | Result |
 |---|---|
-| `npm ci` | 254 packages, 0 vulnerabilities |
+| `npm ci` | 254 packages at branch time → **260** on `main` today |
 | `npm install @zumer/snapdom@2.23.1 html-to-image@1.11.13` | both **MIT**, verified in `node_modules/*/LICENSE` and `npm view` |
 | `npm run lint` | clean |
 | `npx tsc -b` | clean |
-| `npm test` | **860 unit tests across 46 files, all pass** — 55 of them new (6 files under `src/export/png/`) |
-| `npm run test:coverage` | exit 0; `src/export/png` **94.84% stmts / 96.13% lines**; global 80.4% stmts |
-| `npm run build` | 295.11 kB — seam **absent**: `__blueprintRenderPagePng`, `export-engine`, `snapdom` all grep-negative |
+| `npm test` | branch: **860 unit tests / 46 files**; on `main` after the merge train: **1203 / 62**, and **1312 / 76** after the zip + submit batch — 55 of the originals new (6 files under `src/export/png/`) |
+| `npm run test:coverage` | exit 0; `src/export/png` **94.84% stmts / 96.13% lines** at branch time, **94.81 / 96.11** today; global 80.4% stmts |
+| `npm run build` | 295.11 kB at branch time → **300.67 kB** on `main` — seam **absent** either way: `__blueprintRenderPagePng`, `export-engine`, `snapdom` all grep-negative |
 | `npm run build:e2e` | 467.53 kB — all three grep-**positive** |
-| full E2E ×3 engines, runs 1–4 | **454 passed, 2 skipped** every time (4.1 / 4.5 / 4.1 / 4.0 min) |
+| full E2E ×3 engines, runs 1–4 | **454 passed, 2 skipped** every time (4.1 / 4.5 / 4.1 / 4.0 min); **514** after the merge train, **532** after the zip + submit batch |
 | the 4 new specs alone, ×3 engines, ×4 | **52 passed, 2 skipped** every time |
 
 The 2 skips are the cross-engine test declining to run a second and third time — it drives all
@@ -279,6 +282,14 @@ headroom; baseline gate hard-fails in CI / skips-with-warning off-CI, both direc
 baselines Open Question RESOLVED (the file currently contradicts its own merge-train note) and
 refresh stale branch-time numbers (tests 860/46 → 1203/62, E2E 454 → 514, build → 300.67 kB).
 
+**2026-07-28 — doc corrections applied by the zip/submit batch.** The Linux-baselines Open
+Question is marked RESOLVED (option 1, `14cfba4`) so it no longer contradicts the merge-train
+note above; the branch-time figures now carry their current values alongside. No renderer code
+was touched. The renderer also gained its FIRST PRODUCTION CALLER in that batch: the submit
+flow calls `renderPagePng` per page through `src/submit/appPorts.ts`, and `hasStrokes` now feeds
+the zip's compression ladder exactly as §4.3 requires — proven in three engines by
+`e2e/submit.spec.ts`, including the ladder's typed-failure path via `?submit-stub=render-fail`.
+
 ## Open Questions
 
 - **RESOLVED 2026-07-28 — `MAX_SAFE_RENDER_HEIGHT_PX = 12160`**, as recommended below, with the
@@ -294,15 +305,16 @@ refresh stale branch-time numbers (tests 860/46 → 1203/62, E2E 454 → 514, bu
   `pageHeightForContent` — one function, no second formula — which is what makes "exactly as the
   editor shows it" literally true. **The stale "floor 800" wording in the Success Criteria was
   struck when the renderer merged to main (2026-07-28).**
-- **OPEN, and the one thing blocking `verified done` — Linux visual baselines.** Playwright suffixes
-  baselines with the platform; the six committed ones are `-win32` and CI is `ubuntu-latest`, so
-  the first CI run fails with "A snapshot doesn't exist". Neither Docker nor WSL is available on
-  this machine, so they cannot be produced here. Options, in order of preference: (1) one
-  `workflow_dispatch` run with `--update-snapshots` and commit the six `-linux` files; (2) run the
-  suite once in the `mcr.microsoft.com/playwright` image on any Linux box; (3) if Cam decides CI
-  is the only platform that matters, delete the `-win32` set and keep `-linux` only. Do **not**
-  "fix" it by dropping the platform suffix — win32 and linux genuinely rasterize text differently
-  and a shared baseline would be permanently red or uselessly loose.
+- **RESOLVED 2026-07-28 (option 1) — Linux visual baselines.** Playwright suffixes baselines with
+  the platform; the six originally committed ones were `-win32` while CI is `ubuntu-latest`, so
+  the first CI run failed with "A snapshot doesn't exist". Neither Docker nor WSL was available
+  on the authoring machine. **Option 1 was taken:** a `workflow_dispatch` run with
+  `--update-snapshots` produced the six `-linux` files, which were inspected and committed
+  (commit `14cfba4`, "test(e2e): commit the Linux visual baselines, and make CI strict again").
+  All **12 baselines** (6 win32 + 6 linux) are now committed and the six Linux comparisons run
+  and pass on CI (run 30413744487). Kept here because the reasoning still binds: do **not**
+  "fix" a future platform gap by dropping the suffix — win32 and linux genuinely rasterize text
+  differently, and a shared baseline would be permanently red or uselessly loose.
 - **`MAX_SAFE_RENDER_HEIGHT_PX` value.** Worst case reachable in the editor: `clampPosition`
   allows `y ≤ MAX_PAGE_HEIGHT_PX − 24 = 7976` and `MAX_BLOCK_HEIGHT_PX = 4000`, so
   `maxBottom ≤ 11976` and §4.2 gives `height ≤ 12056` (1200 × 12056 = 14.5 Mpx — inside every

@@ -1,5 +1,5 @@
 # Feature: Gated Submit + Download-First Delivery
-_Stage: stage-3-export-delivery · Status: not started_
+_Stage: stage-3-export-delivery · Status: awaiting verification_
 
 ## Goal
 The one button the whole product leads to. Submit captures the lead (name + email + business
@@ -121,7 +121,100 @@ relay at all** — that is a Stage 3 DoD item, not a caveat.
 8. Record commands, exit codes, filenames, sizes and screenshots below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-28 — built and exercised end to end (awaiting independent verification)
+
+**Unit — `npx vitest run src/submit src/store/submitStore.test.ts src/export/delivery`**
+→ 39 + 16 tests, 0 failed. Full suite: **1312 passed** (1203 before this batch).
+
+- `src/submit/submitFlow.test.ts` (12) — the orchestration order is asserted with a
+  literal call log:
+  `['progress:checking', 'mint:uuid', 'progress:rendering', 'render:page-home',
+  'progress:rendering', 'render:page-contact', 'progress:packaging',
+  'progress:finishing', 'download:blueprint_bluebird-bakery_3f2a9c1e.zip', 'relay:send']`.
+  A separate assertion pins the load-bearing property on its own: with a client-facing
+  BLOCK seeded (V19 blank heading), **no `render:` entry appears at all** and no download
+  happens. The download index is asserted to precede the relay index. The receipt's zip
+  unzips to the §1 entry list; `ladderFired` is `false` on a normal package; a
+  non-render error is rethrown rather than swallowed as a render failure.
+- `src/submit/honeypot.test.ts` (9) — a non-empty decoy refuses, an untouched one
+  proceeds, and `HONEYPOT_REFUSAL` contains `BOSS_SUBMIT_EMAIL`. The three fields report
+  every problem at once; a missing email and a malformed one get different sentences.
+- `src/submit/submission.test.ts` (6) — `browserRandomUuid` matches the schema's v4
+  pattern via `crypto.randomUUID` **and** via the `getRandomValues` fallback (stubbed by
+  removing `randomUUID` from `crypto`), including the all-zero and all-`0xff` byte cases,
+  which is where a hand-rolled version/variant nibble would break.
+- `src/submit/templateFiller.test.ts` (5) — the pre-flight walk agrees with the
+  validator's `v23TemplateFiller` on the same design, and ignores a `section` carrying
+  the flag exactly as §2.6 requires.
+- `src/store/submitStore.test.ts` (8) — both refusals happen before any port is touched;
+  the business name is read from `siteSettings` rather than copied; `jumpToBlock` opens
+  the page, selects the block and closes the submit surface.
+- `src/export/delivery/relay.test.ts` (3) — `NoopRelay` resolves `{ status: 'skipped' }`,
+  never `sent`, and logs the payload it WOULD have sent through an injected sink.
+- `src/export/delivery/payload.test.ts` (8) — the degrade ladder's boundaries are driven
+  off the real serialized length: a limit one byte under the `full` payload's own size
+  produces `compressed`; a limit of 1 produces `metadata-only`. Name, email, UUID, uuid8,
+  page count, filename and the WARN list survive **all three** variants. The gzipped
+  `site.json` inflates back to a deep-equal object and is byte-stable across calls
+  (`mtime: 0`, so no wall clock in the gzip header).
+- `src/export/delivery/mailto.test.ts` (8) — spaces, `&` and newlines are percent-encoded
+  (the href contains no literal space or newline); a `«Café Ürsula»` business name
+  survives a decode round trip in both subject and body; the exact package filename
+  appears in the body; a 600-character business name still yields a URL under
+  `MAX_MAILTO_URL_LENGTH` with the filename intact.
+
+**Coverage — `npm run test:coverage`** → `src/submit` 93.33% statements, 95.83% lines,
+96% functions; `src/store` 92.66% lines, 96.13% functions; `src/export` 94.03% statements,
+97.43% lines, 100% functions. `src/submit/**` was ADDED to the 80% coverage gate in this
+batch, with `src/submit/appPorts.ts` excluded under the same rule `src/platform/**`
+follows (it is the one file that names a renderer, a download and a relay).
+
+**E2E — `npx playwright test`** → **532 passed / 2 skipped** on chromium + firefox +
+webkit, 7.4 min locally. `e2e/submit.spec.ts` (6 tests × 3 engines):
+
+1. *the full journey* — seed a design, open Submit, and:
+   - send with the business name missing → `submit-error-businessName` visible with
+     `role="alert"`, the view stays on `data-screen="form"`, no progress, no download;
+   - the V23 pre-flight lists exactly one block and shows its text (`123 Agricola St…`);
+   - fill the business name and send → `data-screen="blocked"`, exactly two findings,
+     one `data-rule="V05"` ("Tell us what to write here") and one `data-rule="V19"`
+     ("This text box is empty"); clicking V19's jump returns to the canvas with
+     `currentPageId === 'page-home'` and the block carrying `data-selected="true"`;
+   - fix both **through the UI** (double-click + type for the heading, the block
+     inspector's `copy-description` field for the generate block) and send again;
+   - the download fires, `suggestedFilename()` matches
+     `/^blueprint_[a-z0-9-]+_[0-9a-f]{8}\.zip$/`, and the unzipped entry list equals the
+     expectation derived from the package's own `site.json`;
+   - `node scripts/roundtrip/gate.mjs --package <zip> --no-manifest` **exits 0** and
+     prints `GATE PASSED`; the same gate on a copy with an extra `notes.txt` exits
+     non-zero naming **V12**;
+   - the completion screen shows the filename, `~<round(bytes/1024)> KB` of the file's
+     real size on disk, a `mailto:` href containing both the uuid8 and the filename, a
+     copyable address, `submit-uuid` equal to the JSON's first 8 hex, both WARNs (V15
+     "Nothing links to Contact", V23 template filler), **no** relay note, and the "stays
+     saved here" reassurance;
+   - "Download it again" re-issues the SAME filename and the SAME byte count.
+2. *honeypot refuses* — filled through the native value setter (as a bot would), no
+   download fires and the refusal carries an address with `role="alert"`.
+3. *honeypot is never touched by a normal run* — value `''`, `tabindex="-1"`,
+   `aria-hidden="true"`, bounding box off-screen to the left, and six successive Tab
+   presses from the first field never land in it (protocol §1.4 rule 4 stays satisfiable).
+4. *relay isolation* — `?submit-stub=relay-fail` makes the relay reject; the completion
+   screen is identical, `[role="alert"]` count is 0, and the gate still exits 0.
+5. *renderer failure* — `?submit-stub=render-fail` surfaces the typed V6 wording with a
+   retry, fires no download, and offers no partial package.
+6. *no nagging* — a freshly opened form has `[role="alert"]` count 0; after a failed send
+   it is non-zero.
+
+**Relay payload actually logged** (dev console, `NoopRelay`) —
+`variant: 'full'`, `submissionId`, `uuid8`, `client: { name, email }`, `businessName`,
+`pageCount`, `packageFileName`, `packageBytes`, `warnings: [{ rule, message }]`,
+`brief`, `siteJsonGzipBase64`. Nothing was sent, and the UI never says otherwise.
+
+**Blocked on Cam:** the destination address in `site.config.ts` is
+`cammer3034@gmail.com`, the working address `help.md` already names. Confirming it or
+swapping in a BOSS mailbox is a one-constant change and is now an open item in `help.md`.
 
 ## Open Questions
 - **Where Submit lives.** **Recommendation: a dedicated Submit view that takes over the canvas
@@ -174,3 +267,65 @@ _Empty — nothing verified yet._
   submission stops; there is no "send anyway" override. CLAUDE.md's rule about not weakening
   criteria applies to the product's own gates too — and V10's deliberate WARN-not-BLOCK is the
   one place the contract already made that call for us.
+
+### Implementation calls (2026-07-28)
+
+- **The rule-by-rule order is realised as TWO validator passes, and this is a deviation worth
+  naming.** `validatePackage` is a whole-bundle pipeline, not a menu of individually callable
+  stages, so the spec's "FIX → client BLOCKs → render → V6 → brief → V7 → zip → V10/V12"
+  becomes: a **pre-flight** pass with no render/zip evidence (FIX pass, the brief, every
+  client-facing and bug-class BLOCK that does not need pixels), then rendering, then packing,
+  then a **final** pass carrying the render, staging and zip evidence (V6, V10, V12, V21). The
+  load-bearing property is unchanged and is asserted directly: a client-facing BLOCK
+  short-circuits before the first render. V6 is additionally enforced *at* render time by
+  construction — the renderer's own sanity ladder throws `PngRenderError` rather than handing
+  back a bad picture — so the final pass re-asserts it on the shipped artifacts rather than
+  discovering it there. The rules that need evidence return `[]` when they have none, which is
+  exactly the design `validate/types.ts` describes.
+- **The completion screen appears BEFORE the relay settles.** `runSubmit` returns
+  `{ kind: 'done', receipt, relayResult }` with `relayResult` a promise that never rejects; the
+  store awaits it afterwards and only a `status: 'sent'` adds a line. Awaiting it inline would
+  have let a future slow provider delay the one screen that is supposed to be unconditional.
+- **`jumpTo` is translated once, in the flow.** The validator speaks in export ids
+  (`pg_0001`/`blk_0007`) because that is what a package contains; the canvas navigates by
+  internal ids. `submitFlow` inverts `buildExportPayload`'s remap and hands the UI internal
+  ids, so no component knows the remap exists — and §4.8 rule 3 (internal ids never ship) is
+  untouched, because the translation runs on findings, never on the package.
+- **The business name is BOUND, not copied.** The form field is `useCommittedField` over
+  `siteSettings.businessName` — one source of truth, one undo step, and the submit store holds
+  only the two fields that genuinely belong to the submission (plus the honeypot).
+- **Honeypot field name: `quill`.** Not `email2`, not `url`, not `company` — nothing a password
+  manager or an autofill heuristic recognises. Off-screen via `position: absolute; left:
+  -9999px` rather than `display: none`, because a bot that skips undisplayed inputs is exactly
+  the bot the decoy is for; `tabIndex={-1}` and `aria-hidden` keep every human out of it, and
+  the E2E proves six Tab presses never reach it.
+- **Relay payload shape** (`buildNotificationPayload`, pure, degrade ladder full →
+  compressed → metadata-only against a 64 kB budget — the smallest documented body limit among
+  the free text relays debate #2 surveyed):
+  ```
+  { variant, submissionId, uuid8, client: { name, email }, businessName, pageCount,
+    packageFileName, packageBytes, warnings: [{ rule, message }],
+    brief: string | null,                 // `full` only
+    siteJsonGzipBase64: string | null }   // `full` + `compressed`, gzip mtime 0
+  ```
+  The identity block is never shed: `metadata-only` always fits, by construction.
+- **`appVersion` comes from `package.json` via a Vite `define`** (`__APP_VERSION__`), so
+  `submission.appVersion` and the brief's header comment name the build that produced them.
+- **BOSS's address lives in `site.config.ts`**, beside the other deployment constants — a
+  public business address, not a secret, and one line to change (see the Verification Log's
+  blocked-on-Cam note and the new `help.md` item).
+- **The stub seam is a query string, not a window bridge** — `?submit-stub=render-fail |
+  relay-fail | relay-sent`, behind the same inline `import.meta.env` guard
+  `src/export/png/engineOrder.ts` uses. **Its SHAPE is load-bearing and was corrected after
+  measuring:** the first version returned a mode string from the guarded function and branched
+  on it outside, which left `submit-stub`, `render-fail`, `relay-fail`, `stub-failing` and the
+  fake error class in `npm run build`'s bundle (grepped — the guard folded the URL parsing and
+  nothing else, because the bundler cannot prove a returned value). Moving the fakes *inside*
+  the guarded body, so it returns port overrides rather than a mode, folds the whole thing:
+  re-grepped after the change, `submit-stub`, `relay-fail`, `stub-failing`,
+  `__blueprintRenderPagePng`, `__blueprintStore` and `export-engine` are all **0 occurrences**
+  in `dist/`, and the only surviving `render-fail` match is the product's own
+  `kind: 'render-failed'` outcome. Production build 565.07 kB.
+- **Submit takes over the whole editor body.** Not a modal (Stage 2's reasons), and not the
+  304px panel (too narrow for a form plus a findings list). Unmounting the canvas costs
+  nothing: the document lives in the store, and the PNG renderer mounts its own offscreen root.

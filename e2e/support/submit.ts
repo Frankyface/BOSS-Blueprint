@@ -186,10 +186,17 @@ export function sendButton(page: Page) {
   return page.getByTestId('submit-send')
 }
 
-/** Fill the honeypot the way a bot would — never by typing into it. */
+/**
+ * Fill the honeypot the way a BOT would — scripted straight into the DOM, never
+ * by typing. React tracks a controlled input's last value and ignores an `input`
+ * event whose value it believes it already knows, so the assignment has to go
+ * through the native setter on the prototype; that is the standard idiom for
+ * driving a controlled input from outside React, not a trick specific to here.
+ */
 export async function fillHoneypot(page: Page, value: string): Promise<void> {
   await page.getByTestId('submit-honeypot').evaluate((element, text) => {
     const input = element as HTMLInputElement
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- called via `.call` on the very instance it came from.
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
     setter?.call(input, text)
     input.dispatchEvent(new Event('input', { bubbles: true }))

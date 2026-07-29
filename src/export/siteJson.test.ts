@@ -15,27 +15,34 @@ import { buildExportPayload, buildSiteJson, screenshotPath, type ExportDocument 
 import type { ImageSlotBlock, NavBarBlock, SiteJson } from './types.ts'
 
 /**
- * The whole §4 transform, checked against the worked example.
+ * The whole §4 transform, checked against the worked example — and Appendix A's
+ * equality test D, which is the contract-enforcement assertion for this file.
  *
- * NOTE ON THE §7.1 COMPARISON (a spec/feature-file correction): §7.1 is
- * HAND-FORMATTED — multiple JSON values per line, `810.0` where a re-serialization
- * writes `810` — so `serialize(build(fixture)) === §7.1 text` is unsatisfiable, the
- * same way §7.2's hand wrapping made test B unsatisfiable before v2.1 unwrapped it.
- * The satisfiable, equally strong assertion is against §7.1 RE-SERIALIZED with
- * `JSON.stringify(…, null, 2)`: `JSON.parse` preserves the fixture's key order, so
- * this still proves key order, indentation, `'' → null` and every derived value,
- * byte-for-byte, from the doc itself.
+ * §7.1 IS the canonical serializer's own output as of v2.4 (`docs/export-format.md`
+ * §1: "written by the canonical serializer — exactly `JSON.stringify(data, null, 2)`
+ * plus a trailing LF"), so the strong form of the test is available and is what
+ * runs below: the spec text goes through `serializeSiteJson` and must come back
+ * byte-identical, and the built fixture must equal the spec text directly. An
+ * earlier note here claimed §7.1 was hand-formatted and that only a
+ * re-serialized comparison was satisfiable — measurably false since v2.4
+ * regenerated the block, and it was the exact weakening `docs/decisions.md`
+ * rejected. Both sides are read from disk at test time.
  */
 
 const specSiteJsonText = extractExampleSiteJsonText(readSpec())
-const expectedText = `${JSON.stringify(JSON.parse(specSiteJsonText), null, 2)}\n`
 const expectedSite = JSON.parse(specSiteJsonText) as SiteJson
 
 const built = buildSiteJson(bluebirdDocument(), BLUEBIRD_SUBMISSION)
 
+describe('Appendix A equality test D — the canonical serializer owns §7.1', () => {
+  it('re-serializes the spec text to itself, byte for byte', () => {
+    expect(serializeSiteJson(JSON.parse(specSiteJsonText) as SiteJson)).toBe(specSiteJsonText)
+  })
+})
+
 describe('buildSiteJson against the §7.1 worked example', () => {
-  it('serializes byte-identically to the re-serialized §7.1 fixture', () => {
-    expect(serializeSiteJson(built)).toBe(expectedText)
+  it('serializes byte-identically to §7.1 itself', () => {
+    expect(serializeSiteJson(built)).toBe(specSiteJsonText)
   })
 
   it('is deep-equal to the parsed §7.1 fixture', () => {

@@ -1,5 +1,5 @@
 # Feature: Package Zip
-_Stage: stage-3-export-delivery · Status: not started_
+_Stage: stage-3-export-delivery · Status: awaiting verification_
 
 ## Goal
 Assemble the four artifact kinds into one zip whose layout is **exactly**
@@ -105,7 +105,84 @@ Everything about this feature is in service of that one moment.
 5. Record commands, exit codes, entry listings, byte sizes and hashes below.
 
 ## Verification Log
-_Empty — nothing verified yet._
+
+### 2026-07-28 — built and exercised end to end (awaiting independent verification)
+
+**Unit — `npx vitest run src/export/zip`** → 5 files, 44 tests, 0 failed.
+
+- `pack.test.ts` (12) — the archive is unzipped back with `fflate` and its entry list
+  **deep-equals** `['site.json', 'brief.md', 'pages/01-home.png', 'pages/02-contact.png',
+  'assets/img_001.jpg']` in order; no entry name contains a backslash, starts with `./`
+  or `/`, or ends with `/` (no directory entries); a no-assets bundle produces no
+  `assets/` entry at all. The local **and** central headers are read back BY HAND
+  rather than through fflate: `site.json`/`brief.md` carry method 8, the PNG and the
+  JPEG carry method 0, every entry's DOS date/time equals the value computed from the
+  literal constants (`((2026−1980)<<25)|(1<<21)|(1<<16)|(12<<11)` = 1545691136), every
+  extra-field length is 0 on both sides, and the data-descriptor flag bit is clear.
+- Determinism — `sha256(packZip(entries))` is equal across two calls **and** equal when
+  the same entries are supplied shuffled (the packer sorts; the caller does not).
+- `ladder.test.ts` (12) — the applied list is
+  `['rung0-store-and-deflate', 'rung1-strip-ancillary-chunks']` under target and gains
+  `'rung2-quantize-stroke-free'` only over it; with no quantizer bound the ladder
+  records `unavailable: ['rung2-quantize-stroke-free']` instead of pretending it ran.
+  **A stroke page is byte-identical after the FULL ladder** while the stroke-free page
+  shrinks, and `site.json` / `brief.md` / `assets/img_001.jpg` are byte-identical at
+  every rung under every ports × target combination.
+- `filename.test.ts` (7) — `blueprint_bluebird-bakery_3f2a9c1e.zip` from the §7 fixture;
+  a diacritics + ampersand + emoji name gives `blueprint_cafe-ursula-co_3f2a9c1e.zip`;
+  an emoji-only name and `'   '` both give `blueprint_business_3f2a9c1e.zip`; the uuid8
+  is 8 lower-case hex characters.
+- `buildPackage.test.ts` (10) — the §7.1 design assembles to exactly the five §1 entries,
+  which also deep-equal `expectedZipEntries()` derived from `site.json`; the archived
+  `site.json` has no BOM, no CR, and re-serializes to itself; the staged JPEG is
+  byte-identical to the ingest bytes (214,733 B); V21's evidence is re-read from the
+  staged bytes (1600×1200, 214733, image/jpeg) rather than copied off the manifest;
+  `validatePackage` on the assembled evidence returns `blocks: []`, `level: 'ok'`.
+- `stamping.test.ts` (5) — the SAME UUID appears in `submission.id`, in the `brief.md`
+  header comment (`submission <uuid>`) and in the filename; 32 successive mints are 32
+  distinct v4-pattern UUIDs.
+- `size.test.ts` (5) — `~0/1/24/1024 KB`, then `~1.0 MB` once the KB figure passes 1024;
+  the bands switch at `SIZE_TARGET_BYTES` and at V10's 15 MB.
+
+**Coverage — `npm run test:coverage`** → `src/export/zip` 96.83% statements, 98.51%
+lines, 100% functions, against the 80% lines+functions gate on `src/export/**`.
+
+**E2E — `npx playwright test`** → 532 passed / 2 skipped across chromium, firefox and
+webkit (7.4 min locally, parallel; 514 before this batch). `e2e/submit.spec.ts` captures
+the real browser download, unzips it in Node, and asserts the entry list equals the
+expectation **derived from the package's own `site.json`**, plus the filename convention,
+the no-BOM / no-CR / 2-space contract, and the three UUID stampings.
+
+**Round-trip gate (the Stage 3 DoD bullet)** — `node scripts/roundtrip/gate.mjs --package
+blueprint_bluebird-bakery_20dabec3.zip --no-manifest`, run on an E2E-produced package:
+
+```
+package : blueprint_bluebird-bakery_20dabec3.zip (63.0 KB, 4 entries)
+PASS  F01   zip filename matches blueprint_<business-slug>_<uuid8>.zip
+PASS  F02   filename business slug equals slugify(siteSettings.businessName)
+PASS  F03   filename uuid8 equals the first 8 hex chars of submission.id
+PASS  V12   zip entry list exactly equals §1 layout  — 4 file entries, 4 expected
+PASS  C01   zip entries written in §1 order (site.json, brief.md, pages, assets)
+PASS  C02   site.json / brief.md UTF-8, no BOM, LF; 2-space, stable key order
+PASS  V10   zip size within the 15 MB budget  — 0.06 MB
+…
+GATE PASSED — 35 pass, 2 warn, 0 fail, 1 skip (38 checks)
+EXIT=0
+```
+
+The two WARNs are the fixture's deliberate ones (V15 unreachable page, V23 template
+filler). The **negative control** runs inside the same E2E: a copy of that zip carrying
+an extra `notes.txt` makes the gate exit non-zero, naming **V12**.
+
+**Size meter** — the E2E reads the downloaded file's size off disk and asserts the meter
+shows `~<round(bytes/1024)> KB` of *that* number, so the figure on screen is the figure
+the client forwards.
+
+**Ladder measurement — why rung 2 ships as a port and not a dependency.** The committed
+export baselines measure 16.7–24.5 KB per page render, and the E2E-produced two-page
+package is **63.0 KB** against a `SIZE_TARGET_BYTES` of 8,388,608 — three orders of
+magnitude of headroom. No quantizer dependency was added, which is exactly what the Open
+Question below instructed once a measurement existed.
 
 ## Open Questions
 - **Zip library.** **Recommendation: `fflate`** (MIT, ~8 kB gzipped, sync API, explicit per-entry
@@ -156,3 +233,47 @@ _Empty — nothing verified yet._
   and Cam that it is big.
 - **The size meter reads the real zip.** An estimate that disagrees with the downloaded file's
   properties dialog is worse than no meter; assembly is fast enough to just do it.
+
+### Implementation calls (2026-07-28)
+
+- **Zip library: `fflate` 0.8.3, MIT** — licence verified by reading
+  `node_modules/fflate/LICENSE` ("MIT License, Copyright (c) 2026 Arjun Barrett"), not by
+  trusting the registry field. JSZip was rejected as the Open Question recommended, and the
+  rejection was *checked* rather than assumed: a produced archive's headers were parsed by
+  hand and fflate writes **no extra fields, no data descriptors, no directory entries, no
+  file comments, external attributes 0, version-made-by 0x14** — nothing that varies with
+  the machine once `mtime` and `level` are pinned. Both knobs are per-entry parameters,
+  which is what makes the determinism criterion reachable at all.
+- **Timestamp constant: `ZIP_ENTRY_MTIME = new Date(2026, 0, 1, 12, 0, 0, 0)` — LOCAL
+  fields, deliberately.** fflate derives the DOS date/time with the LOCAL `Date` getters
+  (`esm/browser.js:1884`: `dt.getFullYear()`, `dt.getHours()`, …). A UTC instant would
+  therefore encode differently in Vancouver than on a UTC CI runner: deterministic per
+  machine, not across them. Constructing the Date from local field values makes those
+  getters read back 2026-01-01 12:00:00 in every timezone. **Noon, not midnight**, because
+  a few zones have historically shifted the clock *at* midnight, which makes `00:00` a
+  non-existent local time there. `pack.test.ts` asserts the encoded 4-byte field against a
+  value computed from the literal constants, so any regression to a UTC-derived timestamp
+  fails on a machine that is not on UTC.
+- **Write order: the packer sorts.** §1's order is a property of the artifact, so
+  `orderEntries()` owns it (`site.json`, `brief.md`, `pages/*`, `assets/*`, then
+  lexicographic — which IS numeric order because §1 zero-pads both `NN` and `img_NNN`).
+  A shuffled input produces a byte-identical archive, asserted by hash.
+- **Rung 2 is a PORT, not a stub and not a dependency.** `runLadder` takes
+  `{ quantizePng }`; the app binds `null` and the unit suite binds a fake quantizer, which
+  is how "the ladder is ordered, deterministic, and obeys `hasStrokes`" stays a *proven*
+  property with no quantizer shipped. The measurement that justifies shipping none is in
+  the Verification Log. Wiring a real one later is one binding.
+- **Rung 1 strips exactly the four types §1 names** (`tEXt`, `tIME`, `pHYs`, `iTXt`) and
+  deliberately keeps `sRGB`, `sBIT` and `iCCP`, which describe how to *interpret* the
+  colours rather than being metadata. Measured on the committed export baselines: chromium
+  and firefox emit no ancillary chunks at all and webkit emits only those three — so on
+  today's renderers rung 1 is a no-op, which is precisely why a real stroke page comes out
+  byte-identical rather than merely pixel-identical.
+- **V21's evidence is re-read from the staged bytes.** `buildPackage` parses the image
+  header of the bytes it actually put in the archive instead of copying the manifest's
+  numbers across. Copying would have made V21 compare a number with itself; re-reading
+  keeps it a real check on the staging step, which is the check the brief's printed
+  dimensions depend on.
+- **`SIZE_TARGET_BYTES = 8 MB`, `MAX_ZIP_BYTES` re-exported from the validator.** The warn
+  line has exactly one definition (`src/export/validate/rules/warnings.ts`), so the meter
+  and V10 cannot drift apart.

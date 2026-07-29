@@ -18,9 +18,9 @@ afterEach(() => {
 
 /** Everything `crypto` offers except `randomUUID` — older WebKit, older jsdom. */
 function withoutRandomUuid(): void {
-  const real = globalThis.crypto
+  const fill = globalThis.crypto.getRandomValues.bind(globalThis.crypto)
   vi.stubGlobal('crypto', {
-    getRandomValues: (bytes: Uint8Array) => real.getRandomValues(bytes),
+    getRandomValues: (bytes: Uint8Array<ArrayBuffer>) => fill(bytes),
   })
 }
 

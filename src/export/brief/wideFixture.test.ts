@@ -12,9 +12,18 @@ import { generateBrief } from './generateBrief.ts'
  * fromTemplate filler, unreachable page, absent optionals"), plus §3.3 rule-7/8
  * escaping torture strings.
  *
- * Not a byte-exactness test — the spec has no expected output for it. It is an
- * INVARIANTS harness: V7's counting contract, table integrity, guillemet integrity,
- * printed-id integrity, and the v2.3 fallback strings.
+ * TWO KINDS OF ASSERTION, on purpose:
+ *
+ *  · a COMMITTED FILE SNAPSHOT (`__snapshots__/wide-fixture.md`). The spec has no
+ *    expected output for this fixture, so nothing here can be byte-exact against
+ *    the contract — but the generated brief can still be pinned, and pinning it
+ *    as a real Markdown file means a PR that changes narration shows the changed
+ *    PROSE in its diff rather than a green test count. That readable diff was the
+ *    point (ruled 2026-07-28); an inline snapshot would have buried it in a
+ *    template literal.
+ *  · an INVARIANTS harness, which is what still holds if that snapshot is ever
+ *    deliberately re-blessed: V7's counting contract, table integrity, guillemet
+ *    integrity, printed-id integrity, and the v2.3 fallback strings.
  */
 
 const site: SiteJson = {
@@ -330,5 +339,13 @@ describe('wide fixture — the v2.3 branches §7.1 cannot reach', () => {
 
   it('emits the rule-8 verbatim sub-block for multi-line real copy', () => {
     expect(brief).toContain('    - leading dash line\n    second line')
+  })
+  /*
+   * The committed artifact. Re-bless it with `npx vitest -u` ONLY after reading
+   * the diff: every line of a brief traces to the §3.2 template plus exactly one
+   * [N1]–[N13] rule, so a surprise in this file is a narration bug, not noise.
+   */
+  it('matches the committed wide-fixture brief', async () => {
+    await expect(brief).toMatchFileSnapshot('./__snapshots__/wide-fixture.md')
   })
 })
