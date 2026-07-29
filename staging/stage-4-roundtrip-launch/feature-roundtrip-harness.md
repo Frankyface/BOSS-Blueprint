@@ -1324,6 +1324,100 @@ failure-class routing table — neither routes to Stage 2 or Stage 3, and neithe
 **scrubbed-env** probe (not the file timestamp), then re-run How-We'll-Verify 6–11 unchanged. The
 deploy precondition is already met, so all three legs can go as soon as auth is live.
 
+### 2026-07-29 — LIVE-RUN ATTEMPT 3: Blocker A CLEARED, new Blocker C (CLI 2.1.220 has no baseline); one PRECONDITION abort, no verdict
+
+**Attempt at How-We'll-Verify 6–11 at HEAD `b3129f9`, clean tree throughout. It got no further
+than the timed smoke.** The run aborted in SEG-3 as PRECONDITION, wrote **no** `verdict.txt`, and
+is invisible to `ship-gate.mjs` (R9.4). **Nothing in this entry is evidence about the product**,
+no Success Criterion is ticked, and **status stays `awaiting verification`.** Recorded per
+protocol §8.5 — one line per iteration, pass or fail. Runs 2–5 were not attempted: the blocker is
+in the shared sterile-session path, so every leg would abort identically.
+
+**Operator setup.** `ROUNDTRIP_RUNS_DIR=C:\bp-runs`; port 4173 verified FREE before the run and
+held by nothing else during it; `npm ls` confirmed `adm-zip@0.6.0 / ajv@8.20.0 / pngjs@7.0.0` at
+the root and `ajv-formats@3.0.1 / jpeg-js@0.4.4` in `scripts/roundtrip`, so no `npm ci` was
+needed. `git status --porcelain` empty before and after; the manifest independently records
+`git.clean: true`. Ancestor chain from `C:\bp-runs` to the drive root re-verified clean.
+
+| # | Run dir (`C:\bp-runs\…`) | Segments | Abort | Elapsed |
+|---|---|---|---|---|
+| 1 | `2026-07-29T15-21-12-533Z_B_b3129f9` | SEG-1 ok 27.9 s · SEG-2 ok 0.86 s | **PRECONDITION** not sterile (SEG-3, 2.6 s) | 0.53 min (35 s wall), exit 2 |
+
+```
+PRECONDITION: the builder session was not sterile
+the session reports Claude Code 2.1.220, which has no builtin-manifest entry
+manifest covers: 2.1.190
+re-capture the baseline for this version and record it in docs/decisions.md before running
+```
+
+**BLOCKER A IS CLEARED — confirmed the way the last entry demanded, by a scrubbed-env probe and
+not by a file timestamp.** `claude -p --model haiku` run under an `env -i` rebuild of R3.7's
+allowlist (PATH, SystemRoot, TEMP/TMP, USERPROFILE, APPDATA, LOCALAPPDATA, HOME, PATHEXT,
+COMSPEC — every `CLAUDE_*`/`ANTHROPIC_*` dropped, `ANTHROPIC_BASE_URL` among them) returned
+`AUTH_OK`, **exit 0**. The 401 that blocked attempts 1 and 2 is gone.
+
+**NEW BLOCKER C — the CLI auto-updated out from under the pinned baseline, and it did so
+_during_ the login that cleared Blocker A.** Measured: the installed
+`@anthropic-ai/claude-code/package.json` is **2.1.220**, mtime **11:14:56 EDT**; the credential
+was rewritten **11:16 EDT**. So the version bump landed ~2 minutes before the re-auth, which is
+why the pre-run precondition sweep — which checked auth and the deployed bundle — did not see it.
+
+**The sandbox is not leaking; the binary moved.** The delta against the committed 2.1.190 entry
+is a **pure superset, nothing removed**:
+
+| init field | 2.1.190 (baseline) | 2.1.220 (this run) | delta |
+|---|---|---|---|
+| `mcp_servers` | 0 | **0** | — |
+| `plugins` | 0 | **0** | — |
+| `agents` | 5 | **5** | identical, name for name |
+| `skills` | 14 | **16** | **+2**: `dataviz`, `doctor` |
+| `slash_commands` | 27 | **43** | **+16**: `dataviz`, `doctor`, `agents`, `color`, `effort`, `fast`, `mcp`, `model`, `__remote-workflow`, `workflow-launch-exec`, `rename`, `ultrareview`, `recap`, `design`, `design-consent`, `design-revoke` |
+
+`memory_paths.auto` resolves **inside** the run's own `claude-home/`, and `configDirListing` is
+exactly `[.credentials.json, settings.json]` — the R3.3/R3.4/R3.7 isolation is demonstrably
+intact. R4.6 took the **version-mismatch** branch rather than the leak branch, which is the
+correct and more useful classification: this is not the pinned CLI.
+
+**Why this was NOT fixed here.** `builtin-manifest.json` is a **rule file** — it is in
+`RULE_FILES` and is hashed at run start and end (R9.3) precisely because "relaxing the baseline
+mid-run is the cheapest possible way to fake sterility". Adding a version entry is therefore a
+rule change, and the harness's own abort message says so ("record it in `docs/decisions.md`
+before running"), which under CLAUDE.md means Cam's sign-off. No operational route exists either:
+the harness has **no CLI-pin flag** (`resolve-command.mjs` probes PATH × PATHEXT and takes what it
+finds), and no 2.1.190 image survives on disk — `~/.local/share/claude/versions/` holds only
+`2.1.89`. Downgrading would mean a network reinstall of Cam's primary tool, machine-wide, mid-run.
+**So this stopped here, per R10.2/R10.7.**
+
+**The re-capture needs a ruling, not another probe — the data is already captured, faithfully.**
+This run's `builder/transcript.jsonl` init came through the harness's own sterile path
+(`createSterileConfigDir` → `scrubEnvironment` → `runSession`) with exactly one credential and a
+scrubbed env, which is **row 1 of the manifest's own sensitivity table** — the only configuration
+a harness run can ever see. It is also the **first** sterile capture taken with a credential that
+actually works, and `schedule` (the entitlement-gated entry the table calls out) is present as
+before, so the entitlement row is unchanged by the re-auth.
+
+**R3.6 re-verified at this HEAD, so the deployed leg is still unblocked:** `npm run build` emits
+`assets/index-CQhEMnMO.js` and live Pages serves `assets/index-CQhEMnMO.js` — identical.
+
+**Nothing was weakened.** No threshold, scan rule, scenario, prompt, rubric or manifest was
+edited. `invalid: false`, rule hashes byte-identical at start and end for all seven files,
+`credentialScrubbed: true`, `managedPolicy: []`, `cached: false`. SEG-1 and SEG-2 were green, so
+the driver and the package gate remain unaffected.
+
+**The smoke still has never completed, so `SMOKE_BUDGET_MIN` remains unmeasured against a real
+builder.** Blocker C classifies as **PRECONDITION / environment** under the ★ row of the
+failure-class routing table — it routes to a rule ruling, not to Stage 2 or Stage 3, and it is
+not a product FAIL.
+
+**To resume — one blocker left, and it is a ruling not a login:** Cam signs off on adding a
+`2.1.220` entry to `builtin-manifest.json` (the sets above, verbatim from this run's init) with a
+`docs/decisions.md` entry, **or** on pinning the CLI back to 2.1.190. Then re-run
+How-We'll-Verify 6–11 unchanged. Auth and the deploy precondition are both green as of this
+entry, so all three legs can go the moment the baseline question is settled. Worth deciding at
+the same time: a baseline keyed to an auto-updating binary will keep doing this, so the ruling
+should say whether a new version blocks a run (today's behaviour) or is recorded and waved
+through.
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.
