@@ -50,7 +50,10 @@ scripts/roundtrip/
 ├── thresholds.mjs           # EVERY number in this spec, exported as named constants
 ├── manifest-diff.mjs        # protocol §2 step 4 (Stage 4's half of the package gate)
 ├── sandbox.mjs              # config-dir isolation, env scrub, ancestor-CLAUDE.md assertion
-├── claude-session.mjs       # spawn + stream-json capture, shared by builder and evaluator
+├── claude-session.mjs       # spawn + stream-json capture + R4.6, shared by builder and evaluator
+├── builtin-manifest.json    # R4.6's version-keyed baseline — the CLI's OWN agents/skills/commands
+├── builtin-manifest.mjs     # reads it; `builtinsFor(version)` is the only way in
+├── lib/resolve-command.mjs  # R4.3a — PATH × PATHEXT → an absolute image, never a shell
 ├── scan-transcript.mjs      # §4 zero-questions + completion + BUILD_NOTES triage
 ├── static-server.mjs        # dependency-free node:http static server for SEG-5
 ├── capture.mjs              # SEG-5 crawl / console / screenshots / dom.json

@@ -41,7 +41,7 @@ const DEFAULT_PATHEXT = '.COM;.EXE;.BAT;.CMD';
 
 /** `%dp0%`, `%~dp0`, `$basedir` — the three ways npm's two shims spell "my own directory". */
 const SHIM_BASEDIR_RE = /%~?dp0%?|\$basedir/gi;
-/** The delegation target: the last quoted-or-bare path ending in `.exe` the shim mentions. */
+/** Delegation targets: every quoted-or-bare `.exe` path the shim mentions, in the order it does. */
 const SHIM_TARGET_RE = /"([^"\n]+\.exe)"|(\S+\.exe)/gi;
 
 /** PATH is `;`-separated on Windows and `:`-separated everywhere else. Nothing else differs. */
@@ -98,9 +98,10 @@ export async function findOnPath(name, { env = process.env, platform = process.p
 }
 
 /**
- * Read an npm-style shim and return the absolute `.exe` it delegates to, or null.
- * The shim is READ, never run — following it is the only way to reach a spawnable
- * image when the installer put nothing else on PATH.
+ * Read an npm-style shim and return the absolute `.exe` it delegates to, or null:
+ * the FIRST path it mentions that actually exists on disk. The shim is READ, never
+ * run — following it is the only way to reach a spawnable image when the installer
+ * put nothing else on PATH.
  */
 export async function shimTarget(shimFile) {
   let text;

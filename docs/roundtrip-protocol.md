@@ -405,6 +405,24 @@ Isolation mechanics (Windows):
   Per performance.md, no version-pinned model ids in the harness — model aliases come from
   `run.mjs` config and the resolved id is recorded in `run-manifest.json`.
 
+  **[AMENDED 2026-07-29 — `claude` must be resolved to an absolute image first.]** v1 wrote
+  the command as the bare word, and on Windows neither spelling of it can be spawned:
+  `spawn('claude')` is **ENOENT** (the name on PATH is an `sh` shim `CreateProcess` will not
+  run) and `spawn('claude.cmd')` is **EINVAL** (Node refuses `.cmd`/`.bat` without a shell,
+  post CVE-2024-27980) — and `shell: true` is banned, being the thing that CVE is about. The
+  harness therefore probes `PATH` × `PATHEXT` itself, prefers a directly spawnable `.exe`/
+  `.com`, and otherwise **reads** the npm shim to follow the `.exe` it delegates to; the
+  resolved absolute path is spawned with `shell: false` and recorded in `run-manifest.json`.
+  Failure to resolve is INFRA and names every candidate found. Measured: live-run attempt 1
+  (2026-07-29) never started a builder.
+
+  **[AMENDED 2026-07-29 — an authentication failure is INFRA, not a product FAIL.]** A session
+  that could not log in leaves an empty sandbox, and an empty sandbox is indistinguishable at
+  H3 from a builder that ignored the brief. If the terminal `result` names an auth failure the
+  run aborts as PRECONDITION in SEG-3, writes no `verdict.txt` and is invisible to the ship
+  gate. Measured: with the machine's CLI token expired, the run scored `FAIL — H3 incomplete
+  build` before this landed.
+
 ### 3.2 The prompt — exact wording (verbatim, `builder/prompt.txt`)
 
 ```
