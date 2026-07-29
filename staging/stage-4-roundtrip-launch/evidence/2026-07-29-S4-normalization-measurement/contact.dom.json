@@ -1,0 +1,271 @@
+{
+  "title": "Contact - North Star Dog Grooming",
+  "bodyText": "Skip to main content North Star ☰ Home Pricing Contact 519-555-0177 84 Norfolk Street, north entrance Tuesday to Saturday, 8am to 4pm North Star Dog Grooming 84 Norfolk Street, north entrance519-555-0177Tuesday to Saturday, 8am to 4pm Home Pricing Contact © 2026 North Star Dog Grooming. All rights reserved. const toggle = document.getElementById('navToggle'); const menu = document.getElementById('navMenu'); toggle.addEventListener('click', () => { menu.classList.toggle('active'); }); document.querySelectorAll('.nav-menu a').forEach(link => { link.addEventListener('click', () => { menu.classList.remove('active'); }); });",
+  "documentHeight": 948,
+  "viewportHeight": 900,
+  "contentBottom": 815,
+  "nodes": [
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Skip to main content",
+      "href": "#main",
+      "src": null,
+      "box": {
+        "x": 0,
+        "y": 2,
+        "w": 147,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "North Star",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 47,
+        "w": 86,
+        "h": 29
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Home",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 908,
+        "y": 48,
+        "w": 39,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Pricing",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 987,
+        "y": 48,
+        "w": 44,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Contact",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 1071,
+        "y": 48,
+        "w": 49,
+        "h": 26
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "button",
+      "text": "☰",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 529,
+        "y": 51,
+        "w": 16,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Home",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 908,
+        "y": 52,
+        "w": 39,
+        "h": 19
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Pricing",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 987,
+        "y": 52,
+        "w": 44,
+        "h": 19
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Contact",
+      "href": "contact.html",
+      "src": null,
+      "box": {
+        "x": 1071,
+        "y": 52,
+        "w": 49,
+        "h": 23
+      }
+    },
+    {
+      "kind": "image",
+      "tag": "img",
+      "text": "The shopfront from the sidewalk featuring a blue door for easy identification",
+      "href": null,
+      "src": "assets/placeholders/blk_0011.svg",
+      "box": {
+        "x": 630,
+        "y": 178,
+        "w": 490,
+        "h": 333
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "519-555-0177",
+      "href": "tel:+15195550177",
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 181,
+        "w": 99,
+        "h": 21
+      }
+    },
+    {
+      "kind": "heading",
+      "tag": "h3",
+      "text": "North Star Dog Grooming",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 711,
+        "w": 500,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "p",
+      "text": "84 Norfolk Street, north entrance519-555-0177Tuesday to Saturday, 8am to 4pm",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 753,
+        "w": 500,
+        "h": 62
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Home",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 945,
+        "y": 759,
+        "w": 35,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Pricing",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 1008,
+        "y": 759,
+        "w": 39,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Contact",
+      "href": "contact.html",
+      "src": null,
+      "box": {
+        "x": 1076,
+        "y": 759,
+        "w": 44,
+        "h": 21
+      }
+    }
+  ],
+  "links": [
+    {
+      "text": "Skip to main content",
+      "href": "#main"
+    },
+    {
+      "text": "North Star",
+      "href": "/"
+    },
+    {
+      "text": "☰",
+      "href": null
+    },
+    {
+      "text": "Home",
+      "href": "/"
+    },
+    {
+      "text": "Pricing",
+      "href": "pricing.html"
+    },
+    {
+      "text": "Contact",
+      "href": "contact.html"
+    },
+    {
+      "text": "519-555-0177",
+      "href": "tel:+15195550177"
+    },
+    {
+      "text": "Home",
+      "href": "/"
+    },
+    {
+      "text": "Pricing",
+      "href": "pricing.html"
+    },
+    {
+      "text": "Contact",
+      "href": "contact.html"
+    }
+  ],
+  "images": [
+    {
+      "src": "assets/placeholders/blk_0011.svg",
+      "alt": "The shopfront from the sidewalk featuring a blue door for easy identification",
+      "box": {
+        "x": 630,
+        "y": 178,
+        "w": 490,
+        "h": 333
+      }
+    }
+  ]
+}

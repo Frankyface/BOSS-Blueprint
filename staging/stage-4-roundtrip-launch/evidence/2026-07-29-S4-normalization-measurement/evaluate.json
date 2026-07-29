@@ -1,0 +1,406 @@
+{
+  "gates": {
+    "H4": {
+      "ok": true,
+      "problems": []
+    },
+    "H5": {
+      "ok": true,
+      "problems": []
+    },
+    "H6": {
+      "ok": true,
+      "problems": [],
+      "checked": 5
+    },
+    "H7": {
+      "ok": true,
+      "problems": []
+    }
+  },
+  "dimensions": {
+    "S1": {
+      "pages": [
+        {
+          "slug": "home",
+          "score": 0.8571428571428571,
+          "expected": [
+            "link:home",
+            "link:pricing",
+            "link:contact",
+            "heading:grooming tha",
+            "image:*",
+            "text:*",
+            "link:see our pric"
+          ],
+          "built": [
+            "link:skip to main",
+            "link:north star",
+            "text:home",
+            "text:pricing",
+            "text:contact",
+            "link:☰",
+            "link:home",
+            "link:pricing",
+            "link:contact",
+            "image:a freshly gr",
+            "heading:grooming tha",
+            "text:your pup des",
+            "link:see our pric",
+            "heading:north star d",
+            "text:84 norfolk s",
+            "link:home",
+            "link:pricing",
+            "link:contact"
+          ]
+        },
+        {
+          "slug": "pricing",
+          "score": 1,
+          "expected": [
+            "link:home",
+            "link:pricing",
+            "link:contact",
+            "text:bath and bru",
+            "link:book a spot"
+          ],
+          "built": [
+            "link:skip to main",
+            "link:north star",
+            "text:home",
+            "text:pricing",
+            "text:contact",
+            "link:☰",
+            "link:home",
+            "link:pricing",
+            "link:contact",
+            "text:bath and bru",
+            "link:book a spot",
+            "heading:north star d",
+            "text:84 norfolk s",
+            "link:home",
+            "link:pricing",
+            "link:contact"
+          ]
+        },
+        {
+          "slug": "contact",
+          "score": 0.8,
+          "expected": [
+            "link:home",
+            "link:pricing",
+            "link:contact",
+            "text:519-555-0177",
+            "image:*"
+          ],
+          "built": [
+            "link:skip to main",
+            "link:north star",
+            "text:home",
+            "text:pricing",
+            "text:contact",
+            "link:☰",
+            "link:home",
+            "link:pricing",
+            "link:contact",
+            "image:the shopfron",
+            "link:519-555-0177",
+            "heading:north star d",
+            "text:84 norfolk s",
+            "link:home",
+            "link:pricing",
+            "link:contact"
+          ]
+        }
+      ],
+      "mean": 0.8857142857142858,
+      "points": 22.142857142857146,
+      "floorMet": true,
+      "floor": {
+        "mean": 0.85,
+        "page": 0.75
+      }
+    },
+    "S3": {
+      "items": [
+        {
+          "page": "home",
+          "blockId": "blk_0003",
+          "ok": true,
+          "problems": [],
+          "written": "Home",
+          "length": {
+            "ok": true,
+            "rule": "lengthHint",
+            "unit": "sentences",
+            "measured": 1,
+            "min": 1,
+            "max": 3
+          }
+        }
+      ],
+      "allSane": true,
+      "points": 0,
+      "note": "S3 points come from the evaluator half"
+    },
+    "S4": {
+      "items": [
+        {
+          "page": "home",
+          "blockId": "blk_0004",
+          "empty": false,
+          "ok": false
+        },
+        {
+          "page": "contact",
+          "blockId": "blk_0011",
+          "empty": true,
+          "ok": false
+        }
+      ],
+      "fraction": 0,
+      "points": 0,
+      "floorMet": false,
+      "floor": 0.8
+    },
+    "S5": {
+      "perPage": [
+        {
+          "slug": "home",
+          "dominants": [
+            {
+              "rgb": [
+                253,
+                253,
+                253
+              ],
+              "share": 0.8196835016835017
+            },
+            {
+              "rgb": [
+                205,
+                179,
+                123
+              ],
+              "share": 0.01534006734006734
+            },
+            {
+              "rgb": [
+                210,
+                187,
+                132
+              ],
+              "share": 0.014464646464646465
+            },
+            {
+              "rgb": [
+                219,
+                197,
+                147
+              ],
+              "share": 0.013104377104377105
+            },
+            {
+              "rgb": [
+                225,
+                205,
+                155
+              ],
+              "share": 0.011407407407407408
+            },
+            {
+              "rgb": [
+                198,
+                172,
+                113
+              ],
+              "share": 0.008612794612794612
+            },
+            {
+              "rgb": [
+                26,
+                26,
+                26
+              ],
+              "share": 0.00787878787878788
+            },
+            {
+              "rgb": [
+                236,
+                217,
+                173
+              ],
+              "share": 0.007326599326599326
+            }
+          ],
+          "nonGrayscale": 6,
+          "nearest": [
+            {
+              "hex": "#3b6fb5",
+              "deltaE": 35.56072244461553
+            }
+          ]
+        },
+        {
+          "slug": "pricing",
+          "dominants": [
+            {
+              "rgb": [
+                253,
+                253,
+                253
+              ],
+              "share": 0.9792518518518518
+            },
+            {
+              "rgb": [
+                244,
+                179,
+                65
+              ],
+              "share": 0.005888888888888889
+            },
+            {
+              "rgb": [
+                224,
+                224,
+                224
+              ],
+              "share": 0.003185185185185185
+            },
+            {
+              "rgb": [
+                59,
+                111,
+                181
+              ],
+              "share": 0.0007555555555555555
+            },
+            {
+              "rgb": [
+                85,
+                85,
+                85
+              ],
+              "share": 0.0006814814814814815
+            },
+            {
+              "rgb": [
+                174,
+                111,
+                85
+              ],
+              "share": 0.0005481481481481482
+            },
+            {
+              "rgb": [
+                249,
+                249,
+                221
+              ],
+              "share": 0.00046666666666666666
+            },
+            {
+              "rgb": [
+                249,
+                249,
+                197
+              ],
+              "share": 0.000362962962962963
+            }
+          ],
+          "nonGrayscale": 5,
+          "nearest": [
+            {
+              "hex": "#3b6fb5",
+              "deltaE": 0
+            }
+          ]
+        },
+        {
+          "slug": "contact",
+          "dominants": [
+            {
+              "rgb": [
+                253,
+                253,
+                253
+              ],
+              "share": 0.8450632911392405
+            },
+            {
+              "rgb": [
+                240,
+                232,
+                216
+              ],
+              "share": 0.09568213783403656
+            },
+            {
+              "rgb": [
+                212,
+                165,
+                116
+              ],
+              "share": 0.014866385372714487
+            },
+            {
+              "rgb": [
+                59,
+                111,
+                181
+              ],
+              "share": 0.014156118143459916
+            },
+            {
+              "rgb": [
+                244,
+                179,
+                65
+              ],
+              "share": 0.005808720112517581
+            },
+            {
+              "rgb": [
+                135,
+                206,
+                235
+              ],
+              "share": 0.0052180028129395215
+            },
+            {
+              "rgb": [
+                153,
+                153,
+                153
+              ],
+              "share": 0.0038537271448663853
+            },
+            {
+              "rgb": [
+                224,
+                224,
+                224
+              ],
+              "share": 0.0030239099859353026
+            }
+          ],
+          "nonGrayscale": 5,
+          "nearest": [
+            {
+              "hex": "#3b6fb5",
+              "deltaE": 0
+            }
+          ]
+        }
+      ],
+      "colourDeclared": true,
+      "colourMet": true,
+      "styled": true,
+      "points": 7,
+      "floorMet": true,
+      "deltaEMax": 12
+    }
+  },
+  "scenario": "B"
+}

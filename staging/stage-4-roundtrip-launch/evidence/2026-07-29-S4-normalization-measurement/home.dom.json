@@ -1,0 +1,297 @@
+{
+  "title": "North Star Dog Grooming - Grooming Your Dog Deserves",
+  "bodyText": "Skip to main content North Star ☰ Home Pricing Contact Grooming that dogs actually enjoy Your pup deserves a grooming experience where they get our full attention, no crates or waiting. We're North Star Dog Grooming, where every dog gets pampered one at a time in a calm, welcoming space. See our prices North Star Dog Grooming 84 Norfolk Street, north entrance519-555-0177Tuesday to Saturday, 8am to 4pm Home Pricing Contact © 2026 North Star Dog Grooming. All rights reserved. const toggle = document.getElementById('navToggle'); const menu = document.getElementById('navMenu'); toggle.addEventListener('click', () => { menu.classList.toggle('active'); }); document.querySelectorAll('.nav-menu a').forEach(link => { link.addEventListener('click', () => { menu.classList.remove('active'); }); });",
+  "documentHeight": 990,
+  "viewportHeight": 900,
+  "contentBottom": 857,
+  "nodes": [
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Skip to main content",
+      "href": "#main",
+      "src": null,
+      "box": {
+        "x": 0,
+        "y": 2,
+        "w": 147,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "North Star",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 47,
+        "w": 86,
+        "h": 29
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Home",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 908,
+        "y": 48,
+        "w": 39,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Pricing",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 987,
+        "y": 48,
+        "w": 44,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "li",
+      "text": "Contact",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 1071,
+        "y": 48,
+        "w": 49,
+        "h": 26
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "button",
+      "text": "☰",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 529,
+        "y": 51,
+        "w": 16,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Home",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 908,
+        "y": 52,
+        "w": 39,
+        "h": 23
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Pricing",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 987,
+        "y": 52,
+        "w": 44,
+        "h": 19
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Contact",
+      "href": "contact.html",
+      "src": null,
+      "box": {
+        "x": 1071,
+        "y": 52,
+        "w": 49,
+        "h": 19
+      }
+    },
+    {
+      "kind": "image",
+      "tag": "img",
+      "text": "A freshly groomed terrier standing on a grooming table, looking alert and well-cared for",
+      "href": null,
+      "src": "assets/img_001.jpg",
+      "box": {
+        "x": 620,
+        "y": 178,
+        "w": 500,
+        "h": 375
+      }
+    },
+    {
+      "kind": "heading",
+      "tag": "h1",
+      "text": "Grooming that dogs actually enjoy",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 197,
+        "w": 500,
+        "h": 115
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "p",
+      "text": "Your pup deserves a grooming experience where they get our full attention, no crates or waiting. We're North Star Dog Grooming, where every dog gets pampered one at a time in a calm, welcoming space.",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 352,
+        "w": 500,
+        "h": 86
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "See our prices",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 479,
+        "w": 153,
+        "h": 54
+      }
+    },
+    {
+      "kind": "heading",
+      "tag": "h3",
+      "text": "North Star Dog Grooming",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 754,
+        "w": 500,
+        "h": 26
+      }
+    },
+    {
+      "kind": "text",
+      "tag": "p",
+      "text": "84 Norfolk Street, north entrance519-555-0177Tuesday to Saturday, 8am to 4pm",
+      "href": null,
+      "src": null,
+      "box": {
+        "x": 80,
+        "y": 795,
+        "w": 500,
+        "h": 62
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Home",
+      "href": "/",
+      "src": null,
+      "box": {
+        "x": 945,
+        "y": 801,
+        "w": 35,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Pricing",
+      "href": "pricing.html",
+      "src": null,
+      "box": {
+        "x": 1008,
+        "y": 801,
+        "w": 39,
+        "h": 21
+      }
+    },
+    {
+      "kind": "link",
+      "tag": "a",
+      "text": "Contact",
+      "href": "contact.html",
+      "src": null,
+      "box": {
+        "x": 1076,
+        "y": 801,
+        "w": 44,
+        "h": 21
+      }
+    }
+  ],
+  "links": [
+    {
+      "text": "Skip to main content",
+      "href": "#main"
+    },
+    {
+      "text": "North Star",
+      "href": "/"
+    },
+    {
+      "text": "☰",
+      "href": null
+    },
+    {
+      "text": "Home",
+      "href": "/"
+    },
+    {
+      "text": "Pricing",
+      "href": "pricing.html"
+    },
+    {
+      "text": "Contact",
+      "href": "contact.html"
+    },
+    {
+      "text": "See our prices",
+      "href": "pricing.html"
+    },
+    {
+      "text": "Home",
+      "href": "/"
+    },
+    {
+      "text": "Pricing",
+      "href": "pricing.html"
+    },
+    {
+      "text": "Contact",
+      "href": "contact.html"
+    }
+  ],
+  "images": [
+    {
+      "src": "assets/img_001.jpg",
+      "alt": "A freshly groomed terrier standing on a grooming table, looking alert and well-cared for",
+      "box": {
+        "x": 620,
+        "y": 178,
+        "w": 500,
+        "h": 375
+      }
+    }
+  ]
+}

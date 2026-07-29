@@ -1650,6 +1650,88 @@ frame of reference), record it in `docs/decisions.md`, then re-run 6–11 unchan
 deployed-bundle precondition, the CLI baseline and all eight hard gates are green as of this entry.
 
 
+### 2026-07-29 — S4 NORMALIZATION: step 1 applied (digest records the real document height); steps 2–3 of the ruling are mutually inconsistent against real data — STOPPED for a revised ruling
+
+**Applied:** SEG-5's DOM digest now records `documentHeight`
+(`documentElement`/`body.scrollHeight` at the capture viewport), plus `viewportHeight` and
+`contentBottom`. Guarded: floored at the viewport height **and** the tallest element's bottom, so
+the denominator can never be smaller than the content it measures. **Data capture only — the
+scorer was NOT changed.** Committed `c8c1540`.
+
+**NOT applied, and why.** The ruling's step 2 (sketch image centre ÷ sketch page height vs
+rendered image centre ÷ rendered document height) cannot satisfy its own step 3 (the attempt-5
+replay must score both images as matched). This is measured, not predicted — a fresh smoke at
+`c8c1540` captured the previously-missing number:
+
+| page | documentHeight | viewportHeight | contentBottom |
+|---|---|---|---|
+| home | **990** | 900 | 857 |
+| pricing | **900** | 900 | 634 |
+| contact | **948** | 900 | 815 |
+
+Applying the ruling exactly:
+
+| block | sketch centre ÷ 1600 | rendered centre ÷ documentHeight | match |
+|---|---|---|---|
+| home `blk_0004` | 288 / 1600 = 0.180 → third **0** | 365.5 / 990 = 0.369 → third **1** | **no** |
+| contact `blk_0011` | 304 / 1600 = 0.190 → third **0** | 344.5 / 948 = 0.363 → third **1** | **no** |
+
+**Why the old bug is fixed but the test still misses.** The original defect (denominator = bottom
+edge of the lowest image) is genuinely gone — `documentHeight` is a real surface. But a *second*
+asymmetry remains, and it is structural: **`page.height` is a fixed 1600 px sketch canvas, and
+Scenario B's content ends at y≈450–500.** So roughly 1100 px of the sketch is empty. Every sketch
+block therefore normalises into the **top third** (0.18, 0.19), while the built page is
+content-sized (~950–990 px, viewport-floored at 900) and legitimately adds a nav, a footer and page
+furniture the brief explicitly permits — spreading its content across the full document (0.36,
+0.37). The two ratios measure different surfaces: a sparse fixed canvas against a dense rendered
+page. **Both images are in fact in the right place** — top area, right-hand column, below the nav —
+and the horizontal half matches for both.
+
+**Four candidate rules, measured against the real capture** (not argued — run the numbers in
+`home.dom.json` / `contact.dom.json`, committed):
+
+| option | home | contact | both pass |
+|---|---|---|---|
+| **A** — the ruling as written (sketch ÷ 1600, render ÷ documentHeight) | mismatch | mismatch | **no** |
+| **B** — both sides ÷ their own CONTENT extent | MATCH | mismatch | **no** |
+| **C** — A's normalisation, with a ±1-third tolerance | MATCH | MATCH | **yes** |
+| **D** — drop the vertical third; keep presence + horizontal half (+ alt from description) | MATCH | MATCH | **yes** |
+
+B fails on contact because the sketch places that image at 68 % of its content extent while the
+built page places it at 36 % — the added nav/footer shift relative position, correctly.
+C keeps a vertical signal but accepts an adjacent bucket, which absorbs both the empty-canvas skew
+and the brittleness at the 0.333 / 0.667 boundaries. D removes the vertical signal entirely.
+
+**This needs a fresh ruling and I did not pick one.** Choosing between C, D, or something else is a
+scoring-rule decision, and the standing binding is explicit that even an obvious evaluator bug is
+not mine to fix. Recorded here so the next ruling is made on measurements rather than another
+round-trip.
+
+**Run record (data-gathering, not a gauntlet leg).**
+
+| Run dir (`C:\bp-runs\…`) | Verdict | Elapsed |
+|---|---|---|
+| `2026-07-29T16-22-28-450Z_B_c8c1540` | **SMOKE-FAIL 29.14/100** | 4.0 min |
+
+**All eight hard gates PASS again** (H1–H8), second run running. S4 0.0/15 floor missed is still the
+only blocker; S1 came in at 22.1 (vs 25.0 last run) and the total moved 32 → 29.14, so **there is
+real run-to-run variance in builder output** — worth remembering when a single run is used to
+justify a threshold. Segments: SEG-1 22.3 s · SEG-2 0.6 s · SEG-3 213.3 s · SEG-4 0.03 s · SEG-5
+3.2 s.
+
+**Nothing was weakened.** `invalid: false`, `cached: false`, `credentialScrubbed: true`,
+`purity.ok: true` (CLI 2.1.220 vs the 2.1.220 baseline), all seven rule hashes byte-identical start
+to end. No threshold, scan rule, scenario, prompt, rubric or manifest was edited.
+
+**Evidence:** `staging/stage-4-roundtrip-launch/evidence/2026-07-29-S4-normalization-measurement/`
+— `run-manifest.json`, `report.md`, `evaluate.json`, `verdict.txt`, and all three DOM digests
+carrying the new `documentHeight` field (these are the fixture for whichever option is chosen).
+
+**To resume:** rule on C, D, or another normalisation; record it in `docs/decisions.md`; then
+re-run 6–11 unchanged. Auth, deployed-bundle precondition, CLI baseline and all eight hard gates
+are green.
+
+
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 
 **Every question below was ruled the same day and is already applied in the rules above.
