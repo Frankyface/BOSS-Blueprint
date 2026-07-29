@@ -54,14 +54,14 @@
  * whether a scrollbar takes layout space at all (WebKit's are overlays), so
  * "always show the scrollbar" is a cue that simply does not appear on a Mac.
  *
- * It sits ABOVE the guard's banner inset for the same reason the scroller pads
- * for it: the cue must mark the bottom of what you can see, not the bottom of
- * the window.
+ * Pinned to the SCROLLER'S bottom edge, not the window's: on a small viewport
+ * the canvas is a 65vh band near the top of a stacked column, and an inset for
+ * the desktop guard's fixed banner would float the cue into the middle of it.
  */
 .canvas-area__more {
   position: absolute;
   right: 0;
-  bottom: var(--boss-guard-inset, 0px);
+  bottom: 0;
   left: 0;
   height: 2.5rem;
   pointer-events: none;
