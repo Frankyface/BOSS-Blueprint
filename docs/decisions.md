@@ -456,3 +456,38 @@ with the 16 new commands named, that neither entry is an empty stub, and that an
 still returns `null` so block-on-unknown has something to block. `npx vitest run scripts/` green,
 227 passed · **Revisit if:** a delta ever contains a non-builtin or third-party entry — that is a
 leak, not a version bump, and it routes to the leak branch and a stop, not to another manifest entry.
+
+## 2026-07-29 — H3 BUILD_NOTES location fixed to the build root
+**Chose:** the H3/H8 scan checks **`<sandbox>/site/BUILD_NOTES.md`** — the build root — instead of
+`<sandbox>/BUILD_NOTES.md`. `run.mjs` SEG-4 now resolves the notes against the same `site/`
+directory it already resolved `index.html` against. When the notes are absent from the build root
+but a non-empty copy sits at the **sandbox root**, the gate **still FAILS** and attaches a named
+hint (`BUILD_NOTES_MISPLACED_HINT`) saying the file is one level above `./site/` and that the
+builder most likely read "the root of your build" as the sandbox root — **a precise diagnosis, not
+an acceptance**. Both locations present is still a pass; the stray copy is only ever a diagnostic ·
+**Because:** the brief says *"Record every judgment call in a `BUILD_NOTES.md` at the root of your
+build"* and `prompt.txt` says *"Create your build output in `./site/`"* — so "the root of your
+build" and `./site/` name the same directory, and that is the **only** reading available to the
+builder. Verified against the run, not assumed: `brief.md` mentions "root of your build" exactly
+once, never path-qualifies `BUILD_NOTES.md` anywhere, and **never mentions `./site/` at all** — the
+sole statement locating the build is in `prompt.txt`. `run.mjs` was also internally inconsistent,
+resolving `index.html` inside `site/` but the notes one level up. The first real builder session
+that ever ran to completion (live-run attempt 4, `1fee28f`) proved it: `sentinelPresent: true`,
+`indexHtmlExists: true`, `maxTurns: false`, export package 38 PASS / 0 WARN / 0 FAIL — and the run
+still scored `FAIL — H3 incomplete build` on the single input `buildNotesExists: false`, purely
+because the builder had put the file where its instructions pointed · **The brief generator is NOT
+touched.** No product change; `src/export/` is untouched and Appendix test B is unaffected. This is
+a harness bug fixed in the harness · **Rejected:** rewording the brief's DoD to name the sandbox
+root (alters what every future client package tells every future builder, permanently, in order to
+paper over a harness bug — and would make the brief *less* true, since the notes genuinely do
+belong with the build); accepting **either** location (a gate that shrugs at two answers has
+stopped measuring the thing it exists to measure — precision beats tolerance, so the misplacement
+is named and still fails) · **Verification:** four unit tests pin all three placements — in the
+build root PASSES; only at the sandbox root FAILS *with* the named hint; absent everywhere FAILS
+plainly with no misleading hint; and a stray copy cannot rescue a build whose notes are correctly
+placed. Beyond the fixtures, the **real attempt-4 transcript and sandbox were replayed through the
+fixed scan**: the identical build now returns `h3.ok: true`, `h8.ok: true`, with the BUILD_NOTES
+triage parsing 81 entries. `npx vitest run scripts/` green, 231 passed · **Revisit if:** a future
+builder writes `BUILD_NOTES.md` somewhere other than the build root — with the instruction now
+consistent between brief, prompt and gate, that is a genuine H3 incomplete build and routes to the
+product, not to another harness edit.

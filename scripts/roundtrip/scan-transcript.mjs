@@ -266,11 +266,24 @@ export function triageBuildNotes(notesText, pageCount) {
 /* ═══════════════════════ the segment-level scan ══════════════════════════ */
 
 /**
+ * The hint H3/H8 attach when the notes exist, but one directory too high.
+ *
+ * Precision over tolerance (docs/decisions.md, 2026-07-29): the gate still FAILS —
+ * it just says exactly what went wrong instead of "does not exist", which is what
+ * cost live-run attempt 4 a whole run to diagnose.
+ */
+export const BUILD_NOTES_MISPLACED_HINT =
+  'BUILD_NOTES.md is missing from the build root (site/BUILD_NOTES.md), but a non-empty one '
+  + 'sits at the sandbox root, one level ABOVE ./site/. The brief says "at the root of your '
+  + 'build" and the build is ./site/ — the builder most likely read that as the sandbox root.';
+
+/**
  * @param {object} input
  * @param {string} input.transcriptText
  * @param {string|null} input.buildNotesText
  * @param {boolean} input.indexHtmlExists
- * @param {boolean} input.buildNotesExists
+ * @param {boolean} input.buildNotesExists  at the BUILD root — `site/BUILD_NOTES.md`
+ * @param {boolean} input.buildNotesAtSandboxRoot  the misplacement we name rather than accept
  * @param {number} input.pageCount
  * @returns {object} the `scan-report.json` payload
  */
@@ -279,6 +292,7 @@ export function scanSegment({
   buildNotesText = null,
   indexHtmlExists = false,
   buildNotesExists = false,
+  buildNotesAtSandboxRoot = false,
   pageCount = 0,
 }) {
   const events = parseTranscript(transcriptText);
@@ -305,9 +319,16 @@ export function scanSegment({
     sentinelPresent,
     indexHtmlExists,
     buildNotesExists,
+    buildNotesAtSandboxRoot,
     maxTurns,
     unevaluableFinalText: finalText === null,
   };
+
+  // Found, but one level too high: still a FAIL, now with the reason named.
+  if (!buildNotesExists && buildNotesAtSandboxRoot) {
+    h3.hint = BUILD_NOTES_MISPLACED_HINT;
+    h8.hint = BUILD_NOTES_MISPLACED_HINT;
+  }
 
   // R5.6 — an H2 failure WITH a denial is the harness's fault, never the product's.
   const routing = !h2.ok && denials.length >= 1 ? 'harness' : (!h2.ok ? 'product' : null);
@@ -327,8 +348,19 @@ export function scanSegment({
   };
 }
 
-/** Convenience wrapper for `run.mjs`: read the files, scan, return the report. */
-export async function scanFiles({ transcriptPath, buildNotesPath, indexHtmlExists, pageCount }) {
+/**
+ * Convenience wrapper: read the files, scan, return the report.
+ *
+ * `buildNotesPath` is the BUILD root's copy (`site/BUILD_NOTES.md`);
+ * `strayBuildNotesPath` is the sandbox-root location we name but never accept.
+ */
+export async function scanFiles({
+  transcriptPath,
+  buildNotesPath,
+  strayBuildNotesPath = null,
+  indexHtmlExists,
+  pageCount,
+}) {
   const transcriptText = await readFile(transcriptPath, 'utf8');
   let buildNotesText = null;
   let buildNotesExists = false;
@@ -338,11 +370,16 @@ export async function scanFiles({ transcriptPath, buildNotesPath, indexHtmlExist
   } catch {
     buildNotesExists = false;
   }
+  let buildNotesAtSandboxRoot = false;
+  if (!buildNotesExists && strayBuildNotesPath !== null) {
+    buildNotesAtSandboxRoot = await readFile(strayBuildNotesPath, 'utf8').then(() => true, () => false);
+  }
   return scanSegment({
     transcriptText,
     buildNotesText,
     indexHtmlExists,
     buildNotesExists,
+    buildNotesAtSandboxRoot,
     pageCount,
   });
 }

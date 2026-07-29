@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   candidateSentences,
+  BUILD_NOTES_MISPLACED_HINT,
   collectToolUses,
   extractFinalText,
   parseTranscript,
@@ -239,6 +240,49 @@ describe('R5.4 — the completion cross-check', () => {
       buildNotesExists: true,
     })
     expect(report.h3.maxTurns).toBe(true)
+  })
+
+  /**
+   * BUILD_NOTES.md lives at the BUILD root — `site/` — and `run.mjs` resolves
+   * `buildNotesExists` there (docs/decisions.md, 2026-07-29). Live-run attempt 4 failed a
+   * complete, correct build because the check looked one level up, so the three placements
+   * are pinned here: in the build root passes; ONLY at the sandbox root still fails, but
+   * names the misreading; absent fails plainly.
+   */
+  describe('the BUILD_NOTES location (attempt-4 regression)', () => {
+    const at = (extra) => scanSegment({ transcriptText: complete, indexHtmlExists: true, ...extra })
+
+    it('PASSES when the notes are in the build root', () => {
+      const report = at({ buildNotesExists: true, buildNotesAtSandboxRoot: false })
+      expect(report.h3.ok).toBe(true)
+      expect(report.h8.ok).toBe(true)
+      expect(report.h3.hint).toBeUndefined()
+    })
+
+    it('FAILS, with the misreading NAMED, when they are only at the sandbox root', () => {
+      const report = at({ buildNotesExists: false, buildNotesAtSandboxRoot: true })
+      expect(report.h3.ok).toBe(false)
+      expect(report.h8.ok).toBe(false)
+      // Precision, not tolerance: still a FAIL, but it says what actually happened.
+      expect(report.h3.hint).toBe(BUILD_NOTES_MISPLACED_HINT)
+      expect(report.h8.hint).toBe(BUILD_NOTES_MISPLACED_HINT)
+      expect(report.h3.hint).toMatch(/site\/BUILD_NOTES\.md/)
+      expect(report.h3.hint).toMatch(/sandbox root/)
+      expect(report.h3.buildNotesAtSandboxRoot).toBe(true)
+    })
+
+    it('FAILS plainly when they do not exist anywhere — no misleading hint', () => {
+      const report = at({ buildNotesExists: false, buildNotesAtSandboxRoot: false })
+      expect(report.h3.ok).toBe(false)
+      expect(report.h8.ok).toBe(false)
+      expect(report.h3.hint).toBeUndefined()
+      expect(report.h8.hint).toBeUndefined()
+    })
+
+    it('does not let a stray copy rescue a build whose notes ARE in the build root', () => {
+      // Both present is still a pass — the stray file is only ever a diagnostic.
+      expect(at({ buildNotesExists: true, buildNotesAtSandboxRoot: true }).h3.ok).toBe(true)
+    })
   })
 })
 

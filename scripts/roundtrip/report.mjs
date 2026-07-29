@@ -200,7 +200,9 @@ function describeH3(h3) {
   if (h3.unevaluableFinalText) problems.push('no final assistant message — H2 was unevaluable (INFRA note)');
   if (!h3.sentinelPresent) problems.push('BUILD COMPLETE was not the final non-empty line');
   if (!h3.indexHtmlExists) problems.push('site/index.html does not exist');
-  if (!h3.buildNotesExists) problems.push('BUILD_NOTES.md does not exist');
+  if (!h3.buildNotesExists) {
+    problems.push(h3.hint ?? 'site/BUILD_NOTES.md does not exist');
+  }
   if (h3.maxTurns) problems.push('the session ended with error_max_turns — infra/turns');
   return problems;
 }

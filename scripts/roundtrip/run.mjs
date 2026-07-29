@@ -231,11 +231,23 @@ async function main() {
 
     /* ── SEG-4 · the scan (H2, H3, H8) ────────────────────────────────── */
     const scan = await segment(manifest, 'SEG-4', SEGMENT_HARD_STOP_MIN, async () => {
+      // BUILD_NOTES.md lives at the BUILD root — `site/` — not the sandbox root.
+      // The brief says "at the root of your build" and `prompt.txt` puts the build in
+      // ./site/, so they name the same directory. This check used to look one level up,
+      // which failed the first real build that ever completed even though the builder had
+      // followed the only coherent reading of its instructions (docs/decisions.md,
+      // 2026-07-29 — H3 BUILD_NOTES location fixed to the build root). `index.html` was
+      // always resolved against `site/`; now the notes are too.
+      const buildRoot = path.join(sandboxDir, 'site');
+      const buildNotesPath = path.join(buildRoot, 'BUILD_NOTES.md');
       const report = scanSegment({
         transcriptText: await readFile(transcriptPath, 'utf8'),
-        buildNotesText: await readFile(path.join(sandboxDir, 'BUILD_NOTES.md'), 'utf8').catch(() => null),
-        indexHtmlExists: await isNonEmptyFile(path.join(sandboxDir, 'site', 'index.html')),
-        buildNotesExists: await isNonEmptyFile(path.join(sandboxDir, 'BUILD_NOTES.md')),
+        buildNotesText: await readFile(buildNotesPath, 'utf8').catch(() => null),
+        indexHtmlExists: await isNonEmptyFile(path.join(buildRoot, 'index.html')),
+        buildNotesExists: await isNonEmptyFile(buildNotesPath),
+        // Named, never accepted: a stray copy one level up turns "does not exist" into
+        // the actual diagnosis, without widening what the gate lets through.
+        buildNotesAtSandboxRoot: await isNonEmptyFile(path.join(sandboxDir, 'BUILD_NOTES.md')),
         pageCount: site.pages.length,
       });
       await writeFile(path.join(builderDir, 'scan-report.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
