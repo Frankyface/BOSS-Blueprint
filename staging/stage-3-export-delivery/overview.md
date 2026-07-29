@@ -19,17 +19,17 @@ The notification relay is a swappable port that ships as a no-op stub in this st
 wired LAST, per Cam. Submit is fully functional without it.
 
 ## Features
-- [ ] feature-site-json-generator.md — document v2 → `site.json` (id remap §4.8, slugs §4.1,
+- [x] feature-site-json-generator.md — document v2 → `site.json` (id remap §4.8, slugs §4.1,
       heights §4.2, `''→null`, discriminators §4.7, asset manifest §4.6, pen roles §4.5) plus
       the shared validator module (V1–V24 + the two additions) with a red-path test per rule
-- [ ] feature-brief-generator.md — `generateBrief(siteJson)`, the §3.2 template + [N1]–[N12]
+- [x] feature-brief-generator.md — `generateBrief(siteJson)`, the §3.2 template + [N1]–[N12]
       narration algorithms, escaping §3.3, and the byte-exact CI equality test against §7.2
 - [x] feature-png-renderer.md — one page PNG at exactly `1200 × page.height`, pen baked in,
       snapdom → html-to-image behind ONE interface, sanity validation + retry + engine
       fallback, the x>1200 clip rule, tri-engine visual regression
-- [ ] feature-package-zip.md — §1 layout, deterministic compression ladder, size meter, UUID
+- [x] feature-package-zip.md — §1 layout, deterministic compression ladder, size meter, UUID
       stamping, filename convention
-- [ ] feature-submit-gate.md — the gated submit: required fields, the validator gate UI
+- [x] feature-submit-gate.md — the gated submit: required fields, the validator gate UI
       (BLOCK / FIX / WARN), V23 filler warning, always-on download, two-step completion UX,
       spam honeypot, and the `DeliveryRelay` port with its no-op implementation
 - [ ] feature-notification-relay.md — **deferred, wired LAST** (not in this stage's DoD): the
@@ -61,30 +61,30 @@ layer here (`docs/export-format.md` §6.6 — never let internal state leak into
 never let the export grow a rename shim that hides drift).
 
 ## Definition of Done (testable checklist)
-- [ ] **Appendix A equality test A green:** the fenced JSON Schema in `docs/export-format.md`
+- [x] **Appendix A equality test A green:** the fenced JSON Schema in `docs/export-format.md`
       §2.2 byte-matches `src/export/schema/site.v1.schema.json` (`npm test`, one assertion,
       both sides read from disk at test time)
-- [ ] **Appendix A equality test B green:** `generateBrief(parse(§7.1)) === §7.2`, byte-exact,
+- [x] **Appendix A equality test B green:** `generateBrief(parse(§7.1)) === §7.2`, byte-exact,
       with both blocks extracted from `docs/export-format.md` itself (see Open Question 1 —
       this DoD item is what forces that ruling before the stage can close)
-- [ ] Every V-rule in §5 has a red-path unit test that fails without its implementation, and a
+- [x] Every V-rule in §5 has a red-path unit test that fails without its implementation, and a
       green-path test on the §7.1 fixture; `npm run test:coverage` holds `src/export/**` at
       ≥80% lines and functions (same gate as `src/canvas/**`)
-- [ ] E2E: a full design submits through the real UI, the zip downloads, and its entry listing
+- [x] E2E: a full design submits through the real UI, the zip downloads, and its entry listing
       **exactly** equals §1 — no wrapper folder, no extra entries
-- [ ] **The round-trip protocol's package gate passes on that E2E-produced zip:**
+- [x] **The round-trip protocol's package gate passes on that E2E-produced zip:**
       `node scripts/roundtrip/gate.mjs --package <downloaded.zip> --no-manifest` exits 0,
       covering `docs/roundtrip-protocol.md` §2 steps 1–3 (filename + layout, ajv schema
       validation, replay of the app's own validator module against the extracted package)
-- [ ] E2E: every page PNG decodes, is exactly `1200 × page.height`, is non-blank, and matches
+- [x] E2E: every page PNG decodes, is exactly `1200 × page.height`, is non-blank, and matches
       its committed per-engine baseline within tolerance on chromium + firefox + webkit
-- [ ] E2E: **submit is fully functional with NO relay** — with the `DeliveryRelay` port bound
+- [x] E2E: **submit is fully functional with NO relay** — with the `DeliveryRelay` port bound
       to the no-op stub, submit still validates, downloads the zip, and renders the two-step
       completion UX with a working prefilled mailto and a copyable address
-- [ ] E2E: the BLOCK path stops submission and points at the offending block; the FIX path
+- [x] E2E: the BLOCK path stops submission and points at the offending block; the FIX path
       auto-corrects and proceeds; the WARN path ships and lists what it warned about
-- [ ] `npm run lint`, `npm test`, `npm run build`, `npm run e2e` all green in CI on `main`
-- [ ] Every feature file above is `verified done` with Verification Log evidence
+- [x] `npm run lint`, `npm test`, `npm run build`, `npm run e2e` all green in CI on `main`
+- [x] Every feature file above is `verified done` with Verification Log evidence
 
 ## Open Questions — ALL RULED 2026-07-28, kept for context
 **Every question below was ruled the same day and applied as the export-format v2.1 amendment

@@ -1,5 +1,5 @@
 # Feature: Gated Submit + Download-First Delivery
-_Stage: stage-3-export-delivery · Status: awaiting verification_
+_Stage: stage-3-export-delivery · Status: verified done_
 
 ## Goal
 The one button the whole product leads to. Submit captures the lead (name + email + business
@@ -15,58 +15,58 @@ relay at all** — that is a Stage 3 DoD item, not a caveat.
 ## Success Criteria
 
 ### The gate (fields enforced only at submit)
-- [ ] Submit collects **your name**, **your email** and **business name**, all required *here and
+- [x] Submit collects **your name**, **your email** and **business name**, all required *here and
       only here* — the Site panel keeps its one calm hint and never nags while sketching
       (`feature-site-settings.md` Notes)
-- [ ] Business name writes through to `siteSettings.businessName` (one source of truth, one undo
+- [x] Business name writes through to `siteSettings.businessName` (one source of truth, one undo
       step); it is not a second copy that can disagree with the design
-- [ ] Empty or malformed entries are reported inline with `role="alert"`, and submission does not
+- [x] Empty or malformed entries are reported inline with `role="alert"`, and submission does not
       start (V8 — this is the lead gate, and it is client-facing form validation, not a bug path)
-- [ ] A **spam honeypot** field is present, off-screen, `tabIndex={-1}`, `autoComplete="off"`,
+- [x] A **spam honeypot** field is present, off-screen, `tabIndex={-1}`, `autoComplete="off"`,
       `aria-hidden`, and not named/typed like anything a password manager autofills. If it is
       non-empty the submission is refused — per `docs/roundtrip-protocol.md` §1.4 rule 4, filling
       it legitimately blocks — and the refusal still shows BOSS's email address so a false
       positive is never a dead end
-- [ ] **V23 pre-flight:** before the client can send, any block still carrying
+- [x] **V23 pre-flight:** before the client can send, any block still carrying
       `fromTemplate: true` is listed ("Some template placeholder text is still in your design —
       want to review it?") with jump links. It is a WARN: reviewing is offered, never forced; if
       they send anyway the brief's [N12] marker tells the builder to replace the filler
 
 ### The validator gate UI
-- [ ] **BLOCK stops the submission** and shows the finding's client-facing message plus a
+- [x] **BLOCK stops the submission** and shows the finding's client-facing message plus a
       **jump-to-block** control that returns to editing with the offending page open and the
       block selected (V5 "Tell us what to write here", V14 "Tell us what image goes here", V19
       "This text box is empty…", V26 if ruled). Bug-class BLOCKs (V1, V2, V6, V7, V12, V16, V21,
       V24) instead show "something went wrong" with the detail logged to the console — the client
       cannot fix a generator bug and must not be asked to
-- [ ] **FIX applies silently and proceeds** (V3, V4, V11, V17, V20). The applied fixes are listed
+- [x] **FIX applies silently and proceeds** (V3, V4, V11, V17, V20). The applied fixes are listed
       in the console and carried in the report, not paraded at the client
-- [ ] **WARN ships and is listed** (V9-near-empty, V10, V13, V15, V18, V22, V23, V25 if ruled) —
+- [x] **WARN ships and is listed** (V9-near-empty, V10, V13, V15, V18, V22, V23, V25 if ruled) —
       shown as a short "things worth knowing" list on the completion screen and carried into the
       notification payload for Cam
-- [ ] Progress is visible during generation ("Rendering page 2 of 4…") because PNG rendering of a
+- [x] Progress is visible during generation ("Rendering page 2 of 4…") because PNG rendering of a
       multi-page site is seconds, not milliseconds
 
 ### Download-first
-- [ ] **The zip download is the first side effect after validation passes**, before any network
+- [x] **The zip download is the first side effect after validation passes**, before any network
       call, and it happens whether or not a relay exists or succeeds
-- [ ] The completion screen shows **step 1 as already done**: `Downloaded ✓ <filename> (~N KB)`,
+- [x] The completion screen shows **step 1 as already done**: `Downloaded ✓ <filename> (~N KB)`,
       with a "Download it again" control that re-uses the retained Blob (no regeneration, no new
       UUID)
-- [ ] **Step 2 — "Email it to us"** offers (a) a real `<a href="mailto:…">` prefilled with a
+- [x] **Step 2 — "Email it to us"** offers (a) a real `<a href="mailto:…">` prefilled with a
       subject carrying the business name and the uuid8 and a short body naming the exact file to
       attach, and (b) the address as **copyable text** with a clipboard button and a visible,
       selectable fallback. The app never auto-opens the mail client
-- [ ] The submission UUID appears on screen so the client can quote it, and it matches the one in
+- [x] The submission UUID appears on screen so the client can quote it, and it matches the one in
       the filename, `site.json` and `brief.md`
 
 ### The DeliveryRelay port
-- [ ] `DeliveryRelay` is an interface with one method; the app depends on the interface, never on
+- [x] `DeliveryRelay` is an interface with one method; the app depends on the interface, never on
       a provider. Stage 3 ships **`NoopRelay`** — logs in dev, resolves `{ status: 'skipped' }`
-- [ ] **Submit never awaits the relay before downloading**, and a rejected relay promise is
+- [x] **Submit never awaits the relay before downloading**, and a rejected relay promise is
       caught and never shown to the client as a failure — the package is already on their disk.
       Only a `status: 'sent'` outcome adds a line to the completion screen
-- [ ] The notification payload builder is a pure function producing the debate #2 shape
+- [x] The notification payload builder is a pure function producing the debate #2 shape
       (client name/email, submission UUID, page count, `brief.md`, gzipped `site.json`, plus the
       WARN list) with the **degrade ladder full → compressed → metadata-only** as a pure,
       unit-tested size decision — built and tested now even though nothing sends it yet, so
@@ -226,6 +226,28 @@ webkit, 7.4 min locally. `e2e/submit.spec.ts` (6 tests × 3 engines):
 **Blocked on Cam:** the destination address in `site.config.ts` is
 `cammer3034@gmail.com`, the working address `help.md` already names. Confirming it or
 swapping in a BOSS mailbox is a one-constant change and is now an open item in `help.md`.
+
+**Stage-close review (2026-07-29):** re-verified at 770c346 — lint clean · **76 files / 1313
+tests** · coverage exit 0 (`src/submit/**` gated: **95.83% lines, 96% functions**) · build
+565.09 kB · e2e ×2 both **535 passed / 2 skipped**, 0 flaky.
+**The reviewer drove the whole journey by hand in a real browser against the PRODUCTION build**
+(no test hooks, stub seam folded out): Restaurant template → one calm businessName hint, no
+nagging → Send with name+email only = exactly one role=alert, no progress, nothing rendered →
+**V23 pre-flight listed 25 filler blocks** with page·type names, previews, and working jumps →
+businessName typed then Send WITH NO BLUR = committed via the click itself → data-rule=V05
+BLOCK with document.activeElement ON the first finding → jump returned to canvas with the block
+selected (export-id→internal-id inversion proven in production) → fix → flow advanced to
+rendering. (A local environment artifact — uncomposited browser pane — stalled the render; the
+artifact half was verified on real E2E packages instead.)
+**Honeypot live in production:** aria-hidden, tabindex -1, off-screen, absent from the
+accessibility tree — invisible to screen readers, not merely off-screen. **NoopRelay** resolves
+skipped, never sent; the delivery note renders only on sent, so the stub cannot lie; mailto
+href carries uuid8 + filename; address is a selectable readonly input + copy button. All stub
+seams re-grepped absent from dist/. Gate on the resulting package: EXIT 0.
+Follow-ups carried to Stage 4 (not blockers): F1 — no test asserts focus-to-first-finding
+(verified live; one toBeFocused() closes it); F2 — no E2E package contains an assets/ entry
+(unit-only coverage of the staged-asset branch; seed one uploaded image into the submit
+fixture). **VERIFIED DONE.**
 
 ## Open Questions
 - **Where Submit lives.** **Recommendation: a dedicated Submit view that takes over the canvas

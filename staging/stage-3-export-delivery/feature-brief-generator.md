@@ -1,5 +1,5 @@
 # Feature: brief.md Generator
-_Stage: stage-3-export-delivery · Status: awaiting verification_
+_Stage: stage-3-export-delivery · Status: verified done_
 
 ## Goal
 `generateBrief(siteJson): string` — the pure function that writes the build prompt a fresh
@@ -26,18 +26,18 @@ because they are properties of this generator's output.
 ## Success Criteria
 
 ### Output shape
-- [ ] Sections are emitted in exactly this order and no other: **Your role → The business →
+- [x] Sections are emitted in exactly this order and no other: **Your role → The business →
       Look & feel → Responsive rules → Site inventory → Navigation map → Page walkthroughs →
       Copy you must write → Assets → Definition of done** (§3.3 rule 1)
-- [ ] The three fixed regions — **Your role**, **Responsive rules**, **Definition of done** —
+- [x] The three fixed regions — **Your role**, **Responsive rules**, **Definition of done** —
       are frozen string constants that interpolate nothing, and a CI test asserts each matches
       its §3.2 counterpart in `docs/export-format.md` **under whitespace normalization**
       (**equality test C**, v2.3 definition). Byte-exact C is unsatisfiable by construction:
       §3.2 is *displayed* hard-wrapped while emitted lines are unwrapped (§3.3 rule 10).
       Measured: all three regions normalize-match and byte-mismatch. Only test B is byte-exact
-- [ ] The HTML comment header carries `appVersion`, `submission.id`, `submittedAt` and
+- [x] The HTML comment header carries `appVersion`, `submission.id`, `submittedAt` and
       `schemaVersion` (§6.7 — a stray `brief.md` stays traceable)
-- [ ] **Absent optionals never remove a line**: `tagline`/`about` render `— none provided —`,
+- [x] **Absent optionals never remove a line**: `tagline`/`about` render `— none provided —`,
       `styleNotes` renders `— none —` (bare; a present value is guillemet-quoted per §7.2),
       `vibe` renders the "not specified — infer a fitting tone …" fallback, empty `colors`
       renders the "none given — derive a palette …" fallback (§3.3 rule 4 — silence invites
@@ -48,25 +48,25 @@ because they are properties of this generator's output.
       `description` renders `No description given — write alt text from what the image shows.`
       in place of the whole `Client's description: «…» — write alt text FROM this…` clause, and
       the bare string `(no description)` in its assets-section usage entry ([N6])
-- [ ] **No invented data** (§3.3 rule 9): bare hex only (never colour names), no URL prettifying
+- [x] **No invented data** (§3.3 rule 9): bare hex only (never colour names), no URL prettifying
       beyond [N9]'s hostname rule, no unit conversions beyond [N11]. Any string in the output
       traces to the template plus exactly one [N] rule
 
 ### Narration algorithms
-- [ ] **[N1] section grouping** — sections sorted by `frame.y`; every other block joins the
+- [x] **[N1] section grouping** — sections sorted by `frame.y`; every other block joins the
       *first* section whose `[y, y+h)` contains its center-y; a `navBar` above the first section
       gets the `Nav bar:` caption; the rest form `Outside any section:`; groups emitted by top
       edge. A page with **no** sections treats the first-section boundary as **+∞**, so a navBar
       still gets its `Nav bar:` caption and everything else is `Outside any section:` (v2.3); a
       section band containing **no** blocks still emits its header, because DoD #2 makes the
       builder build every band (v2.3)
-- [ ] **[N2] rows and columns** — union-find rows (vertical overlap ≥ 50% of the *shorter*
+- [x] **[N2] rows and columns** — union-find rows (vertical overlap ≥ 50% of the *shorter*
       block's height), then union-find columns within a row (horizontal overlap ≥ 50% of the
       *narrower* block's width); one-column rows emit plain bullets, ≥2-column rows emit the
       `Row (side by side, left → right — K columns):` header plus `Column k (left|middle|right{,
       stacked top → bottom}):` sub-bullets. **This is the only ordering rule** — there is no flat
       (y, x) sort anywhere in the walkthrough
-- [ ] **[N3]/[N4]/[N5]** — group-header strings verbatim including the en dash; position
+- [x] **[N3]/[N4]/[N5]** — group-header strings verbatim including the en dash; position
       vocabulary at its exact thresholds (`w ≥ 1120` full width / `≥ 960` wide / `≥ 600` about
       half / else narrow; `|leftGap − rightGap| ≤ 24` centered, else left/right; horizontal
       phrase omitted when full-width); `(overlaps «X»)` only against non-`section` blocks with
@@ -76,14 +76,14 @@ because they are properties of this generator's output.
       chars on the raw string and escaped afterwards** so an escape pair is never cut in half
       and V7's escape reversal stays well-defined. A block overlapping **several** lower blocks
       emits **one suffix per overlapped block, nearest paint-neighbour first (descending `z`)**
-- [ ] **[N6] per-type narration** is verbatim from the template for all six types, including the
+- [x] **[N6] per-type narration** is verbatim from the template for all six types, including the
       `assetW×assetH` lookup, the "write alt text FROM this" instruction in **both** imageSlot
       branches, and the `assets/placeholders/{{block-id}}.<ext>` path in the empty-slot branch.
       Two null cases, both v2.3: the generate branch may coalesce a null `generateDescription`
       to `""` (V5 makes the case unreachable in a valid package), and a **filled** slot with a
       null `description` — which no validator forbids — renders the fixed sentences named under
       "Absent optionals" above rather than `«»`
-- [ ] **[N7] pen clusters** — union-find over 40px-expanded bboxes, **intersection inclusive:
+- [x] **[N7] pen clusters** — union-find over 40px-expanded bboxes, **intersection inclusive:
       touching edges join** (v2.3); cluster role `imageSketch` iff every member targets the same
       slot; ordered by cluster-bbox top edge; the imageSketch branch splits on the slot's
       `assetId` (**empty** = depicts the desired image / **filled** = an instruction about the
@@ -93,7 +93,7 @@ because they are properties of this generator's output.
       annotation cluster the printed guess is that of the **first stroke in draw order with a
       non-null `targetBlockId`**; when no member has one the guess clause is omitted entirely
       (v2.3)
-- [ ] **[N8] copy list** — walkthrough order, `1 item` / `N items` pluralization, the
+- [x] **[N8] copy list** — walkthrough order, `1 item` / `N items` pluralization, the
       precomputed length estimate when `lengthHint` is null (`chars = (w/8) × (h/24)` →
       `roughly ⌊chars/8⌋–⌊chars/5⌋ words` for text, `a short headline, a few words` for
       headings), and a context line naming the nearest block above and below within the group.
@@ -103,7 +103,7 @@ because they are properties of this generator's output.
       tall image slot beside it) correct; names use the reference text; a side that does not
       exist is omitted, and when NEITHER exists the line reads the fixed string
       `nothing directly above or below it` (rule 4 forbids dropping the line)
-- [ ] **[N9]/[N10]/[N11]** — inventory "Links out" as distinct internal page **names** (self
+- [x] **[N9]/[N10]/[N11]** — inventory "Links out" as distinct internal page **names** (self
       excluded) then distinct external hosts with `www.` stripped, `—` when empty; resolved
       targets as `Name (`slug`)` / full URL / the two `none` phrasings; nav-map separator ` · `,
       list separators `, `; `~<round(bytes/1024)> KB`; en dashes in ranges. v2.3 additions: the
@@ -111,9 +111,9 @@ because they are properties of this generator's output.
       "1 pages"); asset **usage** entries join with `; ` because the entries themselves contain
       commas; and a page with no buttons and no navBar renders `- **Name** → —`, reusing [N9]'s
       empty marker
-- [ ] **[N12]** — the untouched-template-filler parenthetical on any `fromTemplate: true` block
+- [x] **[N12]** — the untouched-template-filler parenthetical on any `fromTemplate: true` block
       whose narration carries client-visible content
-- [ ] **[N13]** — a block with `frame.x + frame.w > 1200` gets the marker string of
+- [x] **[N13]** — a block with `frame.x + frame.w > 1200` gets the marker string of
       `docs/export-format.md` §4.4 [N13] appended **after the overlap suffix, before the colon**,
       character-for-character: ` (extends past the right page edge — clipped at x=1200 in the
       sketch PNG; site.json has the true width)`. **Right edge only** — negative-x / off-page
@@ -121,7 +121,7 @@ because they are properties of this generator's output.
       and inert on the §7.1 fixture**, so equality test B stays byte-exact
 
 ### Escaping and quoting
-- [ ] **Every client string is escaped before interpolation** (§3.3 rule 7, v2.3):
+- [x] **Every client string is escaped before interpolation** (§3.3 rule 7, v2.3):
       backslash-escape **`\` first** (without it the escape map has no inverse and V7's
       reverse-the-escapes step is ill-defined), then `«`, `»`, `|`, `*`, `"`, and `` ` ``.
       Prefix a leading `#`, `-` or `>` with `\`; a leading ordered-list marker escapes **the
@@ -129,7 +129,7 @@ because they are properties of this generator's output.
       literal backslash in CommonMark and escapes nothing. Applied to businessName, tagline,
       about, styleNotes, page names, block text, labels, descriptions, generateDescriptions,
       lengthHints and originalFilename
-- [ ] **Scope of quoting (§3.3 rule 7, v2.3 — replaces the old "never bare" claim, which §7.2
+- [x] **Scope of quoting (§3.3 rule 7, v2.3 — replaces the old "never bare" claim, which §7.2
       itself legitimately violates six ways):** every client string is *escaped* wherever it
       appears; strings that are copy or free prose additionally appear inside `«…»`. A fixed
       set of identifier-like values appears **bare-but-escaped**: `businessName` (the H1 and the
@@ -137,19 +137,19 @@ because they are properties of this generator's output.
       assets usage), `lengthHint` (both Length renderings), nav-item labels inside the shared-nav
       parenthetical, and `originalFilename` (inside `"…"`). V7's «…» cross-check applies to
       quoted occurrences only
-- [ ] **Newlines (§3.3 rule 8):** CR/LF inside `«…»` render as `↵`; a multi-line `real` text
+- [x] **Newlines (§3.3 rule 8):** CR/LF inside `«…»` render as `↵`; a multi-line `real` text
       block ADDITIONALLY emits an indented fenced verbatim sub-block beneath its bullet
-- [ ] A client string containing `|` cannot break the inventory table; a client string
+- [x] A client string containing `|` cannot break the inventory table; a client string
       containing the literal `WRITE THIS COPY` cannot inflate the V7 count; a client string
       containing `«` or a leading `-` cannot break guillemet or list structure — each proven by
       its own unit test
 
 ### The equality tests
-- [ ] **Equality test B (REQUIRED, Appendix A):** `generateBrief(parse(§7.1)) === §7.2`,
+- [x] **Equality test B (REQUIRED, Appendix A):** `generateBrief(parse(§7.1)) === §7.2`,
       byte-exact, with **both** blocks extracted from `docs/export-format.md` at test time
-- [ ] **Equality test C:** the three fixed boilerplate constants match their §3.2 regions under
+- [x] **Equality test C:** the three fixed boilerplate constants match their §3.2 regions under
       **whitespace normalization** (v2.3) — byte-exactness is unsatisfiable there by construction
-- [ ] A wider snapshot fixture covers what §7 cannot: all six block types, both copy modes,
+- [x] A wider snapshot fixture covers what §7 cannot: all six block types, both copy modes,
       uploaded + empty image slots, internal + external + none links, identical **and** differing
       navs, both pen roles on empty **and** filled slots, `fromTemplate` filler, an unreachable
       page, and every absent optional
@@ -344,6 +344,21 @@ review entry's "62 files / 1203 tests · e2e 514" were both true when written an
 superseded; as of this batch the suite is **76 files / 1313 unit tests** and **535 E2E / 2
 skipped**. Equality test B's hash is unchanged (`e8ae78bf…`, 14 016 B) — this batch touched no
 narration rule.
+
+**Stage-close review (2026-07-29):** re-ran at 770c346 — lint clean · **76 files / 1313 tests** ·
+coverage exit 0 (`src/export/brief` 98.09/98.4) · build green · e2e ×2 both **535 passed /
+2 skipped**, 0 flaky. **Test B independently reproduced byte-for-byte:** both sides **14 016 B**,
+sha256 e8ae78bfe7596b3acbf610ab690677d984a950af68a31f263fc09d910c750412, blocks extracted from
+the v2.4 FROZEN doc at test time. Test C holds both ways.
+**Blocker 1 DISCHARGED:** gate run on an E2E package replays V7 on a real brief with zero app
+imports — PASS, EXIT 0. **Blocker 2 DISCHARGED:** src/export/brief/__snapshots__/wide-fixture.md
+committed and git-tracked (13 799 B / 157 lines, LF-only) beside the 21 invariant tests.
+**Blocker 3 DISCHARGED and REPRODUCED:** the reviewer re-ran the recorded mutation (W_HALF_MIN
+600→300 on an untracked module copy) and got the recorded numbers exactly — expected 14016 B
+sha e8ae78bf…, actual **14100 B sha 7c862ad3…**, same first-divergence line character for
+character. One correction: **six** bullets flip (not three) — the Contact page's 500/440/480-wide
+blocks too; 6 × 14 chars = exactly the +84 B delta recorded. Brief header verified on a real
+package; no internal id anywhere in it. **VERIFIED DONE.**
 
 ## Open Questions
 _All three were **RULED and applied** in the export-format v2.1 amendment (rule 10 unwrapped

@@ -1,5 +1,5 @@
 # Feature: Package Zip
-_Stage: stage-3-export-delivery · Status: awaiting verification_
+_Stage: stage-3-export-delivery · Status: verified done_
 
 ## Goal
 Assemble the four artifact kinds into one zip whose layout is **exactly**
@@ -13,58 +13,58 @@ Everything about this feature is in service of that one moment.
 ## Success Criteria
 
 ### Layout (§1)
-- [ ] The zip contains **exactly**: `site.json`, `brief.md`, one `pages/<NN>-<slug>.png` per
+- [x] The zip contains **exactly**: `site.json`, `brief.md`, one `pages/<NN>-<slug>.png` per
       page, and zero or more `assets/img_NNN.<ext>` — **all at the zip root, no wrapper folder,
       nothing else**. No README, no thumbnails, no `.blueprint`, no directory entries
-- [ ] `assets/` is absent entirely when the design references no uploaded image; `pages/` is
+- [x] `assets/` is absent entirely when the design references no uploaded image; `pages/` is
       always present with ≥1 entry
-- [ ] Entries are written in the §1 order: `site.json`, `brief.md`, `pages/` in page order,
+- [x] Entries are written in the §1 order: `site.json`, `brief.md`, `pages/` in page order,
       `assets/` in id order. Paths use forward slashes and match `page.screenshot` / `asset.path`
       in `site.json` character for character
-- [ ] `site.json` and `brief.md` are **UTF-8, no BOM, LF line endings**; `site.json` is
+- [x] `site.json` and `brief.md` are **UTF-8, no BOM, LF line endings**; `site.json` is
       pretty-printed with 2-space indentation and the stable key order of §2
 
 ### Filename and UUID stamping
-- [ ] File name is `blueprint_<business-slug>_<uuid8>.zip` — `<business-slug>` per §4.1 steps 1–4
+- [x] File name is `blueprint_<business-slug>_<uuid8>.zip` — `<business-slug>` per §4.1 steps 1–4
       (steps 5–6 do not apply to the business slug), `<uuid8>` the first 8 hex chars of the
       submission UUID. Example: `blueprint_bluebird-bakery_3f2a9c1e.zip`
-- [ ] **One UUID per submission, minted once, stamped in three places** (debate #2 binding):
+- [x] **One UUID per submission, minted once, stamped in three places** (debate #2 binding):
       `site.json`'s `submission.id`, the `brief.md` HTML comment header, and the zip filename —
       and later the notification payload. A unit test asserts all three agree; V8's "minted this
       submission" is guaranteed **by construction** (mint at the top of the submit action, never
       read from storage), not by inspection
-- [ ] The filename is cosmetic: every identity fact also lives inside `site.json`, so a client
+- [x] The filename is cosmetic: every identity fact also lives inside `site.json`, so a client
       who renames the file loses nothing (§1)
 
 ### Compression ladder (debate #2 binding: "deterministic compression ladder on the zip")
-- [ ] The ladder is an **ordered list of pure rungs**, each `(bundle) → bundle`, applied in order
+- [x] The ladder is an **ordered list of pure rungs**, each `(bundle) → bundle`, applied in order
       while the projected size exceeds `SIZE_TARGET_BYTES` and rungs remain. The rungs applied
       are recorded in the package report and surfaced by the size meter
-- [ ] Rung 0 (always): **store** already-compressed entries (`.png`, `.jpg`, `.webp`) and
+- [x] Rung 0 (always): **store** already-compressed entries (`.png`, `.jpg`, `.webp`) and
       **deflate** the text entries at a fixed level. Re-deflating a PNG buys ~nothing and costs
       time; the fixed level is what makes the output byte-stable
-- [ ] Rung 1 (always, lossless): strip ancillary PNG chunks (`tEXt`, `tIME`, `pHYs`, `iTXt`) from
+- [x] Rung 1 (always, lossless): strip ancillary PNG chunks (`tEXt`, `tIME`, `pHYs`, `iTXt`) from
       the page renders — pure byte surgery, no re-encode, no pixel changes
-- [ ] Rung 2 (**stroke-free pages only**, lossy): colour quantization of page PNGs. §4.3 is
+- [x] Rung 2 (**stroke-free pages only**, lossy): colour quantization of page PNGs. §4.3 is
       binding: *lossless optimization only on any page containing pen strokes*; the renderer
       hands over `hasStrokes` per page and the ladder obeys it. A test asserts a stroke page is
       byte-identical before and after the ladder at every rung
-- [ ] **The ladder never touches `assets/`, `site.json` or `brief.md`.** §4.6 requires uploaded
+- [x] **The ladder never touches `assets/`, `site.json` or `brief.md`.** §4.6 requires uploaded
       bytes to be written as-is (they were already compressed at ingest to a 1600px long edge),
       and V21 checks the manifest's `width`/`height`/`bytes` against the staged file — recompressing
       would either break V21 or silently rewrite numbers the brief prints to the builder
-- [ ] **Deterministic:** the same bundle in produces byte-identical zip bytes out. All entries
+- [x] **Deterministic:** the same bundle in produces byte-identical zip bytes out. All entries
       get a fixed timestamp constant (no wall-clock mtimes), no unix extra fields, no varying
       external attributes. Two calls with the same input and the same submission object produce
       the same bytes — asserted by a unit test comparing hashes
-- [ ] V10: zip size over 15 MB is a **WARN with the size surfaced**, never a BLOCK
+- [x] V10: zip size over 15 MB is a **WARN with the size surfaced**, never a BLOCK
       (download-first must not fail)
 
 ### Size meter
-- [ ] The submit UI shows the package size before sending, computed from the real assembled zip
+- [x] The submit UI shows the package size before sending, computed from the real assembled zip
       (not an estimate of it), formatted per [N11] (`~<round(bytes/1024)> KB`, or MB above
       1024 KB), with a plain-language band: comfortable / large / over the guideline
-- [ ] When the ladder fired, the meter says so in one short line ("compressed the page images to
+- [x] When the ladder fired, the meter says so in one short line ("compressed the page images to
       keep this emailable") — the client should understand the number, not the algorithm
 
 ## How We'll Verify
@@ -183,6 +183,24 @@ export baselines measure 16.7–24.5 KB per page render, and the E2E-produced tw
 package is **63.0 KB** against a `SIZE_TARGET_BYTES` of 8,388,608 — three orders of
 magnitude of headroom. No quantizer dependency was added, which is exactly what the Open
 Question below instructed once a measurement existed.
+
+**Stage-close review (2026-07-29):** re-verified in a detached worktree at 770c346 — lint clean ·
+**76 files / 1313 tests** · coverage exit 0 (`src/export/zip` **98.54% lines, 100% functions**) ·
+build 565.09 kB · e2e ×2 both **535 passed / 2 skipped**, 0 flaky · gate self-test **45/45**.
+**Headers parsed BY HAND on a produced archive, on a UTC-5 machine** (the timezone reasoning
+genuinely exercised): text entries method 8, images method 0; every local AND central DOS
+date/time = **1545691136**, exactly what the literal constants compute; extra-field length 0
+both sides; data-descriptor bit clear; versionMadeBy 0x14; externalAttr 0; no directory
+entries; EOCD 5 entries. fflate 0.8.3 confirmed at source to use LOCAL date getters as
+documented. Shuffled input → byte-identical hash.
+**Determinism scope stated precisely:** same bundle + same submission object → identical bytes
+(proven); two separate submissions differ only by minted UUID/submittedAt — verified on two
+real packages identical once submission is excluded; per-engine PNG render determinism holds
+across 12 real packages.
+**§1 and the DoD gate run by the reviewer on a real E2E package** (64,563 B): entries exactly
+equal the expectation derived from the package's own site.json; gate → **EXIT 0** (35 pass /
+2 warn / 0 fail / 1 skip); +notes.txt control exits 1 naming V12. Ladder re-confirmed: 63.0 KB
+against an 8 MB target, no quantizer shipped. **VERIFIED DONE.**
 
 ## Open Questions
 - **Zip library.** **Recommendation: `fflate`** (MIT, ~8 kB gzipped, sync API, explicit per-entry

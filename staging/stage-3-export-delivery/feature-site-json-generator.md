@@ -1,5 +1,5 @@
 # Feature: site.json Generator + Validator
-_Stage: stage-3-export-delivery · Status: awaiting verification_
+_Stage: stage-3-export-delivery · Status: verified done_
 
 ## Goal
 Turn the in-memory document (v2: `{ schemaVersion: 2, siteSettings, pages: [{ id, name, blocks }] }`
@@ -26,35 +26,35 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
 ## Success Criteria
 
 ### The transform
-- [ ] `buildSiteJson` is pure and deterministic: called twice on the same input (same minted
+- [x] `buildSiteJson` is pure and deterministic: called twice on the same input (same minted
       `submission`) it returns deep-equal output, and serializing it yields **byte-identical**
       text — 2-space indent, LF, no BOM, and the key order printed in §2.1/§2.2 (§1 "File
       conventions")
-- [ ] **Identity remap (§4.8) is total:** pages → `pg_0001…` in `pages[]` order; blocks →
+- [x] **Identity remap (§4.8) is total:** pages → `pg_0001…` in `pages[]` order; blocks →
       `blk_0001…` numbered **site-wide** in document order (page order, then `z`); nav items →
       `nav_0001…` site-wide; strokes → `stk_0001…` site-wide in draw order — all zero-padded to
       4 digits. `link.pageId` and `penStroke.targetBlockId` are rewritten in the same pass, and
       **no internal app id survives anywhere in `site.json`** (a semantic id such as
       `rest-home-hero-title` fed in never appears in the output — the V24 red path)
-- [ ] **Slugs (§4.1)** are derived fresh from page names every export — NFKD + diacritic strip
+- [x] **Slugs (§4.1)** are derived fresh from page names every export — NFKD + diacritic strip
       + lowercase, non-`[a-z0-9]` runs → single `-`, trimmed, `page-N` when empty, truncated to
       36 at a `-` boundary where possible, `-page` suffix on the reserved names
       (`index`, `assets`, `pages`, `site`, `brief`, `static`, `public`), `-2`/`-3`… on collision
       in page order with the first occurrence keeping the bare slug
-- [ ] **Page height (§4.2, as amended v2.2)** is the SHARED editor/export function `clamp(1600, ceil((bottom + 160) / 8) * 8, 8000)` where `bottom` is
+- [x] **Page height (§4.2, as amended v2.2)** is the SHARED editor/export function `clamp(1600, ceil((bottom + 160) / 8) * 8, 8000)` where `bottom` is
       the largest `y + h` over blocks **and** the largest point-y over pen strokes on the page —
       not the editor's on-screen page height (which floors at 1600 and caps at 8000; the two are
       deliberately different, see Notes)
-- [ ] **Discriminators (§4.7):** `image → imageSlot`, `nav-bar → navBar`, the other four
+- [x] **Discriminators (§4.7):** `image → imageSlot`, `nav-bar → navBar`, the other four
       unchanged; `{x, y, width, height}` becomes `frame: {x, y, w, h}`; `z` is the block's index
       in the page's array (array order IS paint order in the document — Stage 1), so `blocks[]`
       is sorted by `z` ascending and the two always agree
-- [ ] **`'' → null`** for every optional client string (`tagline`, `about`, `styleNotes`,
+- [x] **`'' → null`** for every optional client string (`tagline`, `about`, `styleNotes`,
       `generateDescription`, `lengthHint`, `imageSlot.description`, `section.background`);
       `vibe` is already `null` when unset; `colors: []` stays `[]`; `copyMode: 'real'` exports
       `generateDescription: null` (V20 territory) — and `text` stays `''`, never null, because
       the schema types it `string`
-- [ ] **Assets (§4.6) are derived, because the document has no asset store:** Stage 2 stores the
+- [x] **Assets (§4.6) are derived, because the document has no asset store:** Stage 2 stores the
       photo inline as `block.imageData` (a compressed `data:image/…;base64,…` URL, `''` = empty
       slot). The generator walks `pages[]` in order, blocks by `z`, and numbers each **distinct**
       data URL `img_001…` at its first appearance; two slots sharing the same photo share one
@@ -64,40 +64,40 @@ Out of scope here: rendering PNGs (`feature-png-renderer.md`), writing the brief
       exports `assetId: null`. **No unreferenced upload can exist structurally** — V4's
       strip-unreferenced branch is still implemented as defence in depth for a hand-edited
       package reaching the Stage 4 harness
-- [ ] **Pen roles (§4.5) are computed, never stored:** `role: 'imageSketch'` + non-null
+- [x] **Pen roles (§4.5) are computed, never stored:** `role: 'imageSketch'` + non-null
       `targetBlockId` iff ≥60% of the stroke's bbox area lies inside a single `imageSlot` frame
       on that page (pure geometry — `assetId` plays no part); otherwise `annotation` with
       `targetBlockId` = the block whose frame the bbox overlaps most (any overlap counts), else
       the block with the nearest center within 200px, else `null`. Points are RDP-simplified at
       ε = 0.75px and rounded to 1 decimal
-- [ ] The output validates against `src/export/schema/site.v1.schema.json` for every fixture,
+- [x] The output validates against `src/export/schema/site.v1.schema.json` for every fixture,
       including the §7.1 worked example rebuilt from an equivalent document
 
 ### The validator
-- [ ] `validatePackage` returns `{ level: 'block' | 'ok', blocks: Finding[], warns: Finding[],
+- [x] `validatePackage` returns `{ level: 'block' | 'ok', blocks: Finding[], warns: Finding[],
       fixes: AppliedFix[], package: PackageBundle }` where every `Finding` carries
       `{ rule: 'V05', audience: 'client' | 'bug', message, jumpTo?: { pageId, blockId } }` —
       the `jumpTo` is what lets the submit UI navigate to the offending element (§5 BLOCK
       definition)
-- [ ] **Every rule V1–V24 is implemented as its own pure function with its own red-path unit
+- [x] **Every rule V1–V24 is implemented as its own pure function with its own red-path unit
       fixture**, and each red fixture fails only that rule
-- [ ] **V1 uses ajv v8 + `ajv-formats` with `{ allErrors: true, strict: true }`** and a red test
+- [x] **V1 uses ajv v8 + `ajv-formats` with `{ allErrors: true, strict: true }`** and a red test
       proves the formats are actually wired: a malformed `submittedAt` (`"yesterday"`) is
       rejected. Without `ajv-formats`, `format: "email"`/`"date-time"` are silent no-ops
-- [ ] The **FIX rules are deterministic and auto-applied** (V3 z re-sort/renumber, V4 strip
+- [x] The **FIX rules are deterministic and auto-applied** (V3 z re-sort/renumber, V4 strip
       unreferenced assets, V11 prepend `https://` to a bare domain, V17 recompute `screenshot`,
       V20 null a stranded `generateDescription`), and the report names every fix applied so the
       submit UI can log them
-- [ ] **Pipeline order is fixed and tested** (see Notes): FIX pass → re-derive dependents →
+- [x] **Pipeline order is fixed and tested** (see Notes): FIX pass → re-derive dependents →
       client-facing BLOCK rules → bug-class BLOCK rules → V1 schema → WARN rules. A client who
       left a text box empty sees "write something or switch it to 'Write it for me'", never a
       schema error
-- [ ] The same module runs unchanged in its three call sites (§5): the app at submit, Vitest
+- [x] The same module runs unchanged in its three call sites (§5): the app at submit, Vitest
       against fixtures, and the **Stage 4 round-trip harness** against an extracted package.
       (Corrected 2026-07-28: `scripts/roundtrip/gate.mjs` is deliberately NOT one of them — it
       imports no app code, precisely so that a validator bug in `src/export/validate` cannot
       agree with itself into a green gate. See `scripts/roundtrip/README.md`.)
-- [ ] `src/export/**` holds ≥80% lines and functions under `npm run test:coverage`
+- [x] `src/export/**` holds ≥80% lines and functions under `npm run test:coverage`
 
 ## How We'll Verify
 
@@ -310,6 +310,25 @@ Status stays `awaiting verification`: the reviewer re-verifies after this lands.
 Also repaired in this pass: the mangled "Export page height ≠ editor page height" bullet (it had
 been half-overwritten by the v2.2 unification edit and read as a sentence fragment), the drifted
 test filenames in How We'll Verify, and the schema-sync path.
+
+**Stage-close review (2026-07-29):** re-ran everything in a detached worktree at 770c346.
+`npm ci` 0 vuln · lint clean · `npm test` **76 files / 1313 tests** · `test:coverage` exit 0
+(`src/export/brief` 98.09 lines/98.4 funcs · `delivery` 97.95/100 · `png` 96.11/96.55 ·
+`validate/rules` 96.22/98.56 · `zip` 98.54/100) · build 565.09 kB · `npm run e2e` ×2 both
+**535 passed / 2 skipped**, 0 flaky · gate self-test **45/45 mutations caught**, exit 0.
+**Bounce blocker 1 DISCHARGED — Appendix A test D verified live:** siteJson.test.ts opens with
+the test-D describe, byte-exact, both sides read from the spec at test time; measured
+independently, §7.1 fence **8649 B sha 28c5d5e2…** ≡ serializeSiteJson(parse(§7.1)). The stale
+"hand-formatted / 810.0" NOTE is DELETED; no comparison against a re-serialization remains.
+(Corrects the discharge entry above: the fence is 8649 B, not 8643.)
+**Blocker 2 DISCHARGED:** the reviewer ran the gate personally on an E2E-produced package —
+GATE PASSED — 35 pass, 2 warn, 0 fail, 1 skip (38 checks), EXIT 0; the +notes.txt negative
+control exits 1 naming **V12**. **Blocker 3 DISCHARGED:** criterion reworded to the Stage 4
+harness; gate.mjs and lib modules confirmed to import zero src/ code.
+**V24 proven on a REAL package:** all internal ids absent from site.json AND brief.md; remap
+table absent; ids ordinal-only. Gate C03/C04/V06/V01/V02/V03/V27 all PASS on those bytes.
+CI green at 770c346 incl. the gate-selftest and schema-check steps; live 200, deployed hash
+matches this commit's local build. **VERIFIED DONE.**
 
 ## Open Questions
 - **V25 (right-overflow WARN) and V26 (blank button label / empty nav bar, client-facing
