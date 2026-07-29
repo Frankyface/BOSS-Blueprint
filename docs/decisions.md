@@ -603,3 +603,20 @@ scenario fails rather than skips; a run recording no scenario hash fails; and th
 "scenario-B.json differs" failure is asserted **absent** from the correct set · **Verification:**
 `npx vitest run scripts/` green, 263 passed · **Revisit if:** never — this is a correction of an
 impossibility, not a policy choice.
+
+## 2026-07-29 — v1 ROUND-TRIP PASSED: the definition of done is met
+**Chose:** v1 is complete on the evidence — three clean gating runs at commit f016d82
+(A/preview 96.36, A/deployed 96.04, B/preview 92.00; pass mark 85), 24/24 hard gates, every
+dimension floor met, smoke validated end-to-end at 4.18 min against a 12-min budget, and
+`ship-gate.mjs` exit 0 over the three as a set (one sha, no cached segments, no rule drift).
+Evidence committed under staging/stage-4-roundtrip-launch/evidence/ ·
+**Because:** this is the bar the whole project was designed around — a fresh Claude session
+handed nothing but a client's package builds a site that matches the sketch, proven against
+the LIVE deployed app as well as the local build · **Notable:** seven attempts; all five
+defects found were in the measuring apparatus (manifest baseline, H3 notes location, S4
+denominator, S3 type-blind estimator, ship-gate cross-scenario demand), none in the product;
+two were provably unsatisfiable assertions guarded by fixtures that didn't model reality, and
+the operator twice measured a proposed ruling against real data and refused to implement a
+fabricated pass · **Rejected:** at every turn, weakening a threshold to make a run pass ·
+**Revisit if:** the smoke run (mandatory before export-layer merges, now recorded in CLAUDE.md)
+ever fails — that is the signal the package stopped being buildable.

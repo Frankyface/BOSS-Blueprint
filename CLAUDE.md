@@ -41,4 +41,8 @@ When the user says **"update all relevant files"**, run `/sync-docs`.
 - Code: immutable state updates only · TypeScript strict · source files <400 lines (test/E2E-support <600) ·
   named constants over magic numbers · validate at boundaries (file import, form submit).
 - Run: `npm run dev` · unit: `npm test` · E2E: `npm run e2e` · build: `npm run build`.
+  (Fresh clone: `npm ci --prefix scripts/roundtrip` once, or the submit E2E fails confusingly.)
+- **`npm run roundtrip:smoke` is MANDATORY before merging any change to `src/export/**`, the
+  schema, the brief generator, the starter templates or the PNG renderer** — it is the only
+  check that proves the package is still buildable by a zero-context session (~12 min).
 - `handoff.md` hard budget: ≤60 lines — snapshot, not journal.
