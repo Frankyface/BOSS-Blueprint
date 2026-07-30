@@ -34,14 +34,24 @@ jobs:
     # push `inputs` is empty, which is falsy, so the normal path is untouched.
     if: ${{ !inputs.update_visual_baselines }}
     runs-on: ubuntu-latest
-    # 25, not 15. The E2E suite runs SERIALLY here (workers: 1, retries: 2, three
-    # engines) and it grew with the UX-hardening batch to 154 tests × 3 = 462. The
-    # run before that batch finished in 14m57s against the 15-minute budget, and the
-    # first run after it was killed mid-E2E at 15m16s — a timeout reported as
-    # "cancelled", with lint, unit tests and both builds already green. The budget
-    # is a runaway-job guard, not a performance target; 25 restores the headroom the
-    # serial cross-engine run needs (locally the same suite is ~4-6m in parallel).
-    timeout-minutes: 25
+    # 40, not 25 — the same story as the 15 → 25 raise below it, one batch later.
+    # The E2E suite runs SERIALLY here (workers: 1, retries: 2, three engines).
+    # 25 was set for 154 tests × 3 = 462; the v2.5 "ink is design" batch took it to
+    # 247 × 3 = 741, and the strengthened `pen-reading` guard alone measures at three
+    # window widths × two letter-spacings per engine. Run 30563502233 was killed at
+    # 25m07s with ZERO test failures — lint, unit, both builds and most of the E2E
+    # already green — reported as "cancelled", exactly as the earlier one was.
+    # Note the shape of it: run 30556114726 FINISHED in 24m46s *with* two failures and
+    # their retries, and the clean run after it did not. Wall time here tracks how many
+    # tests exist, not how many fail, so the budget has to track the suite's size.
+    # The budget is a runaway-job guard, not a performance target, and 40 restores real
+    # headroom (locally the same suite is ~5.5m in parallel; CI stays at workers: 1 for
+    # stability, deliberately — see playwright.config.ts).
+    # THE DURABLE FIX IS SHARDING, NOT A BIGGER NUMBER: split this job into a matrix of
+    # the three engines and the wall time drops to about a third. That changes what
+    # `deploy` depends on and what uploads the Pages artifact, so it is a considered
+    # change rather than a hotfix — recorded in docs/decisions.md, 2026-07-30.
+    timeout-minutes: 40
     permissions:
       contents: read
       # Read-only: `configure-pages` reads the already-enabled Pages settings.

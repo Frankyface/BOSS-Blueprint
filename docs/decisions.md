@@ -819,3 +819,25 @@ three `export-home-*` files — the three `export-gallery-*` came back byte-iden
 because that page's fixture carries no button block. Half the visual suite never saw the most
 visible part of the rebrand at all, which is a second, independent reason the ratio axis was never
 going to catch it.
+
+## 2026-07-30 — CI E2E budget 25 → 40, and sharding recorded as the durable fix
+**Chose:** raise `timeout-minutes` on the build job to 40 and record sharding as the real fix,
+rather than raise `CI_WORKERS` above 1 · **Because:** run 30563502233 was killed at **25m07s with
+ZERO test failures** — lint, unit, both builds and most of the E2E already green — and reported as
+"cancelled", the same shape as the 15-minute kill that produced the 25. The v2.5 batch took the
+suite from 462 to **741** tests (247 × 3 engines, serial, retries 2), and the strengthened
+`pen-reading` guard alone measures at three widths × two letter-spacings per engine. Note the
+telling detail: run 30556114726 **finished** in 24m46s *with* two failures and their retries, and
+the clean run after it did not — wall time tracks how many tests EXIST, not how many fail, so a
+budget set against a test count has to move when the count does.
+**Rejected — raising `CI_WORKERS`:** `playwright.config.ts` pins CI to one worker with "CI stays
+serial for stability", and this session has already spent two CI rounds on environment-dependent
+failures (a Linux font-metrics wrap, and an opacity assertion sampling a live transition). Buying
+~15 minutes by making a cross-engine suite concurrent, on the same day, would be trading a known
+cost for an unknown flake rate. A slow gate that is believed is worth more than a fast one that is
+not.
+**The durable fix, deliberately NOT done as a hotfix:** shard the build job into a matrix over the
+three engines and wall time drops to roughly a third. It changes what `deploy` depends on and which
+job uploads the Pages artifact, so it deserves its own change and its own green run rather than
+riding along with a layout fix. **Revisit if:** the suite passes ~35 minutes, or a third raise comes
+up — at that point raising the number again is the wrong answer twice over.
