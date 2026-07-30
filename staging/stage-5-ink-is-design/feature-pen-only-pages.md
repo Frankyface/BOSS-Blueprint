@@ -1,5 +1,5 @@
 # Feature: Pen-Only Pages Are Submittable and Renderable (F0)
-_Stage: stage-5-ink-is-design · Status: awaiting verification_
+_Stage: stage-5-ink-is-design · Status: verified done_
 
 ## Goal
 A client who draws their whole site with the pen must be able to **submit it**, and the page PNG
@@ -26,22 +26,72 @@ page most likely to render empty was the one class nothing was checking.
       (`src/export/png/inkExpectation.ts`, `src/export/png/constants.ts:129`)
 - [x] A page holding one small mark is therefore **never judged** — a *correct* render of it could
       not clear the floor either, so failing it would be a false alarm by construction
-- [ ] **A pen-only site submits end-to-end through the real UI** — implemented, but no Playwright
-      journey exercises it (see Verification Log)
-- [ ] **A pen-only page's PNG is observed in a real exported package** — no such package exists
+- [x] **A pen-only site submits end-to-end through the real UI** — `e2e/pen-only-site.spec.ts`,
+      6 tests (2 × chromium/firefox/webkit), green on the Linux CI runner at `c82d917`
+- [x] **A pen-only page's PNG is observed in a real exported package** — the same journey opens the
+      downloaded zip, checks the PNG's IHDR against `page.height`, and probes measurably real ink
 
 ## How We'll Verify
 1. Unit: the V9 rules over an ink-only homepage fixture, both the TS rule and the `.mjs` twin;
    `inkExpectation.ts`'s two exported functions (`expectedInkAreaPx`, `expectsVisibleInk`) at and
    either side of the 4× gate, and at more than one `pageHeight` so the scaling is pinned.
 2. Unit: `renderPagePng` runs the blank-capture check on an ink-only page rather than skipping it.
-3. **E2E (NOT YET WRITTEN):** draw a page with the pen only, submit, assert the zip downloads and
-   `node scripts/roundtrip/gate.mjs --package <zip> --no-manifest` exits 0.
-4. Round-trip: **cannot help here** — see the blocker below.
+3. **E2E — `e2e/pen-only-site.spec.ts`:** draw a page with the pen only, submit, assert the zip
+   downloads and `node scripts/roundtrip/gate.mjs --package <zip> --no-manifest` exits 0.
+4. Round-trip: **cannot help here** — see the standing limit below.
 
 ## Verification Log
 
-### 2026-07-29 — built and unit-verified; the end-to-end leg does NOT exist (awaiting verification)
+### 2026-07-30 — the missing end-to-end leg now exists, is committed, and is green in CI (verified done)
+
+**The blocker named in the 2026-07-29 entry is closed.** `e2e/pen-only-site.spec.ts` exists, is
+committed, and drives the real submit button on a design with **zero blocks**.
+
+| Evidence | Result |
+|---|---|
+| Commit | **`c82d917`** on `main` — "feat: ink is design — pen marks become buildable site content (export v2.5)", 143 files, +17185/−306, committed 2026-07-30 10:32:12 −0400. The spec is in it (`git cat-file -e c82d917:e2e/pen-only-site.spec.ts`) |
+| `npx playwright test e2e/pen-only-site.spec.ts --list` | **6 tests in 1 file** — 2 tests × chromium, firefox, webkit (run this session) |
+| CI run **30556114726** (push of `c82d917`, ubuntu) — unit | **116 test files · 2241 tests passed · 0 failed** |
+| CI run 30556114726 — lint · build · `schema:check` (Appendix A test A) · `roundtrip:gate:selftest` | all **green** |
+| CI run 30556114726 — E2E | **732 tests run · 726 passed · 2 failed · 1 flaky.** Both failures are `pen-reading.spec.ts:172` (see feature-ink-reading-overlay.md); the pen-only journey is **not** among them, so its 6 tests passed on ubuntu across all three engines |
+
+**What the journey actually asserts** (read from the spec this session, not summarised from a
+commit message). It draws a word, a hand-drawn card with two lines of copy in it, and a bold rule
+— eight pen-downs, no blocks — then submits and reads the shipped bytes:
+
+- it reaches `submit-complete` and a real download **at all** — which is the V9 regression guard,
+  because before this release the journey ended on the BLOCK screen;
+- `site.json`'s home page carries `blocks: []` and the full stroke count;
+- the page PNG's IHDR equals `{ width: PAGE_WIDTH, height: home.height }`, and a three-row column
+  sampled at the drawn rule reads **luma < 200** on the ink with **> 240** on clear paper beside
+  it — the blank-capture question answered against the shipped image, not a fixture;
+- `runPackageGate(zip)` runs `node scripts/roundtrip/gate.mjs --package <zip> --no-manifest` from
+  the repo root (`e2e/support/submit.ts:32,59`) and must exit **0** with `GATE PASSED`.
+
+The second test carries `extraBottomPx` through the same journey: two presses of **Add space**, a
+mark drawn *below where the page used to end*, and both the room and the mark asserted in the
+package and in the PNG.
+
+**CLAUDE.md's three-part bar is now met for this feature:** (1) runs without errors, (2) unit
+tests pass, (3) **behaviour exercised end-to-end via Playwright** — the part that was missing.
+
+**Standing limits — true, and NOT blockers on this feature:**
+
+1. **The round-trip harness still cannot express an untargeted pen mark.** `scenario.schema.json`'s
+   `penCluster` requires a `target`. A green `roundtrip:smoke` therefore still proves only that the
+   package is buildable. Recorded in `docs/decisions.md` 2026-07-29. What has changed is that the
+   pen no longer has *no* automatic package-level detector: this spec is one, and it runs on every
+   push.
+2. **`roundtrip:smoke` has NOT been run against `c82d917`.** VERIFIED: the only run root carrying a
+   `verdict.txt` (`SMOKE-PASS 47`) is `2026-07-30T01-12-34-144Z_B_70454b9`, whose `run-manifest.json`
+   records sha `70454b9` with 129 dirty files and **does not list `e2e/pen-only-site.spec.ts`** — an
+   earlier tree. Two later attempts left no verdict; `2026-07-30T13-37-41-943Z_B_70454b9`'s
+   transcript ends `"Failed to authenticate: OAuth session expired and could not be refreshed"`.
+3. **Transcription is unproven.** A drawn *box* becomes a styled card; whether handwritten *words*
+   come out verbatim has never been tested — the fixtures carry no letterforms. Stage-wide limit,
+   see `overview.md`.
+
+### 2026-07-29 — built and unit-verified; the end-to-end leg does NOT exist (SUPERSEDED by the 2026-07-30 entry above; kept as history)
 
 **What can be claimed.** The rules changed, the twins changed with them, and the whole suite is
 green:
@@ -83,6 +133,7 @@ Unit coverage lives in `src/export/png/inkExpectation.test.ts`,
 **To reach `verified done`:** write the E2E in §3 of How We'll Verify — draw with the pen only,
 submit, assert the download and a `gate.mjs --no-manifest` exit 0 — and record the run here. That
 is a small spec and it does not need the harness rebuilt.
+**→ DONE.** That is exactly `e2e/pen-only-site.spec.ts`; see the 2026-07-30 entry above.
 
 ## Open Questions
 1. **Is 4× the right safety factor?** It is deliberately generous: the gate exists to avoid

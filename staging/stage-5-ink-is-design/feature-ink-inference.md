@@ -43,7 +43,28 @@ so a repeated component is recognised as one component used N times.
 
 ## Verification Log
 
-### 2026-07-29 — built and verified
+### 2026-07-30 — committed, re-confirmed in CI, and the classifier's output is now in a real package (still verified done)
+
+| Evidence | Result |
+|---|---|
+| Commit | **`c82d917`** on `main`, 143 files, +17185/−306, 2026-07-30 10:32:12 −0400 |
+| CI run **30556114726** (push of `c82d917`, ubuntu) | unit **116 test files · 2241 tests passed · 0 failed**; lint, build, `schema:check` and `roundtrip:gate:selftest` green |
+| CI E2E | 732 run, **726 passed / 2 failed / 1 flaky** — both failures `pen-reading.spec.ts:172`, neither in `src/canvas/ink/**`'s coverage |
+| **New: the reading reaches a shipped package** | `e2e/pen-only-site.spec.ts` draws a gapped box, two body lines, four glyph strokes and a rule, submits, and asserts the exported `site.json` carries non-empty `penRegions` including `kind: 'panel'`, with every region's `strokeIds` present in the package's own `penStrokes`. The regions found are attached to the run as `pen-only-reading.txt`. 2 tests × 3 engines |
+
+**One classifier change landed after the 2026-07-29 entry** (`docs/decisions.md`, 2026-07-30): a
+`panel` now always carries `variant: "card"` (something names it as `parentRegionId`) or
+`variant: "mediaBox"` (nothing does). It is computed in `src/export/penRegions.ts` over the
+**published** set, deliberately **not** in this module — a box holding one unclassifiable doodle
+has a child in the ink module's tree and none in the package, so deciding it here would make
+`site.json` and `brief.md` disagree about the same box.
+
+_Correction to the table below:_ `npm run roundtrip:smoke` has **not** been run against `c82d917`
+(the `SMOKE-PASS 47` verdict belongs to an earlier tree, run root
+`2026-07-30T01-12-34-144Z_B_70454b9`). This feature never rested on it — the harness cannot express
+an untargeted pen mark, which is the only kind this module classifies into a region.
+
+### 2026-07-29 — built and verified (kept as history; its counts are pre-commit local figures)
 
 | Check | Result |
 |---|---|

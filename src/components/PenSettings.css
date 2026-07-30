@@ -1,0 +1,69 @@
+/*
+ * Never wraps and never shrinks: this group sits on the toolbar's fixed line, where
+ * the words beside it give up their room first (`.canvas-toolbar__message`). A
+ * control that wrapped here would be a control the line is not tall enough to show.
+ */
+.pen-settings {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+
+.pen-settings__swatches,
+.pen-settings__widths {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pen-settings__swatch {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 2px solid var(--boss-line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* The selected swatch reads as a ring rather than as a border-colour change, so the
+   colour it represents stays exactly what you see. */
+.pen-settings__swatch[aria-pressed='true'] {
+  border-color: var(--boss-surface);
+  box-shadow: 0 0 0 2px var(--boss-ink);
+}
+
+.pen-settings__width[aria-pressed='true'] {
+  border-color: var(--boss-select);
+  box-shadow: inset 0 0 0 1px var(--boss-select);
+}
+
+/* The whole label is the hit target, so the words are as clickable as the box. */
+.pen-settings__reading {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pen-settings__hint {
+  font-size: 0.75rem;
+  color: var(--boss-text-muted);
+}
+
+/*
+ * What we read, in words. This is TEXT, so it takes the darker brand
+ * (`--boss-brand-dark`, 6.14:1 on white) rather than `--boss-select` (`--boss-brand`,
+ * 4.45:1 — below the 4.5:1 AA floor a word needs). Same rule the theme file states:
+ * outlines and fills may use `--boss-select`, a word may not. Still unmistakably the
+ * same blue as the boxes it describes, just clear of the contrast floor at 12px.
+ */
+.pen-settings__reading-summary {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--boss-brand-dark);
+}

@@ -1,19 +1,26 @@
+/*
+ * BUTTONS ONLY — the sentence that goes with them lives on the toolbar's fixed line
+ * (`PageSpaceHint`), for the reason set out there and in `CanvasToolbar.css`. What
+ * is left is a group whose width is three fixed labels, so it takes part in the
+ * toolbar's wrapping at 217px rather than at 593px and cannot wrap inside itself.
+ */
 .page-space {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  /* Wraps with the rest of the toolbar rather than pushing "Start over" off the
-     edge — the same rule `.canvas-toolbar` already states for the pen group. */
-  flex-wrap: wrap;
-  min-width: 0;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .page-space__label {
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
   color: var(--boss-text-muted);
 }
 
+/* Layout — one ellipsed line — comes from `.canvas-toolbar__message`. */
 .page-space__hint {
   font-size: 0.75rem;
   color: var(--boss-text-muted);

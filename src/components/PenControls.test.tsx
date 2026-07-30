@@ -10,10 +10,26 @@ import { INITIAL_PEN_TOOL, usePenToolStore } from '../store/penTool.ts'
 import { pricingCards } from '../test/inkFixtures.ts'
 
 import { PenControls } from './PenControls.tsx'
+import { PenSettings } from './PenSettings.tsx'
 
 const readingToggle = () => screen.queryByTestId('pen-reading-toggle')
 const summary = () => screen.queryByTestId('pen-reading-summary')
 const hint = () => screen.getByTestId('pen-hint')
+
+/**
+ * The pen is two components because it sits on two toolbar lines — the toggles on
+ * the wrapping control line, everything you can SET on the fixed line below it
+ * (`CanvasToolbar.css` says why). They are one thing to the client, so they are
+ * rendered and driven together here.
+ */
+function renderPenToolbar(): void {
+  render(
+    <>
+      <PenControls />
+      <PenSettings />
+    </>,
+  )
+}
 
 function seed(strokes: readonly PenStroke[]): void {
   for (const stroke of strokes) useCanvasStore.getState().addPenStroke(stroke)
@@ -27,7 +43,7 @@ beforeEach(() => {
 
 describe('the pen’s own framing', () => {
   it('offers the colours by name, with none of them marked as second-class', () => {
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
 
     for (const option of PEN_COLORS) {
@@ -37,7 +53,7 @@ describe('the pen’s own framing', () => {
   })
 
   it('tells the client the pen draws the page, not just notes about it', () => {
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
 
     expect(hint().textContent).toMatch(/box/i)
@@ -48,14 +64,14 @@ describe('the pen’s own framing', () => {
 
 describe('the “show what we read” control', () => {
   it('is not on screen while the pen is away', () => {
-    render(<PenControls />)
+    renderPenToolbar()
 
     expect(readingToggle()).toBeNull()
     expect(summary()).toBeNull()
   })
 
   it('is a keyboard-reachable checkbox once the pen is out, off to start with', () => {
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
 
     const toggle = readingToggle()
@@ -67,7 +83,7 @@ describe('the “show what we read” control', () => {
 
   it('reads the page back in plain English the moment it is ticked', () => {
     seed(pricingCards())
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
 
     expect(summary()).toBeNull()
@@ -80,9 +96,9 @@ describe('the “show what we read” control', () => {
     )
   })
 
-  it('replaces the hint instead of adding a line — the toolbar wraps, and a new row would shove the page down', () => {
+  it('replaces the hint instead of adding a line — one piece of guidance at a time', () => {
     seed(pricingCards())
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
     expect(screen.getByTestId('pen-hint')).toBeInTheDocument()
 
@@ -92,7 +108,7 @@ describe('the “show what we read” control', () => {
   })
 
   it('says how to correct a misreading, but only once there is one to correct', () => {
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
     fireEvent.click(screen.getByTestId('pen-reading-toggle'))
     expect(summary()?.textContent).not.toMatch(/rub it out/i)
@@ -105,7 +121,7 @@ describe('the “show what we read” control', () => {
 
   it('announces itself rather than changing silently under a screen reader', () => {
     seed(pricingCards())
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
     fireEvent.click(screen.getByTestId('pen-reading-toggle'))
 
@@ -113,7 +129,7 @@ describe('the “show what we read” control', () => {
   })
 
   it('says what to draw when the page has no ink it can build from', () => {
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
     fireEvent.click(screen.getByTestId('pen-reading-toggle'))
 
@@ -122,7 +138,7 @@ describe('the “show what we read” control', () => {
 
   it('goes away with the pen, taking the reading with it', () => {
     seed(pricingCards())
-    render(<PenControls />)
+    renderPenToolbar()
     fireEvent.click(screen.getByTestId('pen-toggle'))
     fireEvent.click(screen.getByTestId('pen-reading-toggle'))
     expect(summary()).not.toBeNull()

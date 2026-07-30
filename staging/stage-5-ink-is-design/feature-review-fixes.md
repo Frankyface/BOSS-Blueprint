@@ -48,7 +48,64 @@ recorded finding is indistinguishable from a fix that was never made.
 
 ## Verification Log
 
-### 2026-07-29 — fixes landed and the suite is green; the RECORD is incomplete (awaiting verification)
+### 2026-07-30 — re-searched at the commit: the five are STILL untraceable (awaiting verification)
+
+**I tried to close the gap and could not.** A repo-wide search at `c82d917` for the review's own
+labels — every file type, across `src/`, `e2e/`, `scripts/`, `docs/` and `staging/` — returns
+exactly the same six as before:
+
+| Label | Only occurrences outside this file |
+|---|---|
+| **A** | `scripts/roundtrip/rules-brief.test.mjs` |
+| **B** | `src/canvas/ink/classify.test.ts`, `src/canvas/ink/segment.test.ts` |
+| **C** | `src/canvas/ink/classify.test.ts` |
+| **F** | `src/components/PageSpaceControls.tsx` |
+| **H** | `src/canvas/ink/regions.test.ts` |
+| **I** | `src/hooks/useInkReading.ts`, `src/hooks/useInkReading.test.tsx` |
+
+`Fix D`, `Fix E`, `Fix G`, `Fix J`, `Fix K`, `Fix L` and `Fix M` appear in **no** source, test,
+script or doc — only in this file, where they are named as missing. `docs/decisions.md` does not
+mention them either, and there is no `staging/stage-5-ink-is-design/evidence/` directory. **So the
+answer is: no, they cannot be traced. Five of the thirteen findings remain unaccounted for**,
+exactly as the 2026-07-29 entry said, and nothing in this session invented a trail for them.
+
+**A different review's findings ARE now traceable — do not confuse the two.**
+`docs/decisions.md` 2026-07-30 records two defects found by handing a real exported package to
+**three zero-context builder sessions** — a separate experiment, not the adversarial review whose
+13 findings this file is about:
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| Every stroke shipped `role: "annotation"` even when a `penRegion` claimed it — a builder obeying §3.3 precedence literally would ship a **blank page** | `penStroke.role`/`targetBlockId` normatively scoped to unclaimed ink; stated in §2.9, §2.5, §4.9.10 and as a schema `description` | byte-pinned to §2.2 by `npm run schema:check`, guarded by `schemaSync.test.ts` |
+| Three byte-identical `panel/card` regions while `brief.md` told the builder to make the third an `<img>` placeholder | `panel` now always carries `variant: "card"` or `"mediaBox"`, computed in `src/export/penRegions.ts` over the **published** set | V28 gained a contradiction clause: a `card` with no contents, or a `mediaBox` with contents, BLOCKs |
+
+Counting these toward "13 upheld findings recorded" would be wrong — different review, different
+source, later date. They are listed here only so a future session does not mistake them for the
+missing five.
+
+**The suite state at the commit** (CI run **30556114726**, push of `c82d917`, ubuntu runner):
+
+| Check | Result |
+|---|---|
+| Commit | **`c82d917`**, 143 files, +17185/−306, 2026-07-30 10:32:12 −0400 |
+| Unit | **116 test files · 2241 tests passed · 0 failed** |
+| Lint · build · `schema:check` (Appendix A test A) · `roundtrip:gate:selftest` | all **green** |
+| E2E | 732 run — **726 passed, 2 failed, 1 flaky**; both failures `pen-reading.spec.ts:172` |
+
+_On the numbers, because three records disagree:_ the commit message says "120 files / 2310 unit
+tests" and `docs/decisions.md` says 2282. CI at that exact sha says **116 / 2241**. The working
+tree carries four untracked `.test.mjs` files from another session
+(`scripts/roundtrip/evaluate-s1`, `evaluator-sandbox`, `legibility`, `vacuous-floors`) — 116 + 4 =
+120, so the higher figures are **INFERRED** to be whole-dirty-tree counts rather than counts of
+what was committed. Cite **116 / 2241** for `c82d917`; the 2228 in the entry below is a third,
+earlier local figure and is superseded.
+
+**WHY THIS IS STILL NOT `verified done`:** unchanged from 2026-07-29 — five findings unrecorded,
+the contrast fix unmeasured (re-verified: nothing under `src/` or `e2e/` computes a contrast
+ratio), and the review's own output still not archived. Only the session that holds the transcript
+can close this; the search has now been run twice and found nothing new.
+
+### 2026-07-29 — fixes landed and the suite is green; the RECORD is incomplete (kept as history)
 
 | Check | Result |
 |---|---|

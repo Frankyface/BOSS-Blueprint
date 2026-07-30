@@ -394,9 +394,17 @@ test.describe('the page continues below (UX audit P5)', () => {
     await openCanvas(page)
     await seedBlocks(page, 'section', SECTIONS_TALLER_THAN_ANY_WINDOW)
 
+    /*
+     * `toHaveCSS` RATHER THAN A ONE-SHOT `getComputedStyle`, IN BOTH DIRECTIONS.
+     *
+     * The cue is a 120ms opacity transition, so a single read can land mid-fade:
+     * this line asserted `'1'` and got `0.998593` on a CI runner. Playwright's web
+     * -first assertions re-read until they agree or time out, which is the only
+     * honest way to say "it ends up opaque" about a value that is on its way there.
+     */
     const cue = page.getByTestId('canvas-more')
     await expect(cue).toHaveAttribute('data-more', 'true')
-    expect(await cue.evaluate((element) => getComputedStyle(element).opacity)).toBe('1')
+    await expect(cue).toHaveCSS('opacity', '1')
 
     const viewport = page.getByTestId('canvas-viewport')
     await viewport.evaluate((element) => {
@@ -404,9 +412,7 @@ test.describe('the page continues below (UX audit P5)', () => {
     })
 
     await expect(cue).toHaveAttribute('data-more', 'false')
-    await expect
-      .poll(() => cue.evaluate((element) => getComputedStyle(element).opacity))
-      .toBe('0')
+    await expect(cue).toHaveCSS('opacity', '0')
   })
 })
 

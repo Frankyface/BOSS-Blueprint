@@ -19,7 +19,9 @@ annotation mode by default. The palette label is now just **"Red"**, and the pen
       `showInkReading && mode !== 'off'`
 - [x] The overlay **never gets between the pen and the page** — drawing through it works
 - [x] It is a **view, not a document**: nothing it displays ever reaches the saved design
-- [x] It **never costs the client a row of canvas** — no layout shift when it appears
+- [ ] It **never costs the client a row of canvas** — **RED ON CI.** `pen-reading.spec.ts:172`
+      fails on the ubuntu runner: the toolbar wraps under Linux font metrics and steals a row of
+      drawing area (chromium **+31px**, firefox **+32px**). Passes on webkit and on Windows
 - [x] It leaves with the pen and hands the blocks back untouched
 - [x] Regions are labelled with their kind and their confidence, e.g. `card?` for `unsure`
 - [x] Pen palette relabelled `Red (notes)` → **`Red`**
@@ -41,7 +43,48 @@ annotation mode by default. The palette label is now just **"Red"**, and the pen
 
 ## Verification Log
 
-### 2026-07-29 — built and verified except for one narrow item (awaiting verification)
+### 2026-07-30 — committed, and CI found a real layout defect the Windows runs could not see (still awaiting verification)
+
+**This feature moved BACKWARDS, honestly.** One of its own success criteria — "never costs the
+client a row of canvas" — is now **failing on CI**, and it is failing for a real reason.
+
+| Evidence | Result |
+|---|---|
+| Commit | **`c82d917`** on `main`, 143 files, +17185/−306, 2026-07-30 10:32:12 −0400. `e2e/pen-reading.spec.ts` is **new** in it (200 lines) |
+| CI run **30556114726** (push of `c82d917`, ubuntu) | unit **116 files · 2241 passed · 0 failed**; lint, build, `schema:check`, `roundtrip:gate:selftest` green. E2E: 732 run, **726 passed, 2 failed, 1 flaky** |
+| **FAIL** `[chromium] e2e/pen-reading.spec.ts:172` "never costs the client a row of canvas" | `pen-reading.spec.ts:184` — `expect(await toolbarHeight()).toBe(away)` · Expected **89.375**, Received **120.375** — **+31px** |
+| **FAIL** `[firefox]` same test | Expected **91.40000915527344**, Received **123.40000915527344** — **+32px** |
+| `[webkit]` same test | **passed** |
+| Local Windows runs (2026-07-29 entry) | **passed** — which is exactly why this was invisible until CI ran |
+
+**What the failure means.** The canvas toolbar wraps under ubuntu's wider font metrics and takes a
+row of drawing area away from the client. The spec was written defensively for precisely this class
+— it measures the **canvas viewport** rather than the toolbar, at three window widths (1920, 1366,
+1100), with every string on the page deliberately widened by 2px per character — and it caught the
+regression the first time it ran on a second platform. **The guard worked; the layout did not.**
+This is a genuine platform-metrics defect, not a flaky test, and it must not be recorded as one.
+
+**A fix is in flight and is NOT part of `c82d917`.** The working tree carries uncommitted edits to
+`src/components/CanvasToolbar.tsx`, `CanvasToolbar.css`, `PenControls.tsx`, `PenControls.css`,
+`PenControls.test.tsx` and `PageSpaceControls.css`, plus untracked `src/components/PenSettings.tsx`
+and `PenSettings.css` (VERIFIED via `git status`). Another session owns that work; **nothing here
+verifies it**, and this file will not claim a fix until CI is green.
+
+**Separately, a flaky assertion in the same run** — `[chromium] e2e/launch-polish.spec.ts:391`,
+assertion at line 399: `getComputedStyle(element).opacity` Expected `"1"`, Received `"0.998593"`.
+It passed on retry. Not this feature's, recorded here because it is the run's only other red.
+
+**THE OTHER OPEN ITEM IS UNCHANGED — label contrast.** Re-VERIFIED by search this session: nothing
+under `src/` or `e2e/` computes a contrast ratio. The only file in the repo that does is
+`scripts/roundtrip/lib/legibility.mjs`, which is an **uncommitted, unrelated** round-trip advisory
+from another session and measures built sites, not this app's tokens.
+`src/components/InkReadingOverlay.css` still documents the fix in a comment and nothing guards it.
+
+**To reach `verified done`:** (a) CI green on `pen-reading.spec.ts:172` across all three engines on
+ubuntu, and (b) the label contrast measured — ideally as a unit test over the token pairs so the
+number cannot rot. Everything else in this feature remains verified.
+
+### 2026-07-29 — built and verified except for one narrow item (SUPERSEDED by the entry above; kept as history)
 
 | Check | Result |
 |---|---|

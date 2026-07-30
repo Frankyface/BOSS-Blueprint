@@ -44,7 +44,25 @@ the page's bottom edge** are the two ways to move it.
 
 ## Verification Log
 
-### 2026-07-29 — built and verified
+### 2026-07-30 — committed and re-confirmed on the Linux CI runner (still verified done)
+
+Nothing regressed; this entry exists because the 2026-07-29 evidence was all local, on an
+uncommitted tree, and both of those caveats are now obsolete.
+
+| Evidence | Result |
+|---|---|
+| Commit | **`c82d917`** on `main`, 143 files, +17185/−306, 2026-07-30 10:32:12 −0400 |
+| CI run **30556114726** (push of `c82d917`, ubuntu) | unit **116 test files · 2241 tests passed · 0 failed**; lint, build, `schema:check` and `roundtrip:gate:selftest` green |
+| CI E2E | 732 run, **726 passed / 2 failed / 1 flaky** — both failures are `pen-reading.spec.ts:172` (feature-ink-reading-overlay.md). `e2e/page-space.spec.ts` is **not** among them |
+| New coverage since 2026-07-29 | `e2e/pen-only-site.spec.ts`'s second test carries `extraBottomPx` through a **submit** for the first time: two presses of Add space, a rule drawn *below where the page used to end*, then `home.extraBottomPx === 800`, `home.height === expectedPageHeight(stored)`, the low stroke present in `site.json`, and that stroke sampled as real ink in the shipped PNG. 2 tests × 3 engines, green in the same CI run |
+
+_Correction to the table below:_ `npm run roundtrip:smoke` has **not** been run against `c82d917`.
+The `SMOKE-PASS 47` verdict belongs to run root `2026-07-30T01-12-34-144Z_B_70454b9`, an earlier
+tree (sha `70454b9` + 129 dirty files, no `pen-only-site.spec.ts`). This feature does not rest on
+it — `page.extraBottomPx` is proved by unit, E2E and the package assertions above — but the line
+must not be read as smoke evidence for the committed tree.
+
+### 2026-07-29 — built and verified (kept as history; its counts are pre-commit local figures)
 
 | Check | Result |
 |---|---|

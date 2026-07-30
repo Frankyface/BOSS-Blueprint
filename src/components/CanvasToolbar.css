@@ -1,14 +1,98 @@
+/*
+ * THE TOOLBAR MUST NOT CHANGE HEIGHT WHEN THE PEN COMES OUT.
+ *
+ * Every pixel this strip takes is a pixel off the drawing area below it
+ * (`.canvas-area` is a column; the toolbar is `flex: 0 0 auto` and the canvas
+ * viewport is what is left). So picking up the pen, or ticking "Show what we read",
+ * must not shrink the thing you picked the pen up to draw on.
+ *
+ * IT WAS ONCE FIXED BY SHORTENING THE COPY. That only ever worked on one platform's
+ * font metrics: the toolbar was a single wrapping row, the pen group joined it at
+ * full width, and whether the row wrapped came down to how wide the strings happened
+ * to render. The same build passed on Windows and lost a 31px row on Linux.
+ *
+ * SO THE HEIGHT IS NOT A MEASUREMENT ANY MORE, IT IS A CONSTRUCTION:
+ *
+ *   line 1 (`__controls`) holds ONLY things whose width does not depend on the pen —
+ *   the Pen/Eraser toggles, page length, and the action group. It may still wrap on a
+ *   narrow window, but it wraps the same way whether the pen is out or away, because
+ *   nothing in it changes when the pen is picked up.
+ *
+ *   line 2 (`__strip`) holds everything that DOES change — the pen's colour, width
+ *   and reading controls, and the one line of words. It has a definite `block-size`
+ *   and `flex-wrap: nowrap`, so its contribution to the toolbar's height is that
+ *   number of pixels no matter what is inside it or how wide the text renders.
+ *
+ * Toolbar height = padding + line 1 + gap + `--boss-toolbar-line`. Only line 1 can
+ * vary, and only with the window — never with the pen.
+ */
 .canvas-toolbar {
+  /* One text line or one small button, whichever is taller — see `__strip`. */
+  --boss-toolbar-line: 2rem;
+
   display: flex;
-  align-items: center;
-  /* Wraps rather than overflows: the pen group joins an already-busy row, and a
-     narrow window must not push "Start over" off the edge of the screen. */
-  flex-wrap: wrap;
-  gap: var(--boss-gap);
+  flex-direction: column;
+  gap: 0.4rem;
   flex: 0 0 auto;
   padding: 0.5rem 0.9rem;
   background: var(--boss-surface);
   border-bottom: 1px solid var(--boss-line);
+}
+
+/*
+ * Wraps rather than overflows: this row is over 800px of controls, and a narrow
+ * window must not push "Start over" off the edge of the screen.
+ */
+.canvas-toolbar__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--boss-gap);
+  flex: 0 0 auto;
+}
+
+/*
+ * THE FIXED LINE. `block-size` is definite, so overflowing content cannot grow it —
+ * that is what makes the height above a construction rather than a hope. Nothing
+ * here may wrap, and the message is allowed to shrink to nothing before anything
+ * else gives, so the pen's controls stay whole on a narrow window. `overflow-x`
+ * is the safety valve for the pathological case: cramped, but reachable, and still
+ * exactly `--boss-toolbar-line` tall.
+ */
+.canvas-toolbar__strip {
+  display: flex;
+  align-items: center;
+  /* Wider than the gap inside a group, so the pen's controls and each sentence
+     read as separate things rather than as one run-on line. */
+  gap: var(--boss-gap);
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  block-size: var(--boss-toolbar-line);
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+/*
+ * THE WORDS — the block hint, the pen's hint or reading, the page-length result.
+ *
+ * All of them live here and nowhere else, which is the second half of the height
+ * guarantee: a sentence on the control line above would make that line's wrapping a
+ * function of how wide a font renders it. Down here it cannot, because the line it
+ * is on has a definite height and never wraps.
+ *
+ * `min-width: 0` + `nowrap` + `ellipsis` pins each one to exactly one line box and
+ * lets it give up room to the controls beside it. The full text stays in the DOM,
+ * so a screen reader still gets the sentence a narrow window has to abbreviate.
+ */
+.canvas-toolbar__message {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .canvas-toolbar__status {
@@ -50,11 +134,24 @@
   color: var(--boss-danger);
 }
 
+/*
+ * `line-height` is pinned rather than left to `normal` on purpose: `normal` is the
+ * font's own metric, so the same button is a different height on Windows and on
+ * Linux. A ratio makes the button 16px of text plus its own padding everywhere,
+ * which is what lets `--boss-toolbar-line` above be a number instead of a guess.
+ *
+ * `white-space: nowrap` finishes the job: "Send backward" breaking over two lines
+ * on a font 10% wider than the one it was laid out against would double the height
+ * of whatever row it is on. The groups wrap BETWEEN buttons; buttons do not wrap
+ * inside themselves.
+ */
 .canvas-toolbar__button {
   padding: 0.35rem 0.7rem;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
   color: var(--boss-text);
   background: var(--boss-canvas-bg);
   border: 1px solid var(--boss-line-strong);

@@ -755,3 +755,67 @@ does not already deliver); a new `kind` value for the empty box (a `variant` cos
 and §6.2 already obliges consumers to tolerate unknown variants).
 **Revisit if:** a builder still resolves a claimed stroke as an annotation — the next lever is the
 brief's precedence clause (1), which would need §3.2 and §7.2 to move together.
+
+## 2026-07-30 — Measured: the visual gate cannot see a brand-wide colour change
+**Found by:** predicting that the v2.5 BOSS retheme would turn the `export-visual` suite red on CI,
+and being wrong. Run 30556114726 passed all six baseline comparisons against **stale, pre-rebrand**
+`-linux` baselines. Measured directly, old vs new `export-home-chromium-win32.png` (1200×1600):
+pixels differing **at all** 23.099%; pixels differing past the per-pixel threshold **0.756%**;
+`MAX_DIFF_PIXEL_RATIO` **2.000%**. The whole rebrand lands at about a third of the allowance.
+**Why it passes:** the two changes are each invisible to the gate for opposite reasons. The section
+band shift (`#f2f5fa` → `#f2f8fc`) covers a fifth of the page but is far too subtle to clear the
+per-pixel threshold, so those pixels are never counted. The button pill (amber → `#09679a`) is a
+dramatic per-pixel change over well under 1% of the page, so it never approaches the ratio. Nothing
+in between is measured.
+**Chose:** record it with its numbers and do NOT retune the tolerance · **Because:** the 2% exists
+to absorb cross-platform font rasterisation, which is real — the six `-win32` and six `-linux`
+baselines exist precisely because that noise is unavoidable. A ratio-only gate cannot separate
+"ubuntu renders text slightly differently" from "every call-to-action in the product changed
+colour"; tightening it would trade a blind spot for a flaky suite, and this session already spent a
+CI round on one platform-metrics failure (the toolbar wrap). The honest fix is a DIFFERENT
+measurement — e.g. comparing the palette histogram of the render, or asserting a small set of known
+sample points (a button's fill, a band's fill) exactly — not a smaller number in the same rule.
+**Consequence for v1.1:** regenerating the `-linux` baselines is **hygiene, not a gate**. CI is
+green on them today; they are simply a stale picture of the product. Regenerated anyway via the
+`update-visual-baselines` workflow_dispatch job so the committed reference images depict what ships.
+**Same class as:** the post-v1 backlog's F1 (a CTA rendered invisible by a CSS collision; every hard
+gate passed it correctly because none of them measured whether text actually painted). Two findings
+now share one shape: **the gate measured a proxy, and the proxy was silent.**
+**Revisit if:** a colour or spacing regression reaches a client — then add a sample-point or
+palette assertion beside the ratio, keeping the ratio for font noise.
+
+## 2026-07-30 — The visual gate gains a third, baseline-free axis (closes the entry above)
+**Chose:** keep the per-engine baseline comparison and its 2% ratio exactly as they are, and add an
+INDEPENDENT axis beside them: `solid fills, measured against the tokens` in
+`e2e/export-visual.spec.ts`. It renders the export, samples five points out of the PNG with the
+existing `samplePixels`, and asserts each is its design token within ±2 per channel.
+**Because:** a solid fill is the same RGB on every operating system — only glyph edges rasterise
+differently, which is the entire reason six `-win32` and six `-linux` baselines exist. So this axis
+owns **no baseline image**: nothing to go stale, nothing missing on a new platform, nothing for
+`skipWithoutBaseline` to skip, and no `workflow_dispatch` in its path. It measures the thing the
+ratio structurally cannot, without trading a blind spot for a flaky suite.
+**Probes are DERIVED, not magic pixels:** from the fixture's own block geometry — band, nav, empty
+image slot, button pill, plus a paper control — and a companion test re-checks every point against
+that geometry (≥8px own-block clearance, nothing painting later over it, outside declared text
+zones and pen keep-outs), so a fixture change moves the probes *and* fails loudly if one lands on
+text or an edge. A third test resolves the `var()` chain in `src/styles/theme.css`
+(`--boss-action` → `--boss-brand-dark` → `#09679a`) so the suite's restated hexes cannot drift from
+the tokens, or be silently repointed at a different token.
+**PROVEN TO FAIL, which is the point** — every perturbation reverted afterwards:
+· `--boss-brand-tint` `#f2f8fc` → `#f2f5fa` in the BUILT stylesheet, i.e. the subtle half of the
+rebrand end to end: **the new axis failed on chromium, firefox AND webkit** ("the Section band's
+tinted fill at 1176,296 reads #f2f5fa; --boss-band is #f2f8fc") while **all six per-engine baseline
+comparisons still PASSED** — the blind spot of the entry above, reproduced live and then closed.
+· `--boss-brand-dark` → amber: caught, channel gap 235.
+· the suite's own mirrored hex edited: the drift guard caught it before the render did.
+Measured gap at rest is **exactly 0** on all three engines; the ±2 is decode headroom, not slack.
+**Rejected:** lowering `MAX_DIFF_PIXEL_RATIO` (would trade this blind spot for cross-platform flake,
+and this session already spent a CI round on one font-metrics failure); asserting on the baseline
+images rather than the fresh render (re-imports the staleness this exists to survive).
+**Verified:** `npx playwright test e2e/export-visual.spec.ts` 16 passed / 2 by-design skips / 0
+failed; `npm test` 2310 passed / 0 failed; lint, build, `tsc -p tsconfig.e2e.json` clean.
+**Note for the record:** regenerating the `-linux` baselines (run 30560085196) rewrote only the
+three `export-home-*` files — the three `export-gallery-*` came back byte-identical on every engine,
+because that page's fixture carries no button block. Half the visual suite never saw the most
+visible part of the rebrand at all, which is a second, independent reason the ratio axis was never
+going to catch it.

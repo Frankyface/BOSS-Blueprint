@@ -164,27 +164,65 @@ test.describe('showing the client what we read', () => {
   })
 
   /**
-   * REGRESSION: the toolbar WRAPS, so one extra line of copy in the pen group costs
-   * a whole 33px row — which pushes the page down and takes that much off the
-   * drawing area. Picking up the pen, or asking what we read, must not shrink the
+   * REGRESSION: picking up the pen, or asking what we read, must not shrink the
    * thing you picked the pen up to draw on.
+   *
+   * The toolbar used to be one wrapping row that the pen group joined at full
+   * width, so whether it grew a row came down to how wide the strings happened to
+   * render — and it was once "fixed" by shortening the copy. That passed on Windows
+   * and lost a 31px row of canvas on Linux, in both chromium and firefox, which is
+   * the whole reason this test is now written the way it is:
+   *
+   *   - it measures THE CANVAS VIEWPORT, the thing the client actually loses, and
+   *     not only the toolbar that took it;
+   *   - it measures at several window widths, because the old layout held at 1920
+   *     and broke at 1600;
+   *   - and it measures with every string on the page deliberately widened, because
+   *     a layout that only holds at one platform's font metrics is exactly the bug.
    */
   test('never costs the client a row of canvas', async ({ page }) => {
     test.slow()
 
-    const toolbarHeight = async (): Promise<number> => {
-      const box = await page.getByTestId('canvas-toolbar').boundingBox()
-      expect(box).not.toBeNull()
-      return box!.height
+    /**
+     * Stands in for a platform whose font renders wider than this one's. 2px on
+     * every character is far more than the ~10% Linux costs us, which is the point:
+     * the property must not be a coincidence of a measurement.
+     */
+    const TEXT_WIDTHS = ['normal', '2px'] as const
+    const WINDOW_WIDTHS = [1920, 1366, 1100] as const
+    const WINDOW_HEIGHT = 900
+
+    const chromeHeights = async (): Promise<{ toolbar: number; canvas: number }> => {
+      const toolbar = await page.getByTestId('canvas-toolbar').boundingBox()
+      const canvas = await page.getByTestId('canvas-viewport').boundingBox()
+      expect(toolbar).not.toBeNull()
+      expect(canvas).not.toBeNull()
+      return { toolbar: toolbar!.height, canvas: canvas!.height }
     }
 
-    const away = await toolbarHeight()
-
     await drawACardWithCopyInIt(page)
-    expect(await toolbarHeight()).toBe(away)
+    await putPenAway(page)
 
-    await showReading(page)
-    expect(await toolbarHeight()).toBe(away)
+    for (const width of WINDOW_WIDTHS) {
+      for (const textWidth of TEXT_WIDTHS) {
+        const where = `${String(width)}px window, letter-spacing ${textWidth}`
+        await page.setViewportSize({ width, height: WINDOW_HEIGHT })
+        await page.evaluate((value) => {
+          document.documentElement.style.letterSpacing = value
+        }, textWidth)
+
+        const away = await chromeHeights()
+
+        await usePen(page, 'draw')
+        expect(await chromeHeights(), `pen out — ${where}`).toEqual(away)
+
+        await showReading(page)
+        expect(await chromeHeights(), `reading shown — ${where}`).toEqual(away)
+
+        await page.getByTestId('pen-reading-toggle').uncheck()
+        await putPenAway(page)
+      }
+    }
   })
 
   test('is a view, not a document — it never reaches the saved design', async ({ page }) => {

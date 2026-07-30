@@ -66,14 +66,57 @@ function isPageFull(
 }
 
 /**
- * One line under the buttons that always says where the page stands — worded from the
- * space that ACTUALLY landed, so "did that do anything?" is answerable without
- * measuring the sheet. The disabled REASONS sit on each button's own title (the N4
- * precedent), leaving this line free to report only the result.
+ * One line that always says where the page stands — worded from the space that
+ * ACTUALLY landed, so "did that do anything?" is answerable without measuring the
+ * sheet. The disabled REASONS sit on each button's own title (the N4 precedent),
+ * leaving this line free to report only the result.
  */
 function hintFor(appliedPx: number): string {
   if (appliedPx <= 0) return TRIM_DISABLED_REASON
   return `Added ${String(appliedPx)}px of space below your page.`
+}
+
+/** The three numbers both halves of this control read the page's length from. */
+function usePageSpace(): { appliedPx: number; hasSpace: boolean; isFull: boolean } {
+  const blocks = useCanvasStore(selectCurrentBlocks)
+  const strokes = useCanvasStore(selectCurrentStrokes)
+  const extraBottomPx = useCanvasStore(selectCurrentExtraBottom)
+
+  const appliedPx = appliedSpaceOf(blocks, strokes, extraBottomPx)
+  return {
+    appliedPx,
+    hasSpace: appliedPx > 0,
+    isFull: isPageFull(blocks, strokes, extraBottomPx),
+  }
+}
+
+/**
+ * THE SENTENCE, AND WHY IT IS NOT INSIDE THE BUTTON GROUP.
+ *
+ * It used to sit next to the buttons, which made the group as wide as its longest
+ * message — 593px of toolbar for 217px of controls — and a toolbar row costs the
+ * client drawing area (`CanvasToolbar.css`). Worse, it made the row's height a
+ * function of how wide a platform's font renders one sentence. It lives on the
+ * toolbar's fixed line now, beside whatever else has something to say, tied back to
+ * the buttons by `aria-describedby` rather than by position.
+ *
+ * A polite live region (Fix F): when the page grows or is trimmed on the click that
+ * disables the button, the change is announced rather than lost with the focus.
+ * `role="status"` is the same wiring `PenSettings` uses for its reading.
+ */
+export function PageSpaceHint() {
+  const { appliedPx } = usePageSpace()
+
+  return (
+    <p
+      className="canvas-toolbar__message page-space__hint"
+      id={REASON_ID}
+      data-testid="page-space-hint"
+      role="status"
+    >
+      {hintFor(appliedPx)}
+    </p>
+  )
 }
 
 /**
@@ -93,8 +136,6 @@ function hintFor(appliedPx: number): string {
  */
 export function PageSpaceControls() {
   const currentPageId = useCanvasStore((state) => state.currentPageId)
-  const blocks = useCanvasStore(selectCurrentBlocks)
-  const strokes = useCanvasStore(selectCurrentStrokes)
   const extraBottomPx = useCanvasStore(selectCurrentExtraBottom)
   const addPageSpace = useCanvasStore((state) => state.addPageSpace)
   const trimPageSpace = useCanvasStore((state) => state.trimPageSpace)
@@ -104,10 +145,7 @@ export function PageSpaceControls() {
   /** Which button the client just pressed, so focus can be rescued AFTER it greys out. */
   const pressedRef = useRef<'add' | 'trim' | null>(null)
 
-  const appliedPx = appliedSpaceOf(blocks, strokes, extraBottomPx)
-  const hasSpace = appliedPx > 0
-  const isFull = isPageFull(blocks, strokes, extraBottomPx)
-  const hint = hintFor(appliedPx)
+  const { hasSpace, isFull } = usePageSpace()
 
   const handleAdd = () => {
     pressedRef.current = 'add'
@@ -175,17 +213,6 @@ export function PageSpaceControls() {
       >
         Trim
       </button>
-      {/* A polite live region (Fix F): when the page grows or is trimmed on the click
-          that disables the button, the change is announced rather than lost with the
-          focus. `role="status"` is the same wiring `PenControls` uses for its reading. */}
-      <p
-        className="page-space__hint"
-        id={REASON_ID}
-        data-testid="page-space-hint"
-        role="status"
-      >
-        {hint}
-      </p>
     </div>
   )
 }

@@ -1,18 +1,22 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import type { Browser, BrowserType, Page, TestInfo } from '@playwright/test'
 import { chromium, expect, firefox, test, webkit } from '@playwright/test'
 
+import type { StoredPage } from './support/canvas.ts'
 import { openCanvas } from './support/canvas.ts'
+import type { FillProbe, FillRole, Rect, SampledPixel } from './support/exportPng.ts'
 import {
   exportFixturePages,
   expectedPageHeight,
   makePhotoDataUrl,
   PAGE_WIDTH,
   renderOrFail,
+  samplePixels,
   seedDesign,
+  solidFillProbes,
   waitForRenderBridge,
 } from './support/exportPng.ts'
 
@@ -258,6 +262,275 @@ test.describe('cross-engine agreement', () => {
           `${reading.engine} ink on ${pageId} is ${reading.inkRatio.toFixed(4)} against a median of ${middle.toFixed(4)}`,
         ).toBeLessThan(INK_TOLERANCE)
       }
+    }
+  })
+})
+
+/* ------------------------------------------------------------------------- */
+/* Third axis: solid fills against the design tokens, with NO baseline        */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * WHY A SECOND MEASUREMENT AT ALL (`docs/decisions.md` 2026-07-30).
+ *
+ * The baselines above answer "does this still look like the picture we
+ * committed", and they answer it with a RATIO — which is the only way to absorb
+ * the font rasterisation that genuinely differs between win32 and linux. On the
+ * v2.5 rebrand that ratio was blind in both directions at once: measured old vs
+ * new `export-home-chromium-win32.png`, 23.099% of pixels differed AT ALL, but
+ * only 0.756% cleared the per-pixel threshold against a 2.000% allowance. The
+ * band shift (`#f2f5fa` → `#f2f8fc`) repainted a fifth of the page too subtly to
+ * be counted; the button pill (amber → `#09679a`) was counted everywhere but is
+ * under 1% of the page. Nothing in between gets measured, and the suite passed
+ * a brand-wide colour change on all three engines.
+ *
+ * WHY THIS AXIS NEEDS NO BASELINE. A SOLID FILL IS THE SAME RGB ON EVERY
+ * OPERATING SYSTEM. Glyph edges are not — that is the entire reason six `-win32`
+ * and six `-linux` baselines exist. So this axis reads single pixels from the
+ * MIDDLE of the fills and compares them to the design tokens themselves. There
+ * is no reference image to be stale, missing on a new platform, or regenerated
+ * by a workflow; a platform cannot move the answer, so the tolerance can be tiny
+ * where the ratio's must stay large.
+ */
+
+/**
+ * THE FILLS, RESTATED ONCE from `src/styles/theme.css` — the E2E project cannot
+ * import `src/**` (`tsconfig.e2e.json` includes `e2e/**` only). Each entry names
+ * the token it mirrors, and 'the restated fills still match the theme tokens'
+ * below reads the stylesheet, follows the `var()` chain and fails if the two
+ * ever drift — including a role repointed at a different token.
+ */
+const FILL_TOKENS: Record<FillRole, { token: string; hex: string }> = {
+  /** `--boss-band` → `--boss-brand-tint`: Section bands and empty Image slots. */
+  band: { token: '--boss-band', hex: '#f2f8fc' },
+  /** `--boss-action` → `--boss-brand-dark`: the button pill (`BlockView.css`). */
+  action: { token: '--boss-action', hex: '#09679a' },
+  /** `--boss-ink`: the nav bar's near-black fill. */
+  ink: { token: '--boss-ink', hex: '#0b1220' },
+  /** `--boss-surface` — the same white as `src/export/png/constants.ts`'s `PAGE_BACKGROUND`. */
+  paper: { token: '--boss-surface', hex: '#ffffff' },
+}
+
+/**
+ * Per-channel slack, and it must stay SMALL to be worth having.
+ *
+ * The change this gate exists to catch is the subtle one: `#f2f5fa` → `#f2f8fc`
+ * moves green by 3 and blue by 2, so anything above 2 would wave the rebrand
+ * through exactly as the ratio did. PNG is lossless and a flat fill has no
+ * anti-aliasing, so the honest reading is 0 on all three engines (measured:
+ * every probe exact, chromium/firefox/webkit) — the 2 is headroom for a decode
+ * rounding a channel, not an allowance for a different colour.
+ */
+const FILL_CHANNEL_TOLERANCE = 2
+
+/** A probe must sit at least this far from a block edge or a text zone. */
+const MIN_CLEARANCE_PX = 8
+
+/** Conservative half-width of the paint a pen stroke lays around its points. */
+const STROKE_KEEP_OUT_PX = 24
+
+const OPAQUE_ALPHA = 255
+
+/** The fixture page carrying a band, a nav bar, an empty slot and a pill. */
+const FILL_PAGE_ID = 'page-home'
+
+function fillFixturePage(): StoredPage {
+  const found = exportFixturePages('').find((candidate) => candidate.id === FILL_PAGE_ID)
+  if (!found) throw new Error(`the fixture no longer has "${FILL_PAGE_ID}"`)
+  return found
+}
+
+/** Distance from a point to a rectangle; 0 when the point is inside it. */
+function distanceToRect(point: { x: number; y: number }, rect: Rect): number {
+  const dx = Math.max(rect.x - point.x, point.x - (rect.x + rect.width), 0)
+  const dy = Math.max(rect.y - point.y, point.y - (rect.y + rect.height), 0)
+  return Math.hypot(dx, dy)
+}
+
+/** How far inside a rectangle a point sits; negative when it is outside. */
+function clearanceInside(point: { x: number; y: number }, rect: Rect): number {
+  return Math.min(
+    point.x - rect.x,
+    rect.x + rect.width - point.x,
+    point.y - rect.y,
+    rect.y + rect.height - point.y,
+  )
+}
+
+/**
+ * EVERY REASON A PROBE MIGHT NOT BE ON FLAT FILL, re-derived from the same
+ * fixture the render came from: outside its own block, too near an edge or a
+ * corner radius, under a block that paints later (blocks paint in array order),
+ * inside a text zone, or in a pen stroke's way. This is what makes the derived
+ * coordinates safe to move with the fixture — a block dragged over a probe fails
+ * the suite instead of quietly turning it into a reading of the wrong thing.
+ */
+function probeFaults(page: StoredPage, probes: readonly FillProbe[]): string[] {
+  const faults: string[] = []
+  const at = (probe: FillProbe): string => `${probe.label} (${String(probe.x)},${String(probe.y)})`
+
+  for (const probe of probes) {
+    const point = { x: probe.x, y: probe.y }
+    const ownerIndex = page.blocks.findIndex((block) => block.id === probe.blockId)
+
+    if (probe.blockId !== null && ownerIndex < 0) {
+      faults.push(`${at(probe)}: the fixture no longer has block "${probe.blockId}"`)
+      continue
+    }
+
+    const owner = page.blocks[ownerIndex]
+    if (owner) {
+      const room = clearanceInside(point, owner)
+      if (room < MIN_CLEARANCE_PX) faults.push(`${at(probe)}: ${room.toFixed(1)}px from ${owner.id}'s edge`)
+    }
+
+    page.blocks.forEach((block, index) => {
+      if (index <= ownerIndex) return
+      if (distanceToRect(point, block) < MIN_CLEARANCE_PX) {
+        faults.push(`${at(probe)}: ${block.id} paints over it`)
+      }
+    })
+
+    for (const zone of probe.avoid) {
+      if (distanceToRect(point, zone) < MIN_CLEARANCE_PX) {
+        faults.push(`${at(probe)}: inside a text zone, ${JSON.stringify(zone)}`)
+      }
+    }
+
+    for (const stroke of page.penStrokes) {
+      const xs = stroke.points.map((strokePoint) => strokePoint.x)
+      const ys = stroke.points.map((strokePoint) => strokePoint.y)
+      const keepOut = {
+        x: Math.min(...xs) - STROKE_KEEP_OUT_PX,
+        y: Math.min(...ys) - STROKE_KEEP_OUT_PX,
+        width: Math.max(...xs) - Math.min(...xs) + STROKE_KEEP_OUT_PX * 2,
+        height: Math.max(...ys) - Math.min(...ys) + STROKE_KEEP_OUT_PX * 2,
+      }
+      if (distanceToRect(point, keepOut) === 0) faults.push(`${at(probe)}: in ${stroke.id}'s way`)
+    }
+  }
+
+  return faults
+}
+
+const HEX_RADIX = 16
+const HEX_PAIR = 2
+
+function hexOfPixel(pixel: SampledPixel): string {
+  const pair = (value: number): string => value.toString(HEX_RADIX).padStart(HEX_PAIR, '0')
+  return `#${pair(pixel.r)}${pair(pixel.g)}${pair(pixel.b)}`
+}
+
+/** The widest single-channel gap between a sampled pixel and a `#rrggbb` colour. */
+function channelGap(pixel: SampledPixel, hex: string): number {
+  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+  if (!match) throw new Error(`"${hex}" is not a #rrggbb colour`)
+
+  const channel = (index: number): number => Number.parseInt(match[index] ?? '', HEX_RADIX)
+  return Math.max(
+    Math.abs(pixel.r - channel(1)),
+    Math.abs(pixel.g - channel(2)),
+    Math.abs(pixel.b - channel(3)),
+  )
+}
+
+const THEME_CSS = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'styles', 'theme.css')
+
+/** `--boss-action` → `--boss-brand-dark` → `#09679a` is two hops; four is slack. */
+const MAX_VAR_HOPS = 4
+
+/** Every `--name: value` declared in the theme, comments stripped first. */
+function themeDeclarations(): Map<string, string> {
+  const css = readFileSync(THEME_CSS, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const declarations = new Map<string, string>()
+
+  for (const [, name, value] of css.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
+    if (name && value) declarations.set(name, value.trim().toLowerCase())
+  }
+
+  return declarations
+}
+
+/** Follows `var(--x)` indirection, so repointing a role at another token is caught. */
+function resolveToken(declarations: Map<string, string>, name: string): string {
+  let current = name
+
+  for (let hop = 0; hop <= MAX_VAR_HOPS; hop += 1) {
+    const value = declarations.get(current)
+    if (value === undefined) throw new Error(`${current} is not declared in src/styles/theme.css`)
+
+    const indirect = /^var\(\s*(--[a-z0-9-]+)\s*\)$/.exec(value)
+    if (!indirect?.[1]) return value
+    current = indirect[1]
+  }
+
+  throw new Error(`the var() chain from ${name} does not resolve in ${String(MAX_VAR_HOPS)} hops`)
+}
+
+test.describe('solid fills, measured against the tokens', () => {
+  test('the sample points sit on flat fill — not on text, an edge or a stroke', () => {
+    const fixture = fillFixturePage()
+    const probes = solidFillProbes(fixture, expectedPageHeight(fixture))
+
+    const sampled = [...new Set(probes.map((probe) => probe.fill))].sort()
+    expect(sampled, 'every fill role should be sampled').toEqual(Object.keys(FILL_TOKENS).sort())
+    expect(probeFaults(fixture, probes), 'derived probe geometry').toEqual([])
+  })
+
+  test('the restated fills still match the theme tokens they mirror', () => {
+    const declarations = themeDeclarations()
+
+    for (const [role, mirror] of Object.entries(FILL_TOKENS)) {
+      expect(
+        resolveToken(declarations, mirror.token),
+        `${mirror.token} (the "${role}" fill) drifted from this suite's copy of it`,
+      ).toBe(mirror.hex)
+    }
+  })
+
+  test('every solid fill in the exported PNG is exactly its design token', async ({
+    page,
+  }, testInfo) => {
+    const fixture = fillFixturePage()
+    const probes = solidFillProbes(fixture, expectedPageHeight(fixture))
+    expect(probeFaults(fixture, probes), 'derived probe geometry').toEqual([])
+
+    await seedAndOpen(page)
+    const result = await renderOrFail(page, FILL_PAGE_ID)
+    // The paper probe is derived from §4.2's height, so the render must agree.
+    expect(result.height, 'the probes assume §4.2’s page height').toBe(expectedPageHeight(fixture))
+
+    const pixels = await samplePixels(page, result.base64, probes)
+
+    const readings = probes.map((probe, index) => {
+      const pixel = pixels[index]
+      return {
+        probe: probe.label,
+        at: [probe.x, probe.y],
+        token: FILL_TOKENS[probe.fill].token,
+        expected: FILL_TOKENS[probe.fill].hex,
+        read: pixel ? hexOfPixel(pixel) : null,
+        gap: pixel ? channelGap(pixel, FILL_TOKENS[probe.fill].hex) : null,
+      }
+    })
+
+    await testInfo.attach('solid-fills.json', {
+      body: JSON.stringify(readings, null, 2),
+      contentType: 'application/json',
+    })
+
+    for (const [index, probe] of probes.entries()) {
+      const pixel = pixels[index]
+      expect(pixel, `${probe.label} was not sampled`).toBeDefined()
+      if (!pixel) continue
+
+      const { token, hex } = FILL_TOKENS[probe.fill]
+      expect(pixel.a, `${probe.label} must be opaque`).toBe(OPAQUE_ALPHA)
+      expect(
+        channelGap(pixel, hex),
+        `${probe.label} at ${String(probe.x)},${String(probe.y)} reads ${hexOfPixel(pixel)}; ` +
+          `${token} is ${hex}`,
+      ).toBeLessThanOrEqual(FILL_CHANNEL_TOLERANCE)
     }
   })
 })

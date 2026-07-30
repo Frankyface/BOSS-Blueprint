@@ -216,6 +216,141 @@ export function luma(pixel: SampledPixel): number {
 }
 
 /* ------------------------------------------------------------------------- */
+/* Solid fills: the colour assertion that needs no baseline                   */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Sample points for the baseline-free half of the visual gate. WHY that half
+ * exists, and the design token each probe is measured against, live in
+ * `export-visual.spec.ts` — this file owns the geometry only: which pixel of
+ * which fixture block is flat, unambiguous fill.
+ */
+
+/** The fill a probe reads. Each role's hex is restated once, in the spec. */
+export type FillRole = 'band' | 'action' | 'ink' | 'paper'
+
+export interface Rect { x: number; y: number; width: number; height: number }
+
+export interface FillProbe {
+  /** Read out loud in the failure message. */
+  label: string
+  /** The block whose fill this reads; `null` means bare page paper. */
+  blockId: string | null
+  fill: FillRole
+  x: number
+  y: number
+  /** The parts of that block that are NOT flat fill: text, glyphs, a photo. */
+  avoid: readonly Rect[]
+}
+
+/** Far enough inside a filled rectangle to clear its border and any corner radius. */
+const FILL_INSET_PX = 24
+
+/**
+ * The parts of each fixture block that carry TEXT rather than fill, stated as
+ * generously as the CSS allows: the section tag (13px, top-left), the image
+ * slot's centred glyph and caption, the right-aligned nav items, and the pill's
+ * centred 18px label at the widest `line-height: normal` any engine produces.
+ * Over-stating only pushes a probe deeper into the fill, and the spec's
+ * `probeFaults` re-measures the clearance left rather than trusting these.
+ */
+const TEXT_ZONE = {
+  sectionTag: { width: 320, height: 48 },
+  imageCaptionHeight: 160,
+  navItemsFraction: 0.6,
+  buttonLabelHeight: 18 * 1.5,
+} as const
+
+type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+/** A point one inset in from a named corner of a rectangle. */
+function insetCorner(rect: Rect, corner: Corner, inset = FILL_INSET_PX): { x: number; y: number } {
+  const isLeft = corner === 'top-left' || corner === 'bottom-left'
+  const isTop = corner === 'top-left' || corner === 'top-right'
+
+  return {
+    x: isLeft ? rect.x + inset : rect.x + rect.width - inset,
+    y: isTop ? rect.y + inset : rect.y + rect.height - inset,
+  }
+}
+
+/** The full-width band a vertically-centred line of text occupies inside a block. */
+function centredBox(rect: Rect, height: number): Rect {
+  return { x: rect.x, y: rect.y + (rect.height - height) / 2, width: rect.width, height }
+}
+
+function blockOf(page: StoredPage, id: string): StoredBlock {
+  const found = page.blocks.find((block) => block.id === id)
+  if (!found) throw new Error(`the fixture no longer has a block "${id}" to sample`)
+  return found
+}
+
+/**
+ * WHERE THE PIXELS ARE READ — derived from the fixture's own block geometry, so
+ * moving a block in `exportFixturePages` moves its probe with it. The spec's
+ * `probeFaults` then re-derives whether each point is STILL on flat fill, which
+ * is what turns a fixture change into a loud failure rather than a probe quietly
+ * reading a glyph edge.
+ */
+export function solidFillProbes(page: StoredPage, pageHeight: number): FillProbe[] {
+  const band = blockOf(page, 'block-band')
+  const nav = blockOf(page, 'block-nav')
+  const slot = blockOf(page, 'block-slot-empty')
+  const cta = blockOf(page, 'block-cta')
+  const label = centredBox(cta, TEXT_ZONE.buttonLabelHeight)
+  const navItemsX = nav.x + nav.width * (1 - TEXT_ZONE.navItemsFraction)
+
+  return [
+    {
+      label: 'the Section band’s tinted fill',
+      blockId: band.id,
+      fill: 'band',
+      // Bottom-right: the tag sits top-left and the nav bar covers the top.
+      ...insetCorner(band, 'bottom-right'),
+      avoid: [{ x: band.x, y: band.y, ...TEXT_ZONE.sectionTag }],
+    },
+    {
+      label: 'the nav bar’s ink fill',
+      blockId: nav.id,
+      fill: 'ink',
+      // Left end: the items are right-aligned, so this end is bare fill.
+      x: nav.x + FILL_INSET_PX,
+      y: nav.y + nav.height / 2,
+      avoid: [{ x: navItemsX, y: nav.y, width: nav.width - navItemsX + nav.x, height: nav.height }],
+    },
+    {
+      label: 'the empty Image slot’s placeholder fill',
+      blockId: slot.id,
+      fill: 'band',
+      // Bottom-left: the glyph and caption are centred and `stroke-slot` crosses
+      // the slot's upper half.
+      ...insetCorner(slot, 'bottom-left'),
+      avoid: [centredBox(slot, TEXT_ZONE.imageCaptionHeight)],
+    },
+    {
+      label: 'the button pill’s action fill',
+      blockId: cta.id,
+      fill: 'action',
+      // Horizontally centred, clear of both 999px caps; vertically halfway
+      // between the pill's top edge and the top of its label.
+      x: cta.x + cta.width / 2,
+      y: Math.round((cta.y + label.y) / 2),
+      avoid: [label],
+    },
+    {
+      // The control: bare paper. If this one moves, the sampler is misaligned
+      // and every reading above it is worthless.
+      label: 'bare page paper below the content',
+      blockId: null,
+      fill: 'paper',
+      x: PAGE_WIDTH - FILL_INSET_PX * 2,
+      y: pageHeight - FILL_INSET_PX * 2,
+      avoid: [],
+    },
+  ]
+}
+
+/* ------------------------------------------------------------------------- */
 /* The committed fixture design                                               */
 /* ------------------------------------------------------------------------- */
 

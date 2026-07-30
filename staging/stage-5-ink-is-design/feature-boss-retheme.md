@@ -21,21 +21,83 @@ belongs behind the same smoke run as the contract amendment.
 - [x] The component CSS follows the tokens rather than re-declaring colours
 - [x] Brand assets regenerated (`node scripts/brand/make-brand-assets.mjs`)
 - [x] Brand tokens resolve in a running browser
-- [ ] **Visual baselines regenerated for every platform CI runs on** — win32 only, see below
-- [ ] **CI green on `main` with the new baselines** — not run
+- [x] **The `export-visual` suite passes on the Linux runner** — it did, at `c82d917`, against the
+      **stale pre-rebrand** baselines. That is a finding about the gate, not a pass for the rebrand
+- [ ] **Regenerated Linux baselines committed** — the job has RUN and produced an artifact; the
+      artifact is **not in the repo** (see below). Hygiene, **not a gate**
+- [ ] **CI green on `main`** — CI is RED at `c82d917`, on `pen-reading.spec.ts:172`, which is
+      nothing to do with the theme (see feature-ink-reading-overlay.md)
 - [ ] **Live** — v1.1 is not deployed
+- [ ] **A machine-checked contrast floor** — still nothing in `src/` or `e2e/` computes a ratio
 
 ## How We'll Verify
 1. Unit + build: `npm test`, `npm run lint`, `npm run build` clean with the new tokens.
 2. Visual: regenerate the `export-visual` baselines on **every** platform CI runs on, via the
-   manual `update-visual-baselines` `workflow_dispatch` job, then CI green.
+   manual `update-visual-baselines` `workflow_dispatch` job, and commit them.
 3. Live: load the app and read the computed custom properties.
 4. Contrast: every foreground/background pair used for text clears 4.5:1.
 5. Record below.
 
 ## Verification Log
 
-### 2026-07-29 — retheme landed and locally green; the baseline regeneration is NOT done (awaiting verification)
+### 2026-07-30 — the baseline "blocker" was WRONG, and is now measured (still awaiting verification, for different reasons)
+
+**The 2026-07-29 entry's central prediction was false and this entry corrects it.** It said the
+visual spec "is expected to **fail** on Linux until the baselines are regenerated". It did not
+fail. CI run **30556114726** (push of `c82d917`) passed **all six** baseline comparisons against
+the stale, pre-rebrand `-linux` images. The E2E job went red on `pen-reading.spec.ts:172` and
+nothing else; `export-visual` was green.
+
+**Why — measured, not guessed** (`docs/decisions.md`, 2026-07-30, "the visual gate cannot see a
+brand-wide colour change"). Old vs new `export-home-chromium-win32.png` (1200×1600):
+
+| Measure | Value |
+|---|---|
+| Pixels differing **at all** | **23.099%** |
+| Pixels differing **past the per-pixel threshold** | **0.756%** |
+| `MAX_DIFF_PIXEL_RATIO` allowance | **2.000%** |
+
+The whole rebrand lands at about a third of the allowance. The band shift (`#f2f5fa` → `#f2f8fc`)
+covers a fifth of the page but is too subtle to clear the per-pixel threshold; the button pill
+(amber → `#09679a`) is dramatic per pixel but covers well under 1% of it. Nothing in between is
+measured. **Consequence: regenerating the `-linux` baselines is HYGIENE, not a gate.** Any record
+— including the 2026-07-29 entry below and the old `handoff.md` — claiming the baselines block CI
+or the deploy is now **false**.
+
+**The regeneration job has RUN, and its output is NOT yet in the repo.**
+
+| Evidence | Result |
+|---|---|
+| Run **30560085196**, `workflow_dispatch`, 2026-07-30T16:08:30Z | job "Regenerate export visual baselines (ubuntu)" **succeeded** in 1m19s |
+| Command | `npx playwright test e2e/export-visual.spec.ts --update-snapshots=all` — 9 tests, **7 passed / 2 skipped** |
+| Files rewritten | `export-home-{chromium,firefox,webkit}-linux.png`. The three `export-gallery-*-linux.png` were re-written byte-identical — the rebrand does not touch that render |
+| Artifact | **`visual-baselines-linux`**, 146816 bytes, artifact id **8766507712** |
+| In the repo? | **NO.** VERIFIED: `git status e2e/` reports no snapshot modifications. The artifact must still be downloaded and committed |
+
+**Everything else about the retheme is unchanged and green.** CI run 30556114726 at `c82d917`:
+unit **116 files · 2241 passed · 0 failed**, lint, build, `schema:check` and
+`roundtrip:gate:selftest` all green. The brand assets were already regenerated (2026-07-29 entry;
+`handoff.md` has now been corrected on that point).
+
+**WHY THIS IS STILL NOT `verified done` — the honest list, with the old reasons removed:**
+
+1. **The regenerated Linux baselines are not committed.** Hygiene, but the committed reference
+   images still depict the pre-rebrand product, which will mislead the next reader of a diff.
+2. **CI is RED on `main`** — on `pen-reading.spec.ts:172`, a toolbar/font-metrics defect unrelated
+   to the palette (chromium +31px, firefox +32px). "CI green on `main`" is a stage-level gate this
+   feature cannot satisfy alone.
+3. **v1.1 is not deployed.** The Deploy job did not run in either 30556114726 (E2E failed) or
+   30560085196 (dispatch job only). The live site is still v1.
+4. **No automated contrast check exists.** Re-VERIFIED by search: nothing under `src/` or `e2e/`
+   computes a contrast ratio. The "27/27 pairs pass" figure and `theme.css`'s inline ratios
+   (4.45:1, 5.8:1, 4.2:1) remain one-off implementer measurements with no regression guard.
+
+**To reach `verified done`:** download artifact `visual-baselines-linux` from run 30560085196 and
+commit the three changed `-linux` PNGs; get CI green on `main`; deploy and confirm the live bundle.
+The contrast guard is worth filing as backlog rather than blocking — but item 4 stays unchecked
+until it exists.
+
+### 2026-07-29 — retheme landed and locally green; the baseline regeneration is NOT done (SUPERSEDED — its "visual spec WILL fail on Linux" prediction was measured and is FALSE; kept as history)
 
 | Check | Result |
 |---|---|
@@ -81,6 +143,8 @@ discrepancy rather than editing it.
 
 **To reach `verified done`:** run the `update-visual-baselines` dispatch on every platform CI uses,
 commit the regenerated baselines, get CI green on `main`, then deploy and confirm the live bundle.
+**→ Partly done, and reason 1 above was WRONG:** the dispatch ran (30560085196) and the stale
+baselines had been passing CI all along. See the 2026-07-30 entry.
 
 ## Open Questions
 1. **Should the visual baselines be per-platform at all?** They already are, on purpose — a
