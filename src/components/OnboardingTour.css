@@ -23,13 +23,13 @@
   color: var(--boss-text-invert);
   background: var(--boss-ink);
   border-radius: var(--boss-radius);
-  border-left: 4px solid var(--boss-accent);
+  border-left: 4px solid var(--boss-accent-on-ink);
   box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--boss-ink) 45%, transparent);
   transition: opacity 140ms ease-out;
 }
 
 .onboarding-tour__bubble:focus-visible {
-  outline: 2px solid var(--boss-accent);
+  outline: 2px solid var(--boss-accent-on-ink);
   outline-offset: 2px;
 }
 
@@ -38,7 +38,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--boss-accent);
+  color: var(--boss-accent-on-ink);
 }
 
 .onboarding-tour__title {
@@ -86,14 +86,15 @@
 }
 
 .onboarding-tour__next {
-  color: var(--boss-ink);
-  background: var(--boss-accent);
-  border: 1px solid var(--boss-accent);
+  color: var(--boss-action-on-ink-text);
+  background: var(--boss-action-on-ink);
+  border: 1px solid var(--boss-action-on-ink);
 }
 
 .onboarding-tour__next:hover,
 .onboarding-tour__next:focus-visible {
-  background: color-mix(in srgb, var(--boss-accent) 84%, var(--boss-surface));
+  background: var(--boss-action-on-ink-hover);
+  border-color: var(--boss-action-on-ink-hover);
 }
 
 /* The help control that brings the whole thing back, permanently in the header. */
@@ -116,7 +117,7 @@
 
 .tour-help:hover,
 .tour-help:focus-visible {
-  border-color: var(--boss-accent);
+  border-color: var(--boss-accent-on-ink);
 }
 
 .tour-help__mark {
@@ -127,8 +128,8 @@
   height: 1.1rem;
   font-size: 0.75rem;
   font-weight: 800;
-  color: var(--boss-ink);
-  background: var(--boss-accent);
+  color: var(--boss-action-on-ink-text);
+  background: var(--boss-action-on-ink);
   border-radius: 50%;
 }
 

@@ -84,8 +84,96 @@ export interface ExportPenStroke {
   readonly points: readonly (readonly [number, number])[]
   readonly color: string
   readonly width: number
+  /**
+   * §2.9's scope note — WHICH KIND OF NOTE AN UNCLAIMED MARK IS.
+   *
+   * A closed two-value enum, and deliberately still two: a stroke some `penRegion`
+   * lists in `strokeIds` is that region's content, so `role` is simply not asked
+   * about it and this value is inert. A third value would restate what
+   * `strokeIds` already says, on the other side of the same relation.
+   */
   readonly role: 'annotation' | 'imageSketch'
+  /** Scoped exactly as `role` is: a guess about unclaimed ink, inert on claimed ink. */
   readonly targetBlockId: string | null
+}
+
+/**
+ * §2.2 `bbox` — a rectangle with the same four keys as `frame` and DELIBERATELY
+ * NOT the same schema definition.
+ *
+ * `frame` sets `w`/`h` to `exclusiveMinimum: 0` because a block with no extent is
+ * a bug. A REGION with no extent is not: a mouse-drawn straight horizontal rule
+ * has a bounding-box height of exactly 0, which the `rule` classifier explicitly
+ * admits (`src/canvas/ink/metrics.ts` carries the zero-extent guard for the same
+ * reason). `$ref`-ing `frame` here would have V1 BLOCK a package on the single
+ * most common thing a client draws.
+ */
+export interface ExportBbox {
+  readonly x: number
+  readonly y: number
+  readonly w: number
+  readonly h: number
+}
+
+/**
+ * §2.2 — what a region IS.
+ *
+ * A closed enum, and SHORTER than the ink module's `InkRegionKind`: `annotation`
+ * is absent on purpose. Ink that matched no classifier is not published as a
+ * region at all — it stays in the [N7] annotation-cluster pool the brief already
+ * narrates, which is what makes the worst case of this feature "no change" rather
+ * than "confident wrong instruction".
+ */
+export type PenRegionKind =
+  | 'panel'
+  | 'writing'
+  | 'navRow'
+  | 'rule'
+  | 'textPlaceholder'
+  | 'artwork'
+
+/** §2.2 — the measurements a builder needs to set drawn words as real type. */
+export interface ExportRegionText {
+  readonly lines: number
+  readonly words: number
+  readonly glyphHeight: number
+  readonly align: 'left' | 'center' | 'right'
+  readonly emphasis: 'display' | 'heading' | 'body'
+}
+
+/**
+ * §2.2 — one inferred region of ink.
+ *
+ * Flat, with explicit `null`s rather than a per-kind union, for the same reason
+ * `ExportBlock`'s common fields are flat: every consumer walks regions uniformly.
+ *
+ * `variant` is a free producer-controlled string ON PURPOSE, so a new sub-kind
+ * never has to touch the schema again. The values shipped today are `card` |
+ * `mediaBox` (panel), `divider` | `underline` | `vertical` (rule) and `band`
+ * (artwork); a consumer that does not recognise one must fall back to the `kind`
+ * (§6.2).
+ *
+ * A `panel` ALWAYS carries one of its two (§4.9.10): `card` when a region sits
+ * inside it, `mediaBox` when none does. That word is the only thing separating a
+ * drawn pricing card from an empty box the builder fills with a real image —
+ * `kind`, `bbox` and `strokeIds` cannot tell them apart — and V28 BLOCKs a package
+ * whose variant disagrees with its own region tree.
+ */
+export interface ExportPenRegion {
+  readonly id: string
+  readonly kind: PenRegionKind
+  readonly variant?: string
+  readonly confidence: 'clear' | 'unsure'
+  readonly bbox: ExportBbox
+  /** Export stroke ids, in draw order. Never empty. */
+  readonly strokeIds: readonly string[]
+  /** The containing `panel` region on the same page, or `null` at the top level. */
+  readonly parentRegionId: string | null
+  /** `set_NNNN` when this panel is one instance of a repeated component. */
+  readonly setId: string | null
+  readonly setIndex: number | null
+  /** `writing`/`navRow` only — everything else carries no words to measure. */
+  readonly text: ExportRegionText | null
 }
 
 export interface ExportPage {
@@ -93,9 +181,27 @@ export interface ExportPage {
   readonly name: string
   readonly slug: string
   readonly height: number
+  /**
+   * §2.5 — empty room the client deliberately added below their content, ALREADY
+   * INCLUDED in `height`. Absent means none, and it is only ever written when > 0.
+   *
+   * It earns its place in the contract by telling the builder something `height`
+   * alone cannot: that the closing whitespace is design intent, not an accident of
+   * where the last block happened to land.
+   */
+  readonly extraBottomPx?: number
   readonly screenshot: string
   readonly blocks: readonly ExportBlock[]
   readonly penStrokes: readonly ExportPenStroke[]
+  /**
+   * §2.5 — what the producer INFERRED the page's ink to be (§4.5 / the ink module).
+   *
+   * Absent, never `[]`, when nothing was inferred: an empty array would change the
+   * bytes of every package that ships only annotation ink, including the normative
+   * §7.1 fixture. Derived at export from `blocks` and `penStrokes`, never stored —
+   * geometry moves, and a stored reading would go stale the moment a block did.
+   */
+  readonly penRegions?: readonly ExportPenRegion[]
 }
 
 export type AssetMimeType = 'image/jpeg' | 'image/png' | 'image/webp'

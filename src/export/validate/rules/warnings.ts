@@ -7,10 +7,12 @@
  * can promise the zip always downloads.
  */
 
+import { pageHeightForContent } from '../../../canvas/geometry.ts'
+import type { PenStroke } from '../../../canvas/types.ts'
 import { clustersOf } from '../../brief/pen.ts'
 import { unreachablePages } from '../../brief/links.ts'
 import { keyOrderProblems } from '../../serialize.ts'
-import { EXPORT_PAGE_WIDTH } from '../../types.ts'
+import { EXPORT_PAGE_WIDTH, type ExportPage } from '../../types.ts'
 import { finding, type Finding, type PackageBundle } from '../types.ts'
 import { eachBlock, jumpTarget } from '../walk.ts'
 
@@ -25,10 +27,18 @@ export const MIN_LEGIBLE_CLUSTER_WIDTH_PX = 40
 export const MIN_LEGIBLE_CLUSTER_HEIGHT_PX = 20
 export const MIN_LEGIBLE_CLUSTER_POINTS = 12
 
-/** V9 (WARN half) — an individual page with nothing on it. */
+/**
+ * V9 (WARN half) — an individual page with nothing on it.
+ *
+ * "Nothing" means no blocks AND no ink. Counting blocks alone fired on every
+ * deliberate pen-only page — the one thing this tool exists to let a client make —
+ * so the client would have been warned about their own drawing every single time
+ * they submitted. A warning that is wrong that often is a warning nobody reads,
+ * which costs the WARNs that are right. Same message, narrower trigger.
+ */
 export function v09NearEmptyPage({ site }: PackageBundle): Finding[] {
   return site.pages
-    .filter((page) => page.blocks.length === 0)
+    .filter((page) => page.blocks.length === 0 && page.penStrokes.length === 0)
     .map((page) => finding('V09', 'WARN', 'client', `Page "${page.name}" is empty.`, [page.id], { pageId: page.id }))
 }
 
@@ -156,6 +166,108 @@ export function v25RightOverflow({ site }: PackageBundle): Finding[] {
     )
 }
 
+/**
+ * V29 — the long edge a page PNG is resampled to before a vision model reads it.
+ *
+ * A 1200×8000 sketch does not reach the builder at 1200×8000: it arrives scaled so
+ * its long edge fits this budget, which on the tallest page is a 3.1× reduction.
+ * Handwriting that is comfortable at 1:1 can cross below legibility on the way in,
+ * and the client never sees that happen.
+ */
+export const INK_VISION_LONG_EDGE_PX = 2576
+
+/** Below this, in the pixels the reader actually gets, handwriting stops resolving. */
+export const INK_READABLE_MIN_PX = 24
+
+/**
+ * V29 — drawn words the builder would be asked to read below readable size.
+ *
+ * A WARN, never a BLOCK: the ink is still in `penStrokes` as vectors, so a builder
+ * can rebuild the region at any magnification it likes. What this rule buys is that
+ * Cam is TOLD, on the page it happened, rather than finding out from a build that
+ * quietly invented the wording.
+ */
+export function v29InkTooSmallToRead({ site }: PackageBundle): Finding[] {
+  const findings: Finding[] = []
+
+  for (const page of site.pages) {
+    const scale = Math.min(1, INK_VISION_LONG_EDGE_PX / Math.max(EXPORT_PAGE_WIDTH, page.height))
+    for (const region of page.penRegions ?? []) {
+      if (region.kind !== 'writing' && region.kind !== 'navRow') continue
+      if (region.text === null) continue
+
+      const effective = region.text.glyphHeight * scale
+      if (effective >= INK_READABLE_MIN_PX) continue
+      findings.push(
+        finding(
+          'V29',
+          'WARN',
+          'bug',
+          `${region.id} on ${page.id} is ${String(Math.round(region.text.glyphHeight))}px handwriting on a ${String(page.height)}px page — the builder reads it at ${String(Math.round(effective * 10) / 10)}px, under the ${String(INK_READABLE_MIN_PX)}px floor`,
+          [region.id],
+          { pageId: page.id },
+        ),
+      )
+    }
+  }
+  return findings
+}
+
+/**
+ * The content-only height of a page: `pageHeightForContent` with the client's added
+ * room set to 0, computed from the SAME producer function so the validator and the
+ * editor cannot disagree about how tall the content is. The export shapes are adapted
+ * to what the geometry helper reads (`rect.y + rect.height`, `point.y`).
+ */
+function contentOnlyHeight(page: ExportPage): number {
+  const rects = page.blocks.map((block) => ({
+    x: block.frame.x,
+    y: block.frame.y,
+    width: block.frame.w,
+    height: block.frame.h,
+  }))
+  const strokes: PenStroke[] = page.penStrokes.map((stroke) => ({
+    id: stroke.id,
+    points: stroke.points.map(([x, y]) => ({ x, y })),
+    color: stroke.color,
+    width: stroke.width,
+  }))
+  return pageHeightForContent(rects, strokes, 0)
+}
+
+/**
+ * V31 — space the client asked for that the height cap actually truncated.
+ *
+ * §4.2 clamps `height` to 8000 AFTER adding `extraBottomPx`, so on a page whose
+ * content already fills the sheet only PART of the added room lands — none of it, at
+ * the cap. The amount that landed is the gap between the page's height and its
+ * content-only height (`pageHeightForContent` with no extra); the client asked for
+ * `extraBottomPx`. Truncation happened iff they asked for more than landed — which
+ * is the ONLY case worth telling a client about, and never fires at the boundary
+ * where a page lands on 8000 with every requested pixel applied (the false positive
+ * V31 used to emit). Client-facing on purpose: it is the client's own action, and
+ * being told the space was not applied when it was reads as the app being broken.
+ */
+export function v31TruncatedPageSpace({ site }: PackageBundle): Finding[] {
+  return site.pages
+    .filter((page) => {
+      const requested = page.extraBottomPx ?? 0
+      if (requested === 0) return false
+      const applied = page.height - contentOnlyHeight(page)
+      return requested > applied
+    })
+    .map((page) =>
+      finding(
+        'V31',
+        'WARN',
+        'client',
+        `Page "${page.name}" is at its maximum height, so only part of the space you added below your content fits.`,
+        [page.id],
+        { pageId: page.id },
+      ),
+    )
+}
+
 /** V27 (v2.3) — the determinism check: same design, byte-identical serialization. */
 export function v27KeyOrder({ site }: PackageBundle): Finding[] {
   return keyOrderProblems(site).map((problem) =>
@@ -173,4 +285,6 @@ export const WARN_RULES = [
   v23TemplateFiller,
   v25RightOverflow,
   v27KeyOrder,
+  v29InkTooSmallToRead,
+  v31TruncatedPageSpace,
 ] as const

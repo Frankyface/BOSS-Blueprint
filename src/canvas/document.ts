@@ -1,3 +1,5 @@
+import { PAGE_EXTRA_SPACE_STEP_PX } from './constants.ts'
+import { clampExtraSpace } from './geometry.ts'
 import { isPageLinkTo, withPageLinkCleared } from './links.ts'
 import { withNavItems } from './navItems.ts'
 import {
@@ -107,6 +109,53 @@ export function withPageStrokes(
   return { ...document, pages }
 }
 
+/**
+ * PAGE LENGTH — set how much empty room this page holds open below its content
+ * ("Add space" / "Trim", F2). Same identity-in-identity-out contract as
+ * `withPageBlocks`.
+ *
+ * ZERO REMOVES THE KEY rather than writing `0`, so a trimmed page is byte-identical
+ * to one that was never stretched — the one-shape-per-state rule the field is
+ * documented with (`Page.extraBottomPx`). It is also why "Trim" is safe to press
+ * twice: the second press is a no-op by value and returns the original document, so
+ * it never lands an empty step on the client's undo stack.
+ *
+ * The blocks and the pen marks are carried through by reference and never looked
+ * at: this action cannot touch the client's work, only the slack under it.
+ */
+export function withPageExtraBottom(
+  document: CanvasDocument,
+  pageId: string,
+  extraBottomPx: number,
+): CanvasDocument {
+  const index = pageIndexById(document.pages, pageId)
+  const page = document.pages[index]
+  if (!page) return document
+
+  // Rest-spread rather than a hand-listed rebuild: a field added to `Page` later
+  // must survive this action, which is the very bug `duplicatePage` had.
+  const { extraBottomPx: current, ...rest } = page
+
+  const next = clampExtraSpace(extraBottomPx)
+  if (next === (current ?? 0)) return document
+
+  const pages = document.pages.slice()
+  pages[index] = next === 0 ? rest : { ...rest, extraBottomPx: next }
+  return { ...document, pages }
+}
+
+/**
+ * One click of "Add space": one more band of empty room than the page has now.
+ *
+ * The "relative to what is already there" rule lives here rather than in the store
+ * action so that clicking twice really does add twice as much, provably, without
+ * mounting anything — the same reason every other page rule is a pure function.
+ */
+export function withPageSpaceAdded(document: CanvasDocument, pageId: string): CanvasDocument {
+  const current = pageById(document.pages, pageId)?.extraBottomPx ?? 0
+  return withPageExtraBottom(document, pageId, current + PAGE_EXTRA_SPACE_STEP_PX)
+}
+
 export function withSiteSettings(
   document: CanvasDocument,
   settings: SiteSettings,
@@ -155,11 +204,18 @@ export function duplicatePage(
 
   const name = duplicatePageName(source.name, pageNames(document))
   const copy: Page = {
+    // NOTE FOR THE NEXT FIELD ADDED TO `Page`: this spreads a FRESHLY CREATED BLANK
+    // page, so every field of the source has to be re-added by name below or it is
+    // dropped by construction. `extraBottomPx` was exactly that bug — a duplicated
+    // page silently changed height because the copy lost the room the client added.
     ...createPage(name, pageIds(document)),
     blocks: duplicateBlocks(source.blocks),
     // The client's marks are part of the page they copied — with fresh ids, since
     // stroke ids are unique site-wide exactly like block ids.
     penStrokes: duplicateStrokes(source.penStrokes),
+    // Absent stays absent: the copy of a page that never asked for room has exactly
+    // the shape of a page that never asked for room.
+    ...(source.extraBottomPx === undefined ? {} : { extraBottomPx: source.extraBottomPx }),
   }
 
   const pages = document.pages.slice()

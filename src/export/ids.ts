@@ -13,7 +13,14 @@
 /** §4.8 — every ordinal id is zero-padded to four digits. */
 export const ORDINAL_DIGITS = 4
 
-export type IdPrefix = 'pg' | 'blk' | 'nav' | 'stk'
+/**
+ * `reg` and `set` join the family rather than minting their own counters inside
+ * the ink module: `src/canvas/ink/` is pure and per-page, so its ordinals restart
+ * at 1 on every page. Regions are a SITE-WIDE identity the brief cites, exactly
+ * like `blk_`/`stk_`, so they are minted from the one pass-scoped counter and
+ * V24's "ordinal for its document position" rule holds by construction.
+ */
+export type IdPrefix = 'pg' | 'blk' | 'nav' | 'stk' | 'reg' | 'set'
 
 export function ordinalId(prefix: IdPrefix, ordinal: number): string {
   return `${prefix}_${String(ordinal).padStart(ORDINAL_DIGITS, '0')}`
@@ -40,5 +47,7 @@ export const ID_PATTERNS = {
   blk: /^blk_[a-z0-9]{4,16}$/,
   nav: /^nav_[a-z0-9]{4,16}$/,
   stk: /^stk_[a-z0-9]{4,16}$/,
+  reg: /^reg_[a-z0-9]{4,16}$/,
+  set: /^set_[a-z0-9]{4,16}$/,
   img: /^img_[0-9]{3}$/,
 } as const

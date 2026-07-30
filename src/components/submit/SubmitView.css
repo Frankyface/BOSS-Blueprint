@@ -111,15 +111,20 @@
   padding: 0.6rem 1.25rem;
   font: inherit;
   font-weight: 700;
-  color: var(--boss-ink);
-  background: var(--boss-accent);
+  color: var(--boss-action-text);
+  background: var(--boss-action);
   border: 1px solid transparent;
   border-radius: var(--boss-radius);
   cursor: pointer;
 }
 
+/*
+ * A token rather than `filter: brightness()`. Brightening a mid-blue fill drags
+ * the label's contrast DOWN toward the floor; the hover token goes darker, so
+ * the ratio can only improve.
+ */
 .submit__send:hover {
-  filter: brightness(1.06);
+  background: var(--boss-action-hover);
 }
 
 .submit__secondary,
@@ -314,18 +319,19 @@
 
 /* The header control ------------------------------------------------------- */
 
+/* Lives in the ink app header (`AppHeader.tsx`), so it takes the on-ink pair. */
 .submit-open {
   padding: 0.45rem 0.9rem;
   font: inherit;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--boss-ink);
-  background: var(--boss-accent);
+  color: var(--boss-action-on-ink-text);
+  background: var(--boss-action-on-ink);
   border: 1px solid transparent;
   border-radius: var(--boss-radius);
   cursor: pointer;
 }
 
 .submit-open:hover {
-  filter: brightness(1.06);
+  background: var(--boss-action-on-ink-hover);
 }

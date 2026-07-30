@@ -1,4 +1,5 @@
 import { parseBlocks } from './blueprintBlock.ts'
+import { PAGE_EXTRA_SPACE_MAX_PX } from './constants.ts'
 import { createPage, HOME_PAGE_NAME, normalisePageName } from './pages.ts'
 import { parsePenStrokes } from './penStrokes.ts'
 import { emptySiteSettings, parseSiteSettings } from './siteSettings.ts'
@@ -29,10 +30,12 @@ import type { Block, CanvasDocument, Page, SiteSettings } from './types.ts'
  * today. Quarantine is reserved for payloads that are corrupt or written by a
  * version this build has never heard of.
  *
- * **ADDITIVE FIELDS DO NOT BUMP THIS.** The pen layer's `page.penStrokes` and the
- * image slot's `imageData`/`fit`/`description` all arrived after v2 shipped and
- * all default cleanly when absent, so a v2 payload written last week still parses
- * to exactly the design it described. A bump means "older builds must not read
+ * **ADDITIVE FIELDS DO NOT BUMP THIS.** The pen layer's `page.penStrokes`, the
+ * image slot's `imageData`/`fit`/`description` and the page's `extraBottomPx` all
+ * arrived after v2 shipped and all default cleanly when absent, so a v2 payload
+ * written last week still parses to exactly the design it described (and an older
+ * build meeting a page with added space reads it as a page without any, which is a
+ * page that is 400px shorter, not a page that is lost). A bump means "older builds must not read
  * this", which costs every one of them their client's work — it is reserved for
  * changes that genuinely break, not for fields that grow.
  */
@@ -91,6 +94,27 @@ function ok(document: CanvasDocument, migratedFrom: number | null): BlueprintPar
   return { status: 'ok', document, migratedFrom }
 }
 
+/**
+ * `page.extraBottomPx` — the empty room the client added below their content.
+ *
+ * Mirrors `parseTemplateFlag`'s absent-is-the-one-shape rule (`blueprintBlock.ts`):
+ * a finite number inside the allowed range rounds to whole pixels and survives, and
+ * EVERYTHING else — absent, null, zero, negative, NaN, a string, a value past the
+ * cap — normalises to ABSENT.
+ *
+ * Normalised rather than refused, which is the opposite of how this file treats a
+ * bad block. The asymmetry is deliberate and is about what the client loses: a
+ * nonsense amount here costs them empty space, so quarantining the whole design
+ * over it would be by far the more destructive answer.
+ */
+function parseExtraBottom(value: unknown): number | undefined {
+  if (!isFiniteNumber(value)) return undefined
+
+  const rounded = Math.round(value)
+  if (rounded <= 0 || rounded > PAGE_EXTRA_SPACE_MAX_PX) return undefined
+  return rounded
+}
+
 function parsePage(value: unknown): Page | null {
   if (!isRecord(value)) return null
 
@@ -107,7 +131,11 @@ function parsePage(value: unknown): Page | null {
   // Absent = a page saved before the pen layer existed. That is not corruption,
   // it is a page with no marks on it.
   const penStrokes = parsePenStrokes(value.penStrokes)
-  return penStrokes === null ? null : { id, name: pageName, blocks, penStrokes }
+  if (penStrokes === null) return null
+
+  const page: Page = { id, name: pageName, blocks, penStrokes }
+  const extraBottomPx = parseExtraBottom(value.extraBottomPx)
+  return extraBottomPx === undefined ? page : { ...page, extraBottomPx }
 }
 
 /** Ids are React keys and the handle every action takes — a repeat is corruption. */

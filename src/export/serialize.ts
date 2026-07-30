@@ -21,7 +21,29 @@ export const KEY_ORDER = {
   submission: ['id', 'submittedAt', 'designCreatedAt', 'client', 'appVersion'],
   client: ['name', 'email'],
   siteSettings: ['businessName', 'tagline', 'about', 'vibe', 'styleNotes', 'colors'],
-  page: ['id', 'name', 'slug', 'height', 'screenshot', 'blocks', 'penStrokes'],
+  /**
+   * `extraBottomPx` sits directly after `height` — it is a qualifier on that number
+   * (how much of it the client asked for as empty room), and §2.5 lists it there.
+   * Optional, so `ordered` drops it whenever the page never asked for space and the
+   * §7.1 fixture stays byte-identical.
+   */
+  /**
+   * `penRegions` sits LAST, after the strokes it is derived from: the ink is the
+   * evidence and the regions are the reading of it, so a human diffing a package
+   * meets them in that order. Optional, so `ordered` drops it on every page whose
+   * ink is all annotation — including §7.1, which must stay byte-identical.
+   */
+  page: [
+    'id',
+    'name',
+    'slug',
+    'height',
+    'extraBottomPx',
+    'screenshot',
+    'blocks',
+    'penStrokes',
+    'penRegions',
+  ],
   /**
    * §2.6 lists the common fields as id, type, z, frame, fromTemplate — so the
    * optional flag sits between the common fields and the per-type ones. §7.1 has
@@ -39,6 +61,26 @@ export const KEY_ORDER = {
   link: ['kind', 'pageId', 'url'],
   navItem: ['id', 'label', 'link'],
   penStroke: ['id', 'points', 'color', 'width', 'role', 'targetBlockId'],
+  penRegion: [
+    'id',
+    'kind',
+    'variant',
+    'confidence',
+    'bbox',
+    'strokeIds',
+    'parentRegionId',
+    'setId',
+    'setIndex',
+    'text',
+  ],
+  /**
+   * The same four keys as `frame` and a table of its own, mirroring the schema's
+   * separate `bbox` definition: a region's box may legitimately have zero extent,
+   * a block's frame may not, and one table standing for both would invite the two
+   * to be `$ref`ed together again.
+   */
+  bbox: ['x', 'y', 'w', 'h'],
+  regionText: ['lines', 'words', 'glyphHeight', 'align', 'emphasis'],
   asset: ['id', 'path', 'originalFilename', 'mimeType', 'width', 'height', 'bytes'],
 } as const satisfies Record<string, readonly string[]>
 
@@ -116,6 +158,17 @@ function canonicalPage(page: Record<string, unknown>): Record<string, unknown> {
       isRecord(stroke) ? ordered(stroke, KEY_ORDER.penStroke) : stroke,
     )
   }
+
+  const regions = asArray(flat.penRegions)
+  if (regions) flat.penRegions = regions.map(canonicalRegion)
+  return flat
+}
+
+function canonicalRegion(region: unknown): unknown {
+  if (!isRecord(region)) return region
+  const flat = ordered(region, KEY_ORDER.penRegion)
+  if (isRecord(flat.bbox)) flat.bbox = ordered(flat.bbox, KEY_ORDER.bbox)
+  if (isRecord(flat.text)) flat.text = ordered(flat.text, KEY_ORDER.regionText)
   return flat
 }
 
@@ -200,6 +253,15 @@ export function keyOrderProblems(parsed: unknown): string[] {
     const strokes = asArray(page.penStrokes) ?? []
     strokes.forEach((stroke, strokeIndex) => {
       checkNode(stroke, KEY_ORDER.penStroke, `${pagePath}.penStrokes[${String(strokeIndex)}]`)
+    })
+
+    const regions = asArray(page.penRegions) ?? []
+    regions.forEach((region, regionIndex) => {
+      const regionPath = `${pagePath}.penRegions[${String(regionIndex)}]`
+      checkNode(region, KEY_ORDER.penRegion, regionPath)
+      if (!isRecord(region)) return
+      checkNode(region.bbox, KEY_ORDER.bbox, `${regionPath}.bbox`)
+      checkNode(region.text, KEY_ORDER.regionText, `${regionPath}.text`)
     })
   })
 

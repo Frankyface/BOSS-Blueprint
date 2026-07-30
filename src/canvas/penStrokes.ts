@@ -29,13 +29,27 @@ export interface PenWidthOption {
 }
 
 /**
- * A sketch palette, not a paint box. Red leads because the feature's own goal
- * leads with annotation ("make this bigger!") and red is the one colour a builder
- * reads as a margin note rather than as part of the design; ink, blue and green
- * cover sketching an image and marking up a second thing on the same page.
+ * A sketch palette, not a paint box — and FOUR EQUAL COLOURS, none of which means
+ * anything by itself.
+ *
+ * The labels used to read "Red (notes)", from a time when every mark on the page
+ * was marginalia and the only question about a stroke was which block it referred
+ * to. That is no longer true: `src/canvas/ink/**` reads a drawn box as a card and a
+ * scribble as artwork whatever colour they are drawn in, so a swatch that tells the
+ * client one colour is for notes is now teaching them the opposite of what the tool
+ * does — the product owner drew a background wave in red and was surprised it was
+ * not built. What colour DOES mean is separation: the ink module segments a page
+ * into colour families, so drawing a second thing in a second colour is how you say
+ * "these are two things". That is a property of using two colours, not of any one
+ * of them, so it belongs in the hint text and not in a swatch's name.
+ *
+ * THE HEXES ARE FROZEN. Each of these four strings is written verbatim into every
+ * saved `.blueprint` and into `site.json` (§2.9), and the colour-family grouping
+ * keys on them — changing one would silently re-read designs already on a client's
+ * disk. Labels are copy; hexes are data. `penStrokes.test.ts` pins them.
  */
 export const PEN_COLORS: readonly PenColorOption[] = [
-  { id: 'red', label: 'Red (notes)', hex: '#d92d20' },
+  { id: 'red', label: 'Red', hex: '#d92d20' },
   { id: 'ink', label: 'Ink', hex: '#1f2937' },
   { id: 'blue', label: 'Blue', hex: '#2f6df6' },
   { id: 'green', label: 'Green', hex: '#15803d' },
@@ -47,7 +61,22 @@ export const PEN_WIDTHS: readonly PenWidthOption[] = [
   { id: 'bold', label: 'Bold', px: 12 },
 ]
 
-export const DEFAULT_PEN_COLOR = PEN_COLORS[0]?.hex ?? '#d92d20'
+/**
+ * THE PEN STARTS IN INK, NOT IN RED — and it is named, not indexed.
+ *
+ * It used to be `PEN_COLORS[0]`, which was red back when the pen existed to
+ * annotate a layout the blocks had already built. The pen's primary job is now to
+ * BUILD (`src/canvas/ink/**`), and the first stroke a client draws is far more
+ * likely to be a box, a heading or a picture than a correction — so the colour in
+ * hand should be the one you would draw a design in, not the one you would mark it
+ * up in. Red is still one click away, and still means nothing special.
+ *
+ * Looked up by id rather than by position so that reordering the swatches (a copy
+ * decision) can never silently change which colour the pen starts in (a behaviour
+ * decision). The `??` fallback is the same string as the `ink` swatch above.
+ */
+export const DEFAULT_PEN_COLOR =
+  PEN_COLORS.find((color) => color.id === 'ink')?.hex ?? '#1f2937'
 export const DEFAULT_PEN_WIDTH = PEN_WIDTHS[0]?.px ?? 4
 
 /** Sanity ceiling for a parsed width — a 900px "stroke" is a corrupt payload. */

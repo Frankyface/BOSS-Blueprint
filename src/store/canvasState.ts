@@ -90,6 +90,16 @@ export interface CanvasActions {
   setNavItemLink: (blockId: string, itemId: string, link: BlockLink) => void
   removeNavItem: (blockId: string, itemId: string) => void
 
+  /**
+   * PAGE LENGTH. One click of each, one undo step each — history stores whole-document
+   * snapshots keyed on `pages` identity, so no extra wiring is needed.
+   */
+  addPageSpace: (pageId: string) => void
+  /** Gives back ALL the empty room at once — one click to "crop it back". */
+  trimPageSpace: (pageId: string) => void
+  /** The drag handle's commit point: an exact amount, clamped on the way in. */
+  setPageSpace: (pageId: string, extraBottomPx: number) => void
+
   addPage: (name: string) => string
   renamePage: (pageId: string, name: string) => void
   duplicatePage: (pageId: string) => string
@@ -139,6 +149,15 @@ export function selectCurrentBlocks(state: CanvasState): readonly Block[] {
 
 export function selectCurrentStrokes(state: CanvasState): readonly PenStroke[] {
   return selectCurrentPage(state)?.penStrokes ?? NO_STROKES
+}
+
+/**
+ * How much empty room the page on screen is holding open below its content. A plain
+ * number rather than the page object so the canvas re-renders on the value, not on
+ * every edit to the page it belongs to. Absent means none (`Page.extraBottomPx`).
+ */
+export function selectCurrentExtraBottom(state: CanvasState): number {
+  return selectCurrentPage(state)?.extraBottomPx ?? 0
 }
 
 /** Is there anything for "Start over" to clear — on ANY page, or in the settings? */

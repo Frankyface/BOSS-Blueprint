@@ -1,21 +1,97 @@
-/* BOSS Blueprint design tokens + base reset. Dark, bold, blueprint-ish. */
+/* BOSS Blueprint design tokens + base reset. Dark chrome, BOSS blue on it. */
 
 :root {
+  /*
+   * --- THE BOSS PALETTE ----------------------------------------------------
+   *
+   * Lifted verbatim from bossolutions.pro's `styles.css`, so the sketch tool and
+   * the site a client just came from are the same blue. Every role below points
+   * at one of these four, and no other stylesheet in `src/` holds a brand
+   * literal, so rebranding is an edit here plus the TWO files that cannot read a
+   * custom property: `public/favicon.svg` and `scripts/brand/make-brand-assets.mjs`.
+   *
+   * The site's other half of the brand is Poppins, served from Google. This app
+   * may not make a third-party request (see the comment in `BossMark.tsx`), so
+   * the font stack stays local and only the COLOUR is matched. Self-hosting a
+   * subset of Poppins in `public/` would close that gap without a network call.
+   */
+  --boss-brand: #0b7ebb; /* site --brand       */
+  --boss-brand-dark: #09679a; /* site --brand-dark  */
+  --boss-brand-light: #63b3ed; /* site --header-bg   */
+  --boss-brand-tint: #f2f8fc; /* site --section-alt */
+
+  /* --- Chrome and surfaces ------------------------------------------------- */
   --boss-ink: #0b1220;
   --boss-ink-soft: #16202f;
   --boss-line: #d7dde8;
   --boss-line-strong: #b3bccd;
   --boss-surface: #ffffff;
   --boss-canvas-bg: #eef1f6;
-  --boss-accent: #f4b23e;
+
+  /* --- Text ----------------------------------------------------------------- */
   --boss-text: #16202f;
   --boss-text-muted: #5c6880;
   --boss-text-invert: #f7f9fc;
-  /* Selection blue for canvas chrome (outline, handles, focused editor). */
-  --boss-select: #2f6df6;
+  /* Muted copy ON the dark chrome — 10.6:1 against --boss-ink. */
+  --boss-text-muted-invert: #b9c3d6;
+  /*
+   * Placeholders, deliberately still legible: 4.7:1 against --boss-surface.
+   * The value it replaces (#7a8499, inline in `SidePanel.css`) was commented as
+   * 4.6:1 and actually measured 3.76:1 — below the floor the comment claimed.
+   * Darkened until the number matches the intent; still visibly lighter than
+   * `--boss-text-muted`, so a hint never reads as content the client typed.
+   */
+  --boss-text-placeholder: #6b7487;
+
+  /*
+   * --- BRAND ROLES ----------------------------------------------------------
+   *
+   * TWO accents, because this app has two surfaces and one blue cannot serve
+   * both. `--boss-brand` reads at 4.2:1 on `--boss-ink` — enough for a rule,
+   * NOT enough for a word — so anything sitting on the dark chrome takes the
+   * light blue instead, which is 8.2:1 there. Pick by the surface underneath.
+   */
+
+  /* Brand touch on a LIGHT surface: rules, edges, hover marks, selection. */
+  --boss-accent: var(--boss-brand);
+  /* The same touch on the DARK chrome: header rule, footer link, the mark. */
+  --boss-accent-on-ink: var(--boss-brand-light);
+
+  /*
+   * Filled primary control on a LIGHT surface. The fill is `--brand-dark` rather
+   * than `--brand` because white on `--brand` is 4.45:1 — a rounding error short
+   * of AA — while on `--brand-dark` it is 5.8:1. Hover goes DARKER, the way the
+   * BOSS site's buttons do, so the ratio only ever improves.
+   */
+  --boss-action: var(--boss-brand-dark);
+  --boss-action-hover: color-mix(in srgb, var(--boss-brand-dark) 84%, var(--boss-ink));
+  --boss-action-text: var(--boss-text-invert);
+
+  /* Filled primary control on the DARK chrome: light fill, ink label, 8.2:1. */
+  --boss-action-on-ink: var(--boss-brand-light);
+  --boss-action-on-ink-hover: color-mix(in srgb, var(--boss-brand-light) 84%, var(--boss-surface));
+  --boss-action-on-ink-text: var(--boss-ink);
+
+  /*
+   * Selection blue for canvas chrome (outline, handles, focused editor).
+   * OUTLINES AND FILLS ONLY — `--boss-brand` is 4.45:1 on white, which clears
+   * the 3:1 a UI boundary needs but NOT the 4.5:1 a word needs. For blue text on
+   * a light surface use `--boss-action` (6.1:1).
+   */
+  --boss-select: var(--boss-brand);
+
+  /* --- Status --------------------------------------------------------------- */
   --boss-danger: #c0392b;
-  /* Neutral fill for Section bands and Image slots. */
-  --boss-band: #f2f5fa;
+  /*
+   * Amber is the WARNING, not the brand. It used to be `--boss-accent`, which
+   * worked only for as long as the accent was itself amber; once every accent in
+   * the app turned BOSS blue, the storage strip needed its own token or "your
+   * work is not being saved" would have looked exactly like "we tidied up".
+   */
+  --boss-warn: #f4b23e;
+
+  /* Tinted fill for Section bands and Image slots. */
+  --boss-band: var(--boss-brand-tint);
 
   --boss-header-height: 4rem;
   /* Chrome, not content: tall enough to click, short enough to forget. */

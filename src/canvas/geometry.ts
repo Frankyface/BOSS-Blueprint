@@ -6,6 +6,7 @@ import {
   MIN_PAGE_HEIGHT_PX,
   MIN_PAGE_SCALE,
   PAGE_BOTTOM_PADDING_PX,
+  PAGE_EXTRA_SPACE_MAX_PX,
   PAGE_MARGIN_PX,
   PAGE_SCALE_DECIMALS,
   PAGE_WIDTH_PX,
@@ -145,11 +146,31 @@ export function resizeRect(
 }
 
 /**
+ * THE ROOM THE CLIENT ASKED FOR, normalised — the one place the stored amount is
+ * bounded, so the store action, the parser, the canvas and the export all agree
+ * about what a given number means.
+ *
+ * ON THE GRID, not merely rounded: `page.height` is contract-bound to a multiple of
+ * 8 (`docs/export-format.md` §2.5) and the amount is added to an already-aligned
+ * content height, so an off-grid drag left unsnapped here would write an off-grid
+ * height straight into `site.json` and fail V-checks on the way out.
+ *
+ * Every nonsense value — negative, NaN, Infinity, a hand-edited 99999 — reads as an
+ * amount of empty space rather than as a fault. There is nothing a bad number here
+ * can cost the client except whitespace.
+ */
+export function clampExtraSpace(extraBottomPx: number): number {
+  if (!Number.isFinite(extraBottomPx) || extraBottomPx <= 0) return 0
+  return clamp(snapToGrid(extraBottomPx), 0, PAGE_EXTRA_SPACE_MAX_PX)
+}
+
+/**
  * HOW TALL THE PAGE IS — the single definition, for the editor and for the Stage 3
  * PNG render (`docs/export-format.md` §4.2).
  *
- *     bottom = max(every block's bottom edge, every pen point's y)
- *     height = clamp(1600, ceilToGrid(bottom + 160), 8000)
+ *     bottom  = max(every block's bottom edge, every pen point's y)
+ *     content = clamp(1600, ceilToGrid(bottom + 160), 8000)
+ *     height  = clamp(1600, content + extraBottomPx, 8000)
  *
  * PEN MARKS COUNT AS CONTENT (review MEDIUM-1). They used not to: the height came
  * from the blocks alone, so a mark drawn below the lowest block kept its page
@@ -161,10 +182,27 @@ export function resizeRect(
  *
  * Rounding is UP: `snapToGrid` would round 1961 down to 1960 and quietly eat 1px of
  * the bottom padding.
+ *
+ * `extraBottomPx` IS THE CLIENT'S "ADD SPACE" (F2), and two things about where it
+ * enters the formula are load-bearing:
+ *
+ *  · It is ADDITIVE to the content height, never a replacement for it. The page can
+ *    therefore never be shorter than the client's own work, which makes "Trim"
+ *    geometrically incapable of cropping a block or a stroke out of the deliverable
+ *    — the export root clips with `overflow: hidden`, so a too-short height would
+ *    be the same silent-data-loss class `clampPosition` argues against above, and
+ *    removing the failure mode beats warning about it.
+ *  · It is added AFTER the 1600 floor, not before it. Added before, the first click
+ *    on a near-empty page would do nothing visible at all (a heading's bottom + 400
+ *    + 160 is still under 1600) — a button that appears not to work, which is
+ *    exactly what a non-technical client reads as "this app is broken".
+ *
+ * Absent (the default 0) reproduces the pre-F2 answer exactly, for every input.
  */
 export function pageHeightForContent(
   rects: readonly BlockRect[],
   strokes: readonly PenStroke[] = [],
+  extraBottomPx = 0,
 ): number {
   const blockBottom = rects.reduce((lowest, rect) => Math.max(lowest, rect.y + rect.height), 0)
 
@@ -174,7 +212,9 @@ export function pageHeightForContent(
   )
 
   const desired = ceilToGrid(Math.max(blockBottom, strokeBottom) + PAGE_BOTTOM_PADDING_PX)
-  return clamp(desired, MIN_PAGE_HEIGHT_PX, MAX_PAGE_HEIGHT_PX)
+  const content = clamp(desired, MIN_PAGE_HEIGHT_PX, MAX_PAGE_HEIGHT_PX)
+
+  return clamp(content + clampExtraSpace(extraBottomPx), MIN_PAGE_HEIGHT_PX, MAX_PAGE_HEIGHT_PX)
 }
 
 /**

@@ -22,6 +22,8 @@ import {
   duplicatePage as duplicatePageIn,
   movePage as movePageIn,
   renamePage as renamePageIn,
+  withPageExtraBottom,
+  withPageSpaceAdded,
 } from '../canvas/document.ts'
 import { moveRect, resizeRect } from '../canvas/geometry.ts'
 import { navItemsFromText, withNavItems } from '../canvas/navItems.ts'
@@ -56,6 +58,7 @@ export {
   documentOf,
   INITIAL_CANVAS_STATE,
   selectCurrentBlocks,
+  selectCurrentExtraBottom,
   selectCurrentPage,
   selectCurrentStrokes,
   selectHasContent,
@@ -256,6 +259,23 @@ export const useCanvasStore = create<CanvasStore>()((set, get) => ({
     set((state) =>
       updateCurrentBlock(state, blockId, (block) => withNavItemRemoved(block, itemId)),
     )
+  },
+
+  /**
+   * PAGE LENGTH. "Trim" CANNOT take away anything the client drew: the stored amount
+   * is additive to the derived content height, so the page just falls back to
+   * whatever its blocks and marks need (`pageHeightForContent`).
+   */
+  addPageSpace: (pageId) => {
+    set((state) => applyDocument(state, withPageSpaceAdded(documentOf(state), pageId)))
+  },
+
+  trimPageSpace: (pageId) => {
+    set((state) => applyDocument(state, withPageExtraBottom(documentOf(state), pageId, 0)))
+  },
+
+  setPageSpace: (pageId, px) => {
+    set((state) => applyDocument(state, withPageExtraBottom(documentOf(state), pageId, px)))
   },
 
   addPage: (name) => {

@@ -112,8 +112,17 @@ const GRID = 8
 const MIN_PAGE_HEIGHT = 1600
 const MAX_PAGE_HEIGHT = 8000
 const BOTTOM_PADDING = 160
+const MAX_EXTRA_BOTTOM = 4000
 
-/** `docs/export-format.md` §4.2, restated from the spec rather than imported. */
+/**
+ * `docs/export-format.md` §4.2, restated from the spec rather than imported.
+ *
+ * The client-added room is part of that section as of v2.5, and it is written out
+ * here the way the spec words it — `contentHeight` first, THEN the extra, THEN the
+ * re-clamp. Getting that order wrong is exactly the mistake the restatement exists
+ * to catch: adding the term before the 1600 floor gives the same answer on a tall
+ * page and a silently wrong one on a short one.
+ */
 export function expectedPageHeight(page: StoredPage): number {
   const blockBottom = page.blocks.reduce((low, block) => Math.max(low, block.y + block.height), 0)
   const strokeBottom = page.penStrokes.reduce(
@@ -122,7 +131,15 @@ export function expectedPageHeight(page: StoredPage): number {
   )
 
   const desired = Math.ceil((Math.max(blockBottom, strokeBottom) + BOTTOM_PADDING) / GRID) * GRID
-  return Math.min(MAX_PAGE_HEIGHT, Math.max(MIN_PAGE_HEIGHT, desired))
+  const contentHeight = Math.min(MAX_PAGE_HEIGHT, Math.max(MIN_PAGE_HEIGHT, desired))
+
+  const asked = page.extraBottomPx ?? 0
+  const extra =
+    Number.isFinite(asked) && asked > 0
+      ? Math.min(MAX_EXTRA_BOTTOM, Math.round(asked / GRID) * GRID)
+      : 0
+
+  return Math.min(MAX_PAGE_HEIGHT, Math.max(MIN_PAGE_HEIGHT, contentHeight + extra))
 }
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])

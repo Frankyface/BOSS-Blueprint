@@ -2,6 +2,7 @@ import { getBlockTypeDefinition } from '../constants/blockTypes.ts'
 import { selectSelectedBlock, useCanvasStore } from '../store/canvasStore.ts'
 
 import { HistoryControls } from './HistoryControls.tsx'
+import { PageSpaceControls } from './PageSpaceControls.tsx'
 import { PenControls } from './PenControls.tsx'
 import { StartOverButton } from './StartOverButton.tsx'
 
@@ -10,10 +11,14 @@ import './CanvasToolbar.css'
 const EMPTY_HINT = 'Click a block to select it. Double-click to type.'
 
 /**
- * Toolbar above the page, in three groups: what is selected, the pen (which is a
- * MODE and so belongs next to the canvas it changes), and the page-wide/selection
- * actions — undo, redo, stacking order, delete, start over. The action keys are
- * also bound to the keyboard; see `useCanvasKeyboard`.
+ * Toolbar above the page, in four groups: what is selected, the pen (which is a
+ * MODE and so belongs next to the canvas it changes), how long the page is, and the
+ * page-wide/selection actions — undo, redo, stacking order, delete, start over. The
+ * action keys are also bound to the keyboard; see `useCanvasKeyboard`.
+ *
+ * Page length sits next to the pen on purpose: "add room to draw in" is the reason
+ * a client reaches for it, and both are about the sheet rather than about a
+ * selection.
  */
 export function CanvasToolbar() {
   const selectedBlock = useCanvasStore(selectSelectedBlock)
@@ -29,6 +34,7 @@ export function CanvasToolbar() {
         {label ? `${label} selected` : EMPTY_HINT}
       </p>
       <PenControls />
+      <PageSpaceControls />
       <div className="canvas-toolbar__actions">
         <HistoryControls />
         <span className="canvas-toolbar__divider" aria-hidden="true" />

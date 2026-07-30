@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { withLink, withNavItemAdded, withNavItemLink, withTypeDefaults } from './blockEdits.ts'
 import { resetBlockIdSequence } from './blockFactory.ts'
+import { PAGE_EXTRA_SPACE_MAX_PX, PAGE_EXTRA_SPACE_STEP_PX } from './constants.ts'
 import {
   addPage,
   blocksOfPage,
@@ -15,9 +16,12 @@ import {
   pageOfBlock,
   renamePage,
   withPageBlocks,
+  withPageExtraBottom,
+  withPageSpaceAdded,
   withSiteSettings,
 } from './document.ts'
 import { externalLink, pageLink } from './links.ts'
+import { pageById } from './pages.ts'
 import { applySettingsPatch, emptySiteSettings } from './siteSettings.ts'
 import type { Block, CanvasDocument } from './types.ts'
 
@@ -174,6 +178,96 @@ describe('duplicatePage', () => {
     const document = emptyDocument()
 
     expect(duplicatePage(document, 'nope').document).toBe(document)
+  })
+
+  /**
+   * REGRESSION: `duplicatePage` spreads a FRESHLY CREATED blank page and re-adds
+   * the source's fields by name, so it drops any new `Page` field by construction.
+   * The empty room the client added is theirs, and a copy that quietly lost it is a
+   * page that changed height the moment it was duplicated.
+   */
+  it('carries the extra bottom space onto the copy', () => {
+    const stretched = withPageExtraBottom(emptyDocument(), 'page-home', 400)
+
+    const { document, pageId } = duplicatePage(stretched, 'page-home')
+
+    expect(pageById(document.pages, pageId)?.extraBottomPx).toBe(400)
+  })
+
+  it('leaves a copy of an untouched page without the key at all', () => {
+    const { document, pageId } = duplicatePage(emptyDocument(), 'page-home')
+    const copy = pageById(document.pages, pageId)
+
+    expect(copy && 'extraBottomPx' in copy).toBe(false)
+  })
+})
+
+/**
+ * The page-length store's one pure function. Same identity-in-identity-out contract
+ * as `withPageBlocks`: the session subscriber decides "is this an undo step?" by
+ * identity, so a no-op must return the document it was handed.
+ */
+describe('withPageExtraBottom', () => {
+  it('writes the amount asked for', () => {
+    const next = withPageExtraBottom(emptyDocument(), 'page-home', 400)
+
+    expect(pageById(next.pages, 'page-home')?.extraBottomPx).toBe(400)
+  })
+
+  it('REMOVES the key rather than writing a zero, so a trimmed page has one shape', () => {
+    const stretched = withPageExtraBottom(emptyDocument(), 'page-home', 400)
+
+    const trimmed = withPageExtraBottom(stretched, 'page-home', 0)
+    const page = pageById(trimmed.pages, 'page-home')
+
+    expect(page && 'extraBottomPx' in page).toBe(false)
+    expect(page).toEqual(pageById(emptyDocument().pages, 'page-home'))
+  })
+
+  it('clamps and grid-snaps whatever it is handed', () => {
+    const capped = withPageExtraBottom(emptyDocument(), 'page-home', 99_999)
+    expect(pageById(capped.pages, 'page-home')?.extraBottomPx).toBe(PAGE_EXTRA_SPACE_MAX_PX)
+
+    const snapped = withPageExtraBottom(emptyDocument(), 'page-home', 137)
+    expect(pageById(snapped.pages, 'page-home')?.extraBottomPx).toBe(136)
+  })
+
+  it('returns the ORIGINAL document when nothing would change', () => {
+    const document = emptyDocument()
+
+    expect(withPageExtraBottom(document, 'page-home', 0)).toBe(document)
+    expect(withPageExtraBottom(document, 'page-home', -50)).toBe(document)
+    expect(withPageExtraBottom(document, 'nope', 400)).toBe(document)
+
+    const stretched = withPageExtraBottom(document, 'page-home', 400)
+    expect(withPageExtraBottom(stretched, 'page-home', 400)).toBe(stretched)
+  })
+
+  it('adds one band per click, on top of whatever is already there', () => {
+    const once = withPageSpaceAdded(emptyDocument(), 'page-home')
+    const twice = withPageSpaceAdded(once, 'page-home')
+
+    expect(pageById(once.pages, 'page-home')?.extraBottomPx).toBe(PAGE_EXTRA_SPACE_STEP_PX)
+    expect(pageById(twice.pages, 'page-home')?.extraBottomPx).toBe(PAGE_EXTRA_SPACE_STEP_PX * 2)
+  })
+
+  it('stops adding at the cap rather than growing without limit', () => {
+    let document = withPageExtraBottom(emptyDocument(), 'page-home', PAGE_EXTRA_SPACE_MAX_PX)
+
+    const atCap = document
+    document = withPageSpaceAdded(document, 'page-home')
+
+    expect(pageById(document.pages, 'page-home')?.extraBottomPx).toBe(PAGE_EXTRA_SPACE_MAX_PX)
+    expect(document).toBe(atCap)
+  })
+
+  it('never touches the blocks or the pen marks it is standing on', () => {
+    const withBlocks = withPageBlocks(emptyDocument(), 'page-home', () => [button('b1')])
+
+    const stretched = withPageExtraBottom(withBlocks, 'page-home', 400)
+    const trimmed = withPageExtraBottom(stretched, 'page-home', 0)
+
+    expect(blocksOfPage(trimmed, 'page-home')).toBe(blocksOfPage(withBlocks, 'page-home'))
   })
 })
 

@@ -65,6 +65,20 @@ import {
 
 const green = bluebirdPackage()
 
+/** One legible annotation stroke — enough ink to count as content on its own. */
+const INK_MARK: ExportPenStroke = {
+  id: 'stk_0001',
+  points: [
+    [80, 200],
+    [220, 214],
+    [360, 268],
+  ],
+  color: '#D94F30',
+  width: 4,
+  role: 'annotation',
+  targetBlockId: null,
+}
+
 const homeBlock = (site: SiteJson, index: number): ExportBlock => {
   const block = site.pages[0]?.blocks[index]
   if (block === undefined) throw new Error(`no home block at ${String(index)}`)
@@ -315,6 +329,17 @@ describe('V7 — brief cross-check', () => {
     expect(v07BriefCrossCheck(red).some((f) => f.message.includes('blk_9999'))).toBe(true)
   })
 
+  it('does NOT read an innocent client filename as a printed id (set_menu.jpg, reg_flow.png)', () => {
+    // §4.8 mints every public id as its prefix + zero-padded DIGITS, so a restaurant's
+    // `set_menu.jpg` or `reg_flow.png` upload — whose stem lands in the brief — is not
+    // an id. Before the regex was tightened, `set_menu`/`reg_flow` matched and V7 BLOCKed
+    // a valid package. The whole cross-check must stay green with those tokens present.
+    const red: PackageBundle = { ...green, brief: `${green.brief ?? ''}\nclient files: set_menu.jpg, reg_flow.png\n` }
+    const messages = v07BriefCrossCheck(red).map((f) => f.message)
+    expect(messages.some((m) => m.includes('set_menu') || m.includes('reg_flow'))).toBe(false)
+    expect(v07BriefCrossCheck(red)).toEqual([])
+  })
+
   it('flags a quoted string that matches no site.json field', () => {
     const red: PackageBundle = { ...green, brief: `${green.brief ?? ''}\nreads: «invented copy»\n` }
     expect(v07BriefCrossCheck(red).some((f) => f.message.includes('invented copy'))).toBe(true)
@@ -336,6 +361,25 @@ describe('V7 — brief cross-check', () => {
 })
 
 describe('V8 / V9 — the submit gate and an empty site', () => {
+  /**
+   * A page whose only content is ink. Built from the §7.1 home page by taking every
+   * block away and (optionally) leaving the two pen strokes behind, which is exactly
+   * the shape of the site Cam's headline requirement asks for: "you should be able to
+   * build a site just from the pen alone even if no blocks were implemented".
+   */
+  function homeWithoutBlocks(options: { readonly keepInk: boolean }): PackageBundle {
+    return brokenPackage((site) => {
+      const page = site.pages[0]
+      if (page) {
+        ;(site.pages as ExportPage[])[0] = {
+          ...page,
+          blocks: [],
+          penStrokes: options.keepInk ? page.penStrokes : [],
+        }
+      }
+    })
+  }
+
   it('V8 flags a bad email and a non-v4 UUID', () => {
     const red = brokenPackage((site) => {
       const submission = site.submission as { client: { name: string; email: string }; id: string }
@@ -349,16 +393,32 @@ describe('V8 / V9 — the submit gate and an empty site', () => {
     const noPages = brokenPackage((site) => ({ ...site, pages: [] }))
     expect(v09EmptySite(noPages)).toHaveLength(1)
 
+    // The ink goes too: sections are scenery, but a stroke IS content, so a
+    // sections-only home page that still carries pen marks is no longer empty.
     const sectionsOnly = brokenPackage((site) => {
       const page = site.pages[0]
       if (page) {
         ;(site.pages as ExportPage[])[0] = {
           ...page,
           blocks: page.blocks.filter((block) => block.type === 'section'),
+          penStrokes: [],
         }
       }
     })
     expect(v09EmptySite(sectionsOnly)).toHaveLength(1)
+  })
+
+  it('V9 lets a home page whose only content is pen ink through', () => {
+    expect(v09EmptySite(homeWithoutBlocks({ keepInk: true }))).toEqual([])
+  })
+
+  it('V9 still blocks a home page with neither blocks nor ink — the rule is not vacuous', () => {
+    const findings = v09EmptySite(homeWithoutBlocks({ keepInk: false }))
+
+    expect(findings).toHaveLength(1)
+    // The wording has to name both ways out, or it sends a pen-only client hunting
+    // for a block they never wanted.
+    expect(findings[0]?.message).toContain('draw something')
   })
 
   it('V9 warns on an individual empty page without blocking', () => {
@@ -369,6 +429,18 @@ describe('V8 / V9 — the submit gate and an empty site', () => {
     const warnings = v09NearEmptyPage(red)
     expect(warnings).toHaveLength(1)
     expect(warnings[0]?.class).toBe('WARN')
+  })
+
+  it('V9 does not warn on a page drawn entirely with the pen', () => {
+    // A deliberate ink-only page is the product's headline use, not a mistake. A
+    // WARN on every one of them is how a client learns to ignore V9 altogether.
+    const inkOnly = brokenPackage((site) => {
+      const page = site.pages[1]
+      if (page) (site.pages as ExportPage[])[1] = { ...page, blocks: [], penStrokes: [INK_MARK] }
+    })
+
+    expect(v09NearEmptyPage(inkOnly)).toEqual([])
+    expect(v09NearEmptyPage(homeWithoutBlocks({ keepInk: true }))).toEqual([])
   })
 })
 

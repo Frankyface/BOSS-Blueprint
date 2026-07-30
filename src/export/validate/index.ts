@@ -19,7 +19,7 @@
 import { generateBrief } from '../brief/generateBrief.ts'
 
 import { BUG_BLOCK_RULES } from './rules/bugBlocks.ts'
-import { v07BriefCrossCheck } from './rules/briefCrossCheck.ts'
+import { v07BriefCrossCheck, v30BuildFromInkMarkers } from './rules/briefCrossCheck.ts'
 import { CLIENT_BLOCK_RULES } from './rules/clientBlocks.ts'
 import { applyFixes } from './rules/fixes.ts'
 import { v01Schema } from './rules/schemaCheck.ts'
@@ -41,12 +41,15 @@ export type {
 export { applyFixes, FIX_RULES } from './rules/fixes.ts'
 export { CLIENT_BLOCK_RULES } from './rules/clientBlocks.ts'
 export { BUG_BLOCK_RULES, expectedZipEntries } from './rules/bugBlocks.ts'
+export { MAX_REGION_ANCESTORS, v28PenRegions } from './rules/inkRegions.ts'
 export { WARN_RULES } from './rules/warnings.ts'
 export { v01Schema } from './rules/schemaCheck.ts'
 export {
+  BUILD_FROM_INK_RE,
   SOURCE_AN_IMAGE_RE,
   WRITE_THIS_COPY_RE,
   v07BriefCrossCheck,
+  v30BuildFromInkMarkers,
 } from './rules/briefCrossCheck.ts'
 
 /**
@@ -68,6 +71,9 @@ export async function validatePackage(input: PackageBundle): Promise<ValidationR
   for (const rule of CLIENT_BLOCK_RULES) blocks.push(...rule(bundle))
   for (const rule of BUG_BLOCK_RULES) blocks.push(...rule(bundle))
   blocks.push(...v07BriefCrossCheck(bundle))
+  // V30 sits beside V7 rather than in BUG_BLOCK_RULES for the same reason V7 does:
+  // both read the brief, so both must run AFTER step 2 re-derived it.
+  blocks.push(...v30BuildFromInkMarkers(bundle))
   blocks.push(...(await v01Schema(bundle)))
 
   const warns: Finding[] = []

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { SCHEMA_PATH, extractSchemaText, readRepoText, readSpec } from '../../test/specFixtures.ts'
+import { PANEL_CARD_VARIANT, PANEL_MEDIA_VARIANT } from '../penRegions.ts'
 
 /**
  * Appendix A equality test A: "the fenced JSON Schema in `docs/export-format.md`
@@ -33,5 +34,40 @@ describe('Appendix A equality test A — §2.2 schema vs the repo file', () => {
 
   it('never sets additionalProperties: false — §6.2 unknown-field tolerance', () => {
     expect(fromRepo.includes('additionalProperties')).toBe(false)
+  })
+})
+
+/**
+ * THE TWO CLAUSES THAT KEEP `site.json` FROM CONTRADICTING ITSELF.
+ *
+ * Both were reported by three independent zero-context builders reading one real
+ * package: every stroke of a drawn pricing card said `role: "annotation"`, and an
+ * empty drawn box was byte-identical to a card. Neither is enforceable by a JSON
+ * Schema keyword — one is a scoping rule, the other is a producer duty V28 checks —
+ * so what this guards is that the CONTRACT still states them. A future editor who
+ * deletes the sentence gets a red test rather than a package that reads as a blank
+ * page again.
+ */
+describe('the contract says which ink `role` describes, and which panel is empty', () => {
+  const spec = readSpec()
+  const schema = JSON.parse(readRepoText(SCHEMA_PATH)) as {
+    definitions: { penStroke: { properties: { role: { description?: string } } } }
+  }
+
+  it('scopes `role` to unclaimed ink in the schema itself, not only in the prose', () => {
+    const description = schema.definitions.penStroke.properties.role.description ?? ''
+    expect(description).toContain('strokeIds')
+    expect(description).toContain('inert')
+  })
+
+  it('states the claimed/unclaimed precedence in §2.9', () => {
+    expect(spec).toContain(
+      '**Scope — `role` and `targetBlockId` describe ink that NO `penRegion` claims.**',
+    )
+  })
+
+  it('says in §4.9.10 what tells an empty drawn box from a card', () => {
+    expect(spec).toContain(`\`${PANEL_CARD_VARIANT}\` when at least one published region names it`)
+    expect(spec).toContain(`\`${PANEL_MEDIA_VARIANT}\` when none does`)
   })
 })

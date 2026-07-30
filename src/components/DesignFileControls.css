@@ -19,22 +19,24 @@
   white-space: nowrap;
 }
 
+/* These live in the ink header, so every brand touch here is the on-ink pair. */
 .design-file__button:hover,
 .design-file__button:focus-visible {
-  border-color: var(--boss-accent);
-  color: var(--boss-accent);
+  border-color: var(--boss-accent-on-ink);
+  color: var(--boss-accent-on-ink);
 }
 
 .design-file__button--primary {
-  color: var(--boss-ink);
-  background: var(--boss-accent);
-  border-color: var(--boss-accent);
+  color: var(--boss-action-on-ink-text);
+  background: var(--boss-action-on-ink);
+  border-color: var(--boss-action-on-ink);
 }
 
 .design-file__button--primary:hover,
 .design-file__button--primary:focus-visible {
-  color: var(--boss-ink);
-  background: color-mix(in srgb, var(--boss-accent) 82%, var(--boss-surface));
+  color: var(--boss-action-on-ink-text);
+  background: var(--boss-action-on-ink-hover);
+  border-color: var(--boss-action-on-ink-hover);
 }
 
 /*

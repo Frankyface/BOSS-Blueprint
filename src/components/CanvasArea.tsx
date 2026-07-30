@@ -5,10 +5,16 @@ import { PAGE_WIDTH_PX } from '../canvas/constants.ts'
 import { hasContentBelow, pageHeightForContent } from '../canvas/geometry.ts'
 import { useCanvasKeyboard } from '../hooks/useCanvasKeyboard.ts'
 import { usePageScale } from '../hooks/usePageScale.ts'
-import { selectCurrentBlocks, selectCurrentStrokes, useCanvasStore } from '../store/canvasStore.ts'
+import {
+  selectCurrentBlocks,
+  selectCurrentExtraBottom,
+  selectCurrentStrokes,
+  useCanvasStore,
+} from '../store/canvasStore.ts'
 
 import { BlockView } from './BlockView.tsx'
 import { CanvasToolbar } from './CanvasToolbar.tsx'
+import { PageSpaceHandle } from './PageSpaceHandle.tsx'
 import { PenLayer } from './PenLayer.tsx'
 
 import './CanvasArea.css'
@@ -29,10 +35,26 @@ export function CanvasArea() {
   const selectedBlockId = useCanvasStore((state) => state.selectedBlockId)
   const editingBlockId = useCanvasStore((state) => state.editingBlockId)
   const selectBlock = useCanvasStore((state) => state.selectBlock)
+  const extraBottomPx = useCanvasStore(selectCurrentExtraBottom)
+  const setPageSpace = useCanvasStore((state) => state.setPageSpace)
 
   const { viewportRef, scale, getScale } = usePageScale()
-  // Pen marks hold the page open exactly as blocks do — see `pageHeightForContent`.
-  const pageHeight = useMemo(() => pageHeightForContent(blocks, strokes), [blocks, strokes])
+
+  /**
+   * The length the bottom-edge handle is currently dragging the page to, or `null`
+   * when nobody is dragging. The store is deliberately not written mid-gesture (the
+   * fast path — see `PageSpaceHandle`), so this is where the preview lives; every
+   * consumer of `pageHeight` below then grows together, the pen overlay included.
+   */
+  const [draftExtraPx, setDraftExtraPx] = useState<number | null>(null)
+  const liveExtraPx = draftExtraPx ?? extraBottomPx
+
+  // Pen marks hold the page open exactly as blocks do, and the client's own "Add
+  // space" is added on top of both — see `pageHeightForContent`.
+  const pageHeight = useMemo(
+    () => pageHeightForContent(blocks, strokes, liveExtraPx),
+    [blocks, strokes, liveExtraPx],
+  )
 
   useCanvasKeyboard()
 
@@ -120,6 +142,16 @@ export function CanvasArea() {
                 stroke onto the next one. */}
             <PenLayer key={currentPageId} pageHeight={pageHeight} />
           </div>
+          {/* Chrome ON the page's bottom edge but OUTSIDE `.canvas-page`, so it
+              scrolls and zooms with the sheet without ever being part of one. */}
+          <PageSpaceHandle
+            extraBottomPx={extraBottomPx}
+            getScale={getScale}
+            onPreview={setDraftExtraPx}
+            onCommit={(next) => {
+              setPageSpace(currentPageId, next)
+            }}
+          />
         </div>
       </div>
       {/* Chrome over the scroller, never inside the page: `pointer-events: none`

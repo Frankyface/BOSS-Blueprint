@@ -95,10 +95,15 @@
 }
 
 .page-strip__button--primary:not(:disabled) {
-  color: var(--boss-ink);
-  background: var(--boss-accent);
-  border-color: var(--boss-accent);
+  color: var(--boss-action-text);
+  background: var(--boss-action);
+  border-color: var(--boss-action);
   font-weight: 700;
+}
+
+.page-strip__button--primary:not(:disabled):hover {
+  background: var(--boss-action-hover);
+  border-color: var(--boss-action-hover);
 }
 
 .page-strip__form,

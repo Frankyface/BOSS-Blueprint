@@ -6,9 +6,10 @@
 
 BOSS Blueprint is a free, browser-based design tool from [BOSS](https://bossolutions.pro). Lay out
 your future website like a slide deck — drop in sections, headings, text, images, buttons and a nav
-bar, scribble notes over the top with the pen, add as many pages as you need and wire the menu up.
-When you're happy, hit Submit: you get a build package to send us, and we build the real website
-exactly the way you laid it out.
+bar — or draw the page freehand with the pen, where a box becomes a card and your handwriting
+becomes a heading. Add as many pages as you need and wire the menu up. When you're happy, hit
+Submit: you get a build package to send us, and we build the real website exactly the way you laid
+it out.
 
 No account. No install. Nothing to pay. It runs entirely in your desktop browser, and your work
 stays on your own machine until you choose to send it.
@@ -20,8 +21,13 @@ stays on your own machine until you choose to send it.
 - **Six kinds of block** — Heading, Text, Image, Button, Nav bar and Section (a coloured background
   band). Click one to drop it on the page, drag it where you want it, drag its handles to resize,
   double-click to type.
-- **A pen** — circle something, write a note in the margin, sketch the photo you have in mind. Your
-  marks travel with the page and we read them.
+- **A pen that draws the page, not just notes about it** — a box you draw is a card, your
+  handwriting is a heading or a line of body text, a row of words is a nav bar, a wave across the
+  top is artwork. Circling something and writing "make this bigger" still works exactly as before.
+  You can sketch a whole page freehand, with no blocks on it at all, and still submit it.
+- **Room to draw** — **Page length: Add space / Trim** in the toolbar, or drag the page's bottom
+  edge. The space is added *below* your content, which is why Trim can never crop away a block or a
+  pen mark: there is nothing of yours in the part it takes back.
 - **Real photos** — put an image straight into a slot. Big photos are shrunk in the browser, so the
   package stays small.
 - **As many pages as you like** — add, rename, duplicate, reorder. Link a button or a menu item to
@@ -31,6 +37,45 @@ stays on your own machine until you choose to send it.
   half-finished page still reads like a plan rather than a mistake.
 - **It saves itself** — your draft is kept in this browser as you work. You can also download it as
   a `.blueprint` file and open it again later, here or on another computer.
+
+## What the pen builds
+
+Ink is design, not commentary. Every mark is measured where it sits and read as a thing to build:
+
+| What you draw | What we build |
+| --- | --- |
+| a closed box | a card |
+| two matching boxes side by side | **one** card component, used twice — not two unrelated boxes |
+| handwriting | a heading or a line of body text, depending on how big you wrote it |
+| a row of short words across the top | a nav bar |
+| a long straight line | a divider |
+| a stack of squiggly lines | body copy — "real paragraph text goes here" |
+| anything else | artwork |
+
+Artwork is reproduced from the exact path your pen travelled, as an inline SVG, and may then be
+restyled into the site's colours. A drawing that is much wider than it is tall becomes a full-bleed
+decorative band across the page.
+
+Colour is how you separate things: draw one thing, then draw the next in a different colour, and we
+read them as two objects rather than one. No colour means anything special any more — the pen starts
+in Ink, and red is just red.
+
+**"Show what we read"** — a checkbox on the pen toolbar. Tick it and each thing we detected is
+outlined on your drawing and named in one word: `card`, `words`, `nav`, `line`, `text`, `drawing`,
+or `note` for a mark we read as a note about the design rather than part of it. A `?` after the word
+means we are not sure. If something is read wrongly, rub it out and draw it again — that is the fix,
+and the reason there is no "no, it's a heading" button to press.
+
+**Where this stops.** The reading is geometry, not magic. It measures shape, size, spacing and
+colour; it has no idea what your business is, and it can be wrong — a box you didn't quite close can
+come back as a `drawing` rather than a `card`. That is exactly what the overlay and the `?` are for.
+The package we build from says the same thing: where the reading and the picture disagree, the
+picture wins.
+
+Handwriting is not read by the app. Nothing in your browser tries to recognise letters — the words
+are read off the sketch picture by the person building the site. Small or messy handwriting may
+still not be readable, and when it isn't, they write copy that fits the spot and log that they did
+rather than guessing silently.
 
 ## What happens when you press Submit
 
@@ -43,7 +88,7 @@ Then the package **downloads to your computer**: one `.zip`, named after your bu
 
 | In the zip | What it is |
 | --- | --- |
-| `site.json` | every page, block, position, link and setting, as data |
+| `site.json` | every page, block, drawn region, position, link and setting, as data |
 | `brief.md` | the same thing written out for a human to read |
 | `pages/01-home.png` … | a picture of each page exactly as you drew it, pen marks and all |
 | `assets/img_001.jpg` … | the photos you uploaded |
@@ -90,6 +135,21 @@ brief generator, the starter templates or the PNG renderer.** The full gauntlet 
 The brand rasters in `public/` (the `.ico`, the Apple touch icon and the social card) are generated
 from `public/favicon.svg` by `node scripts/brand/make-brand-assets.mjs` and committed. Regenerate
 them when the mark changes rather than editing them by hand.
+
+The palette is lifted from `bossolutions.pro`'s own stylesheet and lives in one file,
+`src/styles/theme.css`; the only other places holding a brand literal are `public/favicon.svg` and
+the generator above, so a rebrand is those three. **Only the colours are matched** — the site's other
+half of the brand is Poppins, served from Google, and this app makes no third-party request at
+runtime. Self-hosting a subset would be the way to close that gap.
+
+The per-engine export baselines in `e2e/export-visual.spec.ts-snapshots/` are pictures of one
+operating system's font rasterisation, so `-win32` and `-linux` files are committed side by side and
+neither can stand in for the other. They regenerate **only** through the `update_visual_baselines`
+input on the `workflow_dispatch` trigger in `.github/workflows/deploy.yml`, which runs the spec with
+`--update-snapshots=all` on ubuntu, uploads the `-linux` files as an artifact and leaves committing
+them to a human — a job that re-baselined itself on every push would bless regressions instead of
+catching them. A committed baseline that no longer matches is a hard failure everywhere, so anything
+that changes how an exported page looks (the theme included) means redoing both platforms' sets.
 
 ## Finding your way around the repo
 

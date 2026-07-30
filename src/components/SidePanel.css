@@ -106,11 +106,11 @@
  * PLACEHOLDERS MUST NOT READ AS SAVED CONTENT (UX audit N9). The examples are
  * prefixed "e.g." in the markup and lightened here, so a panel full of grey
  * suggestions can never be mistaken for a panel the client has already filled in.
- * Contrast is 4.6:1 on --boss-surface — deliberately still above the floor: a
+ * Contrast is 4.7:1 on --boss-surface — deliberately still above the floor: a
  * hint nobody can read is not a kinder hint.
  */
 .side-panel__control::placeholder {
-  color: #7a8499;
+  color: var(--boss-text-placeholder);
   font-style: italic;
   opacity: 1;
 }

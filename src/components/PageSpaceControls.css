@@ -1,0 +1,20 @@
+.page-space {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  /* Wraps with the rest of the toolbar rather than pushing "Start over" off the
+     edge — the same rule `.canvas-toolbar` already states for the pen group. */
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-space__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--boss-text-muted);
+}
+
+.page-space__hint {
+  font-size: 0.75rem;
+  color: var(--boss-text-muted);
+}

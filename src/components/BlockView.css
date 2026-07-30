@@ -47,10 +47,10 @@
  */
 .canvas-block--button {
   --block-font-weight: 700;
-  --block-color: var(--boss-ink);
+  --block-color: var(--boss-action-text);
   --block-text-align: center;
   --block-padding: 0 16px;
-  --block-editor-bg: var(--boss-accent);
+  --block-editor-bg: var(--boss-action);
 }
 
 /* Light text on ink; a white editor here would have made it invisible. */
@@ -157,7 +157,7 @@
 
 .block-content--image[data-drop-target='true'] {
   border: 2px solid var(--boss-select);
-  box-shadow: inset 0 0 0 4px rgb(47 109 246 / 18%);
+  box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--boss-select) 18%, transparent);
 }
 
 .block-content__photo {
@@ -235,7 +235,12 @@
   height: 100%;
   padding: var(--block-padding);
   border-radius: 999px;
-  background: var(--boss-accent);
+  /*
+   * RENDERS INTO THE EXPORTED PAGE PNG, not just the editor: this is the call to
+   * action on the client's sketch, so it is the BOSS action blue with an inverted
+   * label (5.8:1) rather than the brand blue, which cannot carry text at AA.
+   */
+  background: var(--boss-action);
   color: var(--block-color);
   font-size: var(--block-font-size);
   font-weight: var(--block-font-weight);
@@ -282,8 +287,8 @@
   background-color: var(--boss-band);
   background-image: repeating-linear-gradient(
     45deg,
-    rgb(47 109 246 / 9%) 0,
-    rgb(47 109 246 / 9%) 6px,
+    color-mix(in srgb, var(--boss-select) 9%, transparent) 0,
+    color-mix(in srgb, var(--boss-select) 9%, transparent) 6px,
     transparent 6px,
     transparent 14px
   );

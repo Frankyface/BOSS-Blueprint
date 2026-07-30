@@ -20,7 +20,7 @@
   padding: 0.7rem 0.85rem;
   color: var(--boss-text-invert);
   background: var(--boss-ink);
-  border-top: 3px solid var(--boss-accent);
+  border-top: 3px solid var(--boss-accent-on-ink);
   box-shadow: 0 -0.5rem 1.5rem color-mix(in srgb, var(--boss-ink) 35%, transparent);
 }
 
@@ -49,14 +49,15 @@
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--boss-ink);
-  background: var(--boss-accent);
-  border: 1px solid var(--boss-accent);
+  color: var(--boss-action-on-ink-text);
+  background: var(--boss-action-on-ink);
+  border: 1px solid var(--boss-action-on-ink);
   border-radius: var(--boss-radius);
   cursor: pointer;
 }
 
 .desktop-guard__dismiss:hover,
 .desktop-guard__dismiss:focus-visible {
-  background: color-mix(in srgb, var(--boss-accent) 84%, var(--boss-surface));
+  background: var(--boss-action-on-ink-hover);
+  border-color: var(--boss-action-on-ink-hover);
 }

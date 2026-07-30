@@ -202,15 +202,29 @@ describe('runRenderLadder', () => {
     expect(without.hasStrokes).toBe(false)
   })
 
-  it('does not enforce the ink floor on a page with no blocks', async () => {
-    const sparse: InspectedPng = {
-      decoded: EXPECTED,
-      header: EXPECTED,
-      ink: assessInk(samples(2)),
-    }
+  /** A capture with two ink pixels on it: not blank, nowhere near the ink floor. */
+  const SPARSE: InspectedPng = {
+    decoded: EXPECTED,
+    header: EXPECTED,
+    ink: assessInk(samples(2)),
+  }
 
-    const result = await runRenderLadder({ ...PLAN, requiresInk: false }, harness([sparse]).ports)
+  it('does not enforce the ink floor on a page that promised no ink', async () => {
+    const result = await runRenderLadder({ ...PLAN, requiresInk: false }, harness([SPARSE]).ports)
 
     expect(result.attempts).toBe(1)
+  })
+
+  it('DOES enforce it on a page that promised ink and came back all but empty', async () => {
+    // The other edge of the same rule: once a page's blocks or strokes say there
+    // should be ink, a capture with none of it is a render failure, not a sketch.
+    const { ports, engines } = harness([SPARSE, SPARSE, SPARSE])
+
+    const error = (await runRenderLadder(PLAN, ports).catch((caught: unknown) => caught)) as PngRenderError
+
+    expect(error).toBeInstanceOf(PngRenderError)
+    expect(error.failure).toBe('blank')
+    expect(error.attempts[0]?.detail).toContain('below the floor')
+    expect(engines).toEqual(['snapdom', 'snapdom', 'html-to-image'])
   })
 })

@@ -7,8 +7,14 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--boss-text);
-  background: color-mix(in srgb, var(--boss-accent) 22%, var(--boss-surface));
-  border-bottom: 1px solid var(--boss-accent);
+  /*
+   * WARN amber, not brand blue. This strip is the "your work is at risk" band;
+   * once the app's accent turned BOSS blue it would have been indistinguishable
+   * from the informational `--design` variant below, which is the one difference
+   * a client has to be able to read at a glance.
+   */
+  background: color-mix(in srgb, var(--boss-warn) 22%, var(--boss-surface));
+  border-bottom: 1px solid var(--boss-warn);
 }
 
 .storage-notice__message {
@@ -42,9 +48,9 @@
   font: inherit;
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--boss-ink);
-  background: var(--boss-accent);
-  border: 1px solid var(--boss-accent);
+  color: var(--boss-action-text);
+  background: var(--boss-action);
+  border: 1px solid var(--boss-action);
   border-radius: var(--boss-radius);
   cursor: pointer;
   white-space: nowrap;
@@ -52,7 +58,8 @@
 
 .storage-notice__rescue:hover,
 .storage-notice__rescue:focus-visible {
-  background: color-mix(in srgb, var(--boss-accent) 82%, var(--boss-surface));
+  background: var(--boss-action-hover);
+  border-color: var(--boss-action-hover);
 }
 
 /*

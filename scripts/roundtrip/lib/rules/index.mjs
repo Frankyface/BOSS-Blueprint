@@ -37,6 +37,12 @@ import {
 } from './links-frames.mjs';
 import { v4AssetBijection, v6PageRenders, v10ZipSize, v16Extension, v21ManifestMatchesFile } from './assets-png.mjs';
 import { v7BriefCrossChecks, n13OverflowMarker } from './brief.mjs';
+import {
+  v28PenRegions,
+  v29InkTooSmallToRead,
+  v30BuildFromInkMarkers,
+  v31TruncatedPageSpace,
+} from './ink.mjs';
 
 /**
  * @param {object} pkg loaded package bundle
@@ -87,6 +93,10 @@ export function runAllChecks(pkg, { schema, options, internalIds, canonical, man
   results.push(runOrSkip('V25', site, () => v25RightOverflow(site, ctx)));
   results.push(runOrSkip('V26', site, () => v26LabelsAndNav(site, ctx)));
   results.push(runOrSkip('V27', site, () => v27KeyOrder(site, canonical, ctx)));
+  results.push(runOrSkip('V28', site, () => v28PenRegions(site, ctx)));
+  results.push(runOrSkip('V29', site, () => v29InkTooSmallToRead(site, ctx)));
+  results.push(runOrSkip('V30', site, () => v30BuildFromInkMarkers(pkg, ctx)));
+  results.push(runOrSkip('V31', site, () => v31TruncatedPageSpace(site, ctx)));
   results.push(runOrSkip('N13', site, () => n13OverflowMarker(pkg, ctx)));
   results.push(
     runOrSkip('C03', site, () => slugDerivationCheck(site, expectedPageSlugs(pagesOf(site)), ctx)),

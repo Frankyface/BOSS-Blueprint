@@ -16,6 +16,25 @@ export function strokesOf(page) {
   return Array.isArray(page?.penStrokes) ? page.penStrokes : [];
 }
 
+/** §2.5 (v2.5) — optional and omitted when the page's ink is all annotation. */
+export function regionsOf(page) {
+  return Array.isArray(page?.penRegions) ? page.penRegions : [];
+}
+
+/**
+ * §4.4 [N7] (v2.5) — the strokes that are still the ANNOTATION pool: clusters form
+ * over the ink no region claimed. A stroke published as part of a drawn card has
+ * already been narrated as a thing to build; narrating it again as "a handwritten
+ * annotation, read it in the PNG" is a contradiction, and V22's legibility warning
+ * about it would be about ink nobody is being asked to read.
+ */
+export function unclaimedStrokesOf(page) {
+  const claimed = new Set(
+    regionsOf(page).flatMap((r) => (Array.isArray(r?.strokeIds) ? r.strokeIds : [])),
+  );
+  return strokesOf(page).filter((s) => !claimed.has(s?.id));
+}
+
 /** Every block with its page and 0-based indices. */
 export function eachBlock(site) {
   const out = [];

@@ -4,6 +4,7 @@ import type { CanvasDocument, Page } from '../../canvas/types.ts'
 import { captureWithEngine, inspectPngBlob, settleForCapture } from '../../platform/browserPngPorts.ts'
 
 import { resolveEngineOrder } from './engineOrder.ts'
+import { expectsVisibleInk } from './inkExpectation.ts'
 import { mountExportRoot } from './mountExportRoot.tsx'
 import { runRenderLadder } from './renderLadder.ts'
 import type { RenderLadderPorts } from './renderLadder.ts'
@@ -19,9 +20,17 @@ import type { PageRenderResult } from './types.ts'
  * the document and `site.json` cannot disagree with the picture.
  */
 
-/** How tall this page's PNG will be — the same answer the editor canvas gives. */
+/**
+ * How tall this page's PNG will be — the same answer the editor canvas gives.
+ *
+ * The page's own `extraBottomPx` goes in as the third argument, so a client who
+ * added room at the bottom gets that room in the deliverable too; `siteJson.ts`
+ * feeds the identical number to the identical function, which is what keeps
+ * `page.height` and the PNG's IHDR in agreement (V6 blocks the submission if they
+ * ever differ).
+ */
 export function exportHeightForPage(page: Page): number {
-  return pageHeightForContent(page.blocks, page.penStrokes)
+  return pageHeightForContent(page.blocks, page.penStrokes, page.extraBottomPx)
 }
 
 function pageOf(document: CanvasDocument, pageId: string): Page {
@@ -55,7 +64,11 @@ export async function renderPagePng(
     {
       pageId,
       expected: { width: PAGE_WIDTH_PX, height },
-      requiresInk: page.blocks.length > 0,
+      // STROKES COUNT AS CONTENT HERE TOO — but only once they promise enough ink
+      // for the floor to be able to judge the capture at all (`inkExpectation.ts`
+      // holds the reasoning). Without this arm, the one page where ink IS the
+      // whole deliverable was the one page whose ink nothing verified.
+      requiresInk: page.blocks.length > 0 || expectsVisibleInk(page.penStrokes, height),
       hasStrokes: page.penStrokes.length > 0,
       engines: resolveEngineOrder(),
     },

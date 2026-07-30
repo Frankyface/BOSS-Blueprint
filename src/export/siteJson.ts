@@ -14,11 +14,12 @@
  * `assets[]` and `page.screenshot` paths.
  */
 
-import { pageHeightForContent } from '../canvas/geometry.ts'
+import { clampExtraSpace, pageHeightForContent } from '../canvas/geometry.ts'
 import type { Block, CanvasDocument, Page } from '../canvas/types.ts'
 
 import { createAssetRegistry } from './assets.ts'
-import { createIdMinter } from './ids.ts'
+import { createIdMinter, type IdPrefix } from './ids.ts'
+import { toExportRegions } from './penRegions.ts'
 import { toExportStroke } from './penRoles.ts'
 import { pageSlugs } from './slug.ts'
 import {
@@ -133,7 +134,7 @@ function toExportLink(link: Block['link'], pageIds: ReadonlyMap<string, string>)
 
 interface BlockContext {
   readonly pageIds: ReadonlyMap<string, string>
-  readonly mint: (prefix: 'pg' | 'blk' | 'nav' | 'stk') => string
+  readonly mint: (prefix: IdPrefix) => string
   readonly remap: Map<string, string>
   readonly assetIdFor: (dataUrl: string, originalFilename: string) => string | null
 }
@@ -227,17 +228,37 @@ function toExportPage(
     toExportStroke(stroke, context.mint('stk'), blocks),
   )
 
+  // §2.5 — the inference runs on what has ALREADY been exported, so the region's
+  // `strokeIds` are the package's own `stk_NNNN` and its geometry is the geometry
+  // the builder will see. Minted after the strokes for the same reason blocks are
+  // minted before them: a region may only ever cite an id that already exists.
+  const penRegions = toExportRegions(blocks, penStrokes, context.mint)
+
+  // §4.2 — clamped HERE as well as in the editor, because a hand-edited design file
+  // can carry any number at all and the schema caps this field at 4000.
+  const extraBottomPx = clampExtraSpace(page.extraBottomPx ?? 0)
+
   return {
     id,
     name: page.name,
     slug,
     // §4.2 — the SHARED editor/export height function. Computed from the committed
     // document strokes, not the export-thinned ones, so the canvas, the PNG and
-    // `site.json` are literally the same pixels.
-    height: pageHeightForContent(toRects(page.blocks), page.penStrokes),
+    // `site.json` are literally the same pixels. The client's added room goes in as
+    // the third argument rather than being added out here: `renderPagePng` sizes the
+    // PNG from the same function, and V6 hard-fails if the two disagree by a pixel.
+    height: pageHeightForContent(toRects(page.blocks), page.penStrokes, extraBottomPx),
+    // §2.5 — omitted when there is none, so a design that never touched the control
+    // serializes to exactly the bytes it did before this field existed. Present, it
+    // tells the builder the closing whitespace is design intent rather than an
+    // accident of where the last block happened to land.
+    ...(extraBottomPx === 0 ? {} : { extraBottomPx }),
     screenshot: screenshotPath(index, slug),
     blocks,
     penStrokes,
+    // §2.5 — omitted, never `[]`, when nothing was inferred. An empty array would
+    // change the bytes of every package whose ink is all annotation, §7.1 included.
+    ...(penRegions.length === 0 ? {} : { penRegions }),
   }
 }
 

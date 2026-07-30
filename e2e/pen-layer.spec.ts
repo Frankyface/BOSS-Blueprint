@@ -233,12 +233,16 @@ test.describe('pen layer', () => {
     expect((await readDocument(page)).selectedBlockId).not.toBeNull()
   })
 
-  test('offers a red for notes, other colours, and two widths', async ({ page }) => {
+  test('offers four equal colours and two widths', async ({ page }) => {
     test.slow()
 
     await usePen(page, 'draw')
-    await expect(page.getByTestId('pen-color-red')).toHaveAttribute('aria-pressed', 'true')
+    // The pen starts in INK, not red: its first job is to draw the site, not to mark it up
+    // (`DEFAULT_PEN_COLOR`). Red is still one click away and means nothing special.
+    await expect(page.getByTestId('pen-color-ink')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('pen-color-red')).toHaveAttribute('aria-pressed', 'false')
 
+    await page.getByTestId('pen-color-red').click()
     await page.getByTestId('pen-width-bold').click()
     await drawStroke(page, scribbleAt(160, 240))
 

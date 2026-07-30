@@ -491,6 +491,12 @@ triage parsing 81 entries. `npx vitest run scripts/` green, 231 passed · **Revi
 builder writes `BUILD_NOTES.md` somewhere other than the build root — with the instruction now
 consistent between brief, prompt and gate, that is a genuine H3 incomplete build and routes to the
 product, not to another harness edit.
+**CORRECTION appended 2026-07-29 (not a rewrite):** the claim above that `run.mjs`'s internal
+inconsistency was fixed is **half-true**. The fix landed at **SEG-4 only**. `runEvaluator`
+(`run.mjs`, the `stageEvaluatorSandbox` call) went on resolving the notes at the **sandbox root**
+through the entire v1 gauntlet, and the copy swallowed its own ENOENT — so `BUILD_NOTES.md`
+reached the evaluator in **zero** of the three gating runs. Fixed, with a completeness assertion,
+in the entry below ("Evaluator input-set defects fixed (C1–C4)").
 
 ## 2026-07-29 — S4 vertical placement: thirds with ±1 tolerance (Option C)
 **Chose:** like-for-like normalisation — **both** sides are a centre divided by the height of the
@@ -640,3 +646,112 @@ launder a change through it · **Rejected:** retrofitting a legibility gate onto
 runs; treating F1 as a product defect (the deployed leg built the identical package correctly —
 it is builder variance, not a format defect) · **Revisit if:** taking any of these up — each
 needs its own decisions entry, then a fresh three-run set at the new rules.
+
+## 2026-07-29 — Export format v2.5: ink is buildable content (frozen-contract amendment)
+**Chose:** the v2.4 freeze's change process, executed once for one coherent change — the pen layer
+is promoted from *annotation about blocks* to *design content in its own right*. Six parts:
+(1) **V9 and V6 amended so a pen-only page is legal.** `clientBlocks.ts` BLOCKed unless the
+homepage carried a non-`section` BLOCK, so a site drawn entirely with the pen could not be
+submitted at all — the product's own stated goal was unreachable in shipped code. V9's BLOCK and
+WARN sets both shrank; V6's ink floor now scales by `1600 / page.height` (an absolute pixel
+expectation, not a whole-page ratio) and engages on a pen-only page only when the strokes predict
+`INK_EXPECTATION_SAFETY_FACTOR` (4×) the floor in countable ink — a page holding one small mark is
+never judged, because a *correct* render of it could not clear the floor either.
+(2) **`page.extraBottomPx`** (optional, absent = 0, grid-snapped, ≤ 4000) — the client can add room
+below their content and trim it back. ADDITIVE to the derived content height and applied AFTER the
+1600 floor clamp, which makes Trim geometrically incapable of cropping a block or a stroke, and
+stops the first clicks of Add space being invisible on a short page.
+(3) **`page.penRegions`** (optional) — `src/canvas/ink/**` segments strokes into typed regions
+(`panel` `writing` `navRow` `rule` `textPlaceholder` `artwork`) by pure client-side geometry: no
+ML, no network, nothing stored. Its own `bbox` definition with `minimum: 0`, NOT `$ref: frame` —
+`frame` sets `exclusiveMinimum: 0` and a mouse-drawn horizontal rule has bbox height exactly 0.
+Colour families separate overlapping ink objects; a **block-overlap veto** keeps a mark that
+touches a block an annotation about it.
+(4) **V28–V31** and their harness twins (`lib/rules/ink.mjs`); V22 now clusters over UNCLAIMED
+strokes so the gate does not warn about ink the brief already narrates.
+(5) **brief.md rewritten so ink is built, not admired** — a standalone
+`**Ink is not commentary on the design — ink IS design.**` paragraph, `Scope` amended so building a
+drawn region is explicitly not "inventing", DoD items 2 and 8 made unfailable-by-omission, and a
+`**BUILD THIS FROM INK**` marker per top-level region whose count V30 enforces. Drawn artwork is
+reproduced by the builder from `penStrokes[].points` as inline SVG; handwriting too small to read
+is re-rendered at 4× from the same points. **Zero new files in the zip.**
+(6) **App retheme to the BOSS palette** (`#0b7ebb` / `#09679a` / `#63b3ed` / `#f2f8fc`). Filled
+controls use `--brand-dark`: white on `#0b7ebb` is 4.45:1 and misses AA. Amber survives as
+`--boss-warn` so the storage notice keeps its distinct meaning.
+**Because:** the four gaps the owner reported (no room to draw below content; drawn cards, drawn
+headings and drawn graphics all absent from built sites) were one root cause, not four bugs — the
+contract had no way to say "this ink IS a thing". Four separate amendments would have cost four
+gauntlets and four fixture reconciliations · **Verified:** unit 101 files/1811 tests → **119
+files/2208 tests, 0 failures**; lint, build and `schema:check` clean; `roundtrip:gate:selftest`
+45/45 mutations caught; §7.1 **byte-identical** (the veto is what buys it) and §7.2 changed in
+exactly the five boilerplate spots, both proved by Appendix A tests B and D rather than by hand ·
+**Rejected:** widening `penStroke.role`'s closed enum (silently breaks the harness scenario
+language, V22 and manifest-diff); shipping crop PNGs or traced SVG files (`asset.path` is
+pattern-locked, V12 BLOCKs extras in two implementations, and a zip-layout change is a
+schemaVersion-2 bump — and it is unnecessary, the vectors are already in `penStrokes[].points`);
+a global 2× page render (bloats every export to fix a minority case); storing a client override of
+an inferred role (no stable anchor — it would key on a stroke-id set that changes the moment one
+stroke is erased, so the correction path is "rub it out and draw it again", which survives
+redrawing because it *is* redrawing); printing a handwriting line count (`text.lines` is only
+earned for `textPlaceholder`, so the prose states word counts and glyph heights it has measured
+and stays silent on lines it has not) · **Revisit if:** a real round-trip shows the classifier
+confidently misreading real client ink — the two-level `clear`/`unsure` model exists so a guess
+degrades to "look at the PNG and decide", and the thresholds carry their fixture evidence in
+`src/canvas/ink/constants.ts`.
+
+## 2026-07-29 — Round-trip harness cannot yet express the pen (recorded, not fixed)
+**Chose:** ship v2.5 with the harness gap OPEN and recorded, rather than rebuild the instrument
+first · **Because:** `scenarios/scenario.schema.json`'s `penCluster` requires `["ref","role",
+"target","color","width","strokes"]` with `additionalProperties: false`, so the scenario language
+**literally cannot describe a pen mark that is not attached to a block** — i.e. it cannot express
+the exact defect this amendment fixes. `report.mjs` additionally nulls S6 whenever `--smoke`. So a
+green `roundtrip:smoke` proves the package is still buildable by a zero-context session (its real
+job, and the reason it was still run) but proves **nothing** about pen content specifically. That
+evidence is instead carried by the ink-only wide fixture, `ink.test.ts`'s per-branch assertions and
+the V28–V31 twins, which are cheaper and test the thing directly · **Rejected:** claiming smoke as
+evidence for the pen work; delaying the owner's four fixes behind an instrument rebuild ·
+**Revisit if:** a pen defect reaches a client — then the scenario schema gains an untargeted pen
+mark and S6 stops being nulled under smoke, before anything else.
+
+## 2026-07-30 — v2.5 follow-up: `penStroke.role` scoped, and an empty drawn box is `panel/mediaBox`
+**Found by:** handing a real exported package (`site.json` + `brief.md`) to THREE independent
+zero-context Claude sessions and asking each what it would build — the same experiment the v1 DoD
+is built on, run in miniature. All four of the owner's original complaints came back BUILT by all
+three (cards as ONE component instantiated twice, heading as the single `<h1>`, nav as a real nav,
+cat and wave as inline per-stroke SVG), and two builders volunteered that the brief overrode an
+instinct to skip or substitute ("my instinct was to substitute a clean stock illustration"). But
+all three also flagged two DATA defects the prose was papering over.
+**Chose (1):** `penStroke.role`/`targetBlockId` are now normatively scoped to **ink no `penRegion`
+claims**. Every stroke was shipping `role: "annotation"` — including strokes a region claimed as
+buildable content — while the brief's precedence rule says "for content and structure trust
+`site.json`". A builder obeying that literally, with no goodwill, would ship a BLANK PAGE; all
+three overrode it only because the prose is forceful. Scope stated in §2.9 (normative per-stroke
+precedence: claimed → build the region, `role` inert; unclaimed → read the table), in §2.5, in
+§4.9.10, and — the only machine-readable half — as a `description` on `penStroke.role` in the
+schema, byte-pinned to §2.2 by `schema:check` and guarded by `schemaSync.test.ts`.
+**Chose (2):** a `panel` region now always carries `variant: "card"` (something names it as
+`parentRegionId`) or `variant: "mediaBox"` (nothing does). `reg_0004`, `reg_0007` and `reg_0010`
+were byte-identical `panel/card` while the brief told the builder to make the third an `<img>`
+placeholder — "a reviewer applying precedence strictly would build a third empty card". Computed
+in `src/export/penRegions.ts` over the **published** set, not in the classifier: a box holding one
+unclassifiable doodle has a child in the ink module's tree and none in the package, and [N14]'s
+empty-box branch walks the published tree, so deciding it anywhere else makes `site.json` and
+`brief.md` disagree about the same box. V28 gained a contradiction clause (a `card` with no
+contents, or a `mediaBox` with contents, BLOCKs) phrased so an unknown or absent variant stays
+silent, preserving §6.2's tolerance rule.
+**Because:** the release's whole thesis is that ink is content; a data model that still calls it
+annotation makes the thesis true only for as long as a builder reads the English carefully. This
+is the difference between a product that works and one that happens to work.
+**Verified:** unit **2282 passed / 2 skipped / 0 failed**; lint, build and `schema:check` clean;
+`roundtrip:gate:selftest` 45/45; §7.1 byte-identical (no new field, no key-order change) and
+Appendix A tests B and D green. Separately, `e2e/pen-only-site.spec.ts` now closes the release's
+biggest verification hole — a design with **zero blocks** submits, ships `penRegions`, gets one
+`**BUILD THIS FROM INK**` marker per top-level region, renders a PNG with measurably real ink
+(luma < 200 on the stroke, > 240 on the paper beside it), and passes the external package gate.
+6/6 on chromium, firefox and webkit.
+**Rejected:** widening `penStroke.role`'s closed enum (breaks `scenario.schema.json`'s
+`penCluster.role`, V22's `imageSketch` exemption and `manifest-diff`, for no gain the scope clause
+does not already deliver); a new `kind` value for the empty box (a `variant` costs no schema churn
+and §6.2 already obliges consumers to tolerate unknown variants).
+**Revisit if:** a builder still resolves a claimed stroke as an annotation — the next lever is the
+brief's precedence clause (1), which would need §3.2 and §7.2 to move together.

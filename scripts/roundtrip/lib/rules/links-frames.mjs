@@ -5,7 +5,7 @@
  */
 
 import { check } from '../report.mjs';
-import { pagesOf, blocksOf, strokesOf, eachBlock, eachLink, frameOf } from './walk.mjs';
+import { pagesOf, blocksOf, strokesOf, unclaimedStrokesOf, eachBlock, eachLink, frameOf } from './walk.mjs';
 import { clusterStrokes, PAGE_WIDTH } from '../geometry.mjs';
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -159,13 +159,18 @@ export function overflowingBlocks(site) {
  * fewer than 12 total points. `imageSketch` clusters are EXEMPT: "a tiny drawing inside
  * an image slot is a legitimate sketch, and its meaning never depends on handwriting
  * legibility".
+ *
+ * v2.5: clusters form over the page's UNCLAIMED strokes ([N7]). Ink that became a
+ * `penRegion` is a thing to BUILD, not a note to read, so its legibility is V29's
+ * question and not this one. V22's own wording is unchanged — what changed is the
+ * definition of the pool it runs over, in both implementations at once.
  */
 export function v22Legibility(site, ctx) {
   const problems = [];
   let annotationClusters = 0;
   let exempt = 0;
   for (const page of pagesOf(site)) {
-    for (const cluster of clusterStrokes(strokesOf(page))) {
+    for (const cluster of clusterStrokes(unclaimedStrokesOf(page))) {
       if (cluster.role !== 'annotation') {
         exempt += 1;
         continue;

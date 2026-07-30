@@ -1,5 +1,6 @@
 import {
   BLANK_VARIANCE_FLOOR,
+  INK_FLOOR_REFERENCE_HEIGHT_PX,
   INK_LUMA_DELTA,
   LUMA_BUCKET_SIZE,
   MAX_SAFE_RENDER_HEIGHT_PX,
@@ -22,15 +23,21 @@ import type { InkAssessment, InspectedPng, PngDimensions, PngRenderFailure } fro
  *
  * On top of that shared floor the feature spec adds two app-side conditions:
  * at least two distinct buckets ALWAYS (a solid non-white rectangle has one),
- * and `inkRatio ≥ MIN_INK_RATIO` whenever the page has at least one block. A
- * near-empty page is V9's WARN, never a renderer failure.
+ * and `inkRatio ≥` the height-scaled `MIN_INK_RATIO` whenever the page has
+ * content on it — a block OR a pen stroke. A near-empty page is V9's WARN, never
+ * a renderer failure.
  */
 
-/** ITU-R BT.709 luma, the same weights `png-inspect.mjs` uses. */
-const LUMA_RED = 0.2126
-const LUMA_GREEN = 0.7152
-const LUMA_BLUE = 0.0722
-const WHITE_LUMA = 255
+/**
+ * ITU-R BT.709 luma, the same weights `png-inspect.mjs` uses. Exported because
+ * `inkExpectation.ts` has to answer "would this colour even register as ink?" with
+ * the same arithmetic that measures the capture — two answers to that would be
+ * worse than none.
+ */
+export const LUMA_RED = 0.2126
+export const LUMA_GREEN = 0.7152
+export const LUMA_BLUE = 0.0722
+export const WHITE_LUMA = 255
 const RGBA_STRIDE = 4
 
 const EMPTY_ASSESSMENT: InkAssessment = {
@@ -120,8 +127,18 @@ export function checkRenderableHeight(height: number): SanityVerdict {
 export interface SanityInput {
   readonly inspected: InspectedPng
   readonly expected: PngDimensions
-  /** Does the page have at least one block? Only then is the ink floor enforced. */
+  /** Did the client put anything on this page — a block or a stroke? Only then is the ink floor enforced. */
   readonly requiresInk: boolean
+}
+
+/**
+ * `MIN_INK_RATIO` restated as an absolute quantity of ink for a page of this
+ * height (see `INK_FLOOR_REFERENCE_HEIGHT_PX`). Capped at 1: a page shorter than
+ * the reference keeps the derived floor exactly, so this can only ever LOWER the
+ * bar — a capture that passes today cannot start failing because of it.
+ */
+export function inkFloorFor(height: number): number {
+  return MIN_INK_RATIO * Math.min(1, INK_FLOOR_REFERENCE_HEIGHT_PX / Math.max(height, 1))
 }
 
 /**
@@ -157,13 +174,15 @@ export function checkPngSanity({ inspected, expected, requiresInk }: SanityInput
     }
   }
 
-  if (requiresInk && ink.inkRatio < MIN_INK_RATIO) {
+  const inkFloor = inkFloorFor(expected.height)
+  if (requiresInk && ink.inkRatio < inkFloor) {
     return {
       ok: false,
       failure: 'blank',
       detail:
-        `ink ratio ${ink.inkRatio.toExponential(2)} is below MIN_INK_RATIO ` +
-        `(${String(MIN_INK_RATIO)}) on a page that has blocks`,
+        `ink ratio ${ink.inkRatio.toExponential(2)} is below the floor ` +
+        `${inkFloor.toExponential(2)} (MIN_INK_RATIO ${String(MIN_INK_RATIO)} scaled for a ` +
+        `${String(expected.height)}px page) on a page that has content`,
     }
   }
 

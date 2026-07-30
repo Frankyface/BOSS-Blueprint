@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_BLOCK_HEIGHT_PX,
   MAX_PAGE_HEIGHT_PX,
+  MIN_PAGE_HEIGHT_PX,
   PAGE_BOTTOM_PADDING_PX,
 } from '../../canvas/constants.ts'
 import { pageHeightForContent } from '../../canvas/geometry.ts'
 
 import {
   BLANK_VARIANCE_FLOOR,
+  INK_FLOOR_REFERENCE_HEIGHT_PX,
   INK_SAMPLE_DIVISOR,
   MAX_SAFE_RENDER_HEIGHT_PX,
   MIN_DISTINCT_LUMA,
@@ -16,7 +18,7 @@ import {
   MIN_INK_RATIO,
 } from './constants.ts'
 import { assessInk, checkPngSanity, checkRenderableHeight } from './sanity.ts'
-import type { InspectedPng } from './types.ts'
+import type { InspectedPng, PngDimensions } from './types.ts'
 
 /**
  * The sanity gate on synthetic buffers — the half of V6 that needs no browser.
@@ -24,8 +26,13 @@ import type { InspectedPng } from './types.ts'
 
 const EXPECTED = { width: 1200, height: 800 } as const
 
+/** How many pixels a 1200×`height` page contributes once downscaled by the divisor. */
+function sampleCountFor(height: number): number {
+  return Math.ceil(1200 / INK_SAMPLE_DIVISOR) * Math.ceil(height / INK_SAMPLE_DIVISOR)
+}
+
 /** How many pixels a 1200×800 page contributes once downscaled by the divisor. */
-const SAMPLE_COUNT = Math.ceil(1200 / INK_SAMPLE_DIVISOR) * Math.ceil(800 / INK_SAMPLE_DIVISOR)
+const SAMPLE_COUNT = sampleCountFor(800)
 
 function buffer(count: number, fill: readonly [number, number, number, number]): Uint8ClampedArray {
   const data = new Uint8ClampedArray(count * 4)
@@ -43,7 +50,7 @@ function withDarkPixels(count: number, darkPixels: number): Uint8ClampedArray {
   return data
 }
 
-function inspected(ink: InspectedPng['ink'], size = EXPECTED): InspectedPng {
+function inspected(ink: InspectedPng['ink'], size: PngDimensions = EXPECTED): InspectedPng {
   return { decoded: size, header: size, ink }
 }
 
@@ -134,6 +141,62 @@ describe('the MIN_INK_RATIO boundary', () => {
     const ink = assessInk(withDarkPixels(SAMPLE_COUNT, atFloor - 1))
 
     expect(checkPngSanity({ inspected: inspected(ink), expected: EXPECTED, requiresInk: false }).ok).toBe(true)
+  })
+})
+
+/**
+ * The floor is a RATIO over the whole page, so without scaling a page five times
+ * as tall needs five times the ink to clear the same bar — which would BLOCK a
+ * legitimately sparse tall page with V6's unfixable "export hiccup, try again".
+ * These assert the floor as an ABSOLUTE expectation about ink pixels instead.
+ */
+describe('the ink floor against page height', () => {
+  /** How much taller the long page in these cases is than the reference one. */
+  const TALL_PAGE_MULTIPLE = 5
+
+  const SHORTEST = { width: 1200, height: MIN_PAGE_HEIGHT_PX } as const
+  const TALLEST = { width: 1200, height: MIN_PAGE_HEIGHT_PX * TALL_PAGE_MULTIPLE } as const
+
+  /** The ink the floor asks of the page it was derived against (1200 × 1600). */
+  const REFERENCE_INK_PIXELS = Math.ceil(MIN_INK_RATIO * sampleCountFor(MIN_PAGE_HEIGHT_PX))
+
+  function verdictFor(size: PngDimensions, darkPixels: number): ReturnType<typeof checkPngSanity> {
+    const ink = assessInk(withDarkPixels(sampleCountFor(size.height), darkPixels))
+    return checkPngSanity({ inspected: inspected(ink, size), expected: size, requiresInk: true })
+  }
+
+  it('is anchored to the shortest page the editor can produce — they cannot drift', () => {
+    // MIN_INK_RATIO's derivation is written against a 1200 × 1600 page. If the
+    // editor's minimum ever moves, that derivation has to be redone, not inherited.
+    expect(INK_FLOOR_REFERENCE_HEIGHT_PX).toBe(MIN_PAGE_HEIGHT_PX)
+  })
+
+  it('holds the reference page to exactly MIN_INK_RATIO — the byte-compat guard', () => {
+    expect(verdictFor(SHORTEST, REFERENCE_INK_PIXELS).ok).toBe(true)
+    expect(verdictFor(SHORTEST, REFERENCE_INK_PIXELS - 1).ok).toBe(false)
+  })
+
+  it('passes a page 5× as tall carrying the SAME absolute ink', () => {
+    // Identical pen marks on a longer sheet. Nothing about the render got worse,
+    // so nothing about the verdict may change.
+    expect(verdictFor(TALLEST, REFERENCE_INK_PIXELS).ok).toBe(true)
+  })
+
+  it('still fails that tall page one ink pixel short — the floor is not switched off', () => {
+    const verdict = verdictFor(TALLEST, REFERENCE_INK_PIXELS - 1)
+
+    expect(verdict.ok).toBe(false)
+    expect(verdict.failure).toBe('blank')
+  })
+
+  it('still fails a genuinely white tall page', () => {
+    // Scaling the floor must not open a hole underneath it. This one never reaches
+    // the floor — the always-on blank rule has it first, whatever `requiresInk`
+    // says — which is why the floor's real job is the band just ABOVE white.
+    const verdict = verdictFor(TALLEST, 0)
+
+    expect(verdict.ok).toBe(false)
+    expect(verdict.failure).toBe('blank')
   })
 })
 

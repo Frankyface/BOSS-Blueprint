@@ -8,7 +8,7 @@
  */
 
 import { check } from '../report.mjs';
-import { pagesOf, assetsOf, blocksOf, eachBlock, eachString, frameOf } from './walk.mjs';
+import { pagesOf, assetsOf, blocksOf, eachBlock, eachString, frameOf, regionsOf } from './walk.mjs';
 import { overflowingBlocks } from './links-frames.mjs';
 import {
   WRITE_THIS_COPY_RE,
@@ -150,7 +150,11 @@ function checkHeadingsAndInventory(brief, secs, pages) {
     if (slug !== `\`${page?.slug}\``) problems.push(`inventory row ${i + 1}: slug cell "${slug}" != \`${page?.slug}\``);
     const wantSketch = `\`${page?.screenshot}\` (1200×${page?.height})`;
     if (sketch !== wantSketch) problems.push(`inventory row ${i + 1}: sketch cell "${sketch}" != "${wantSketch}"`);
-    const wantBlocks = String(blocksOf(page).length);
+    // v2.5 — the Blocks cell counts top-level drawn regions alongside blocks, so an
+    // ink-only page no longer advertises itself as having nothing on it. Byte-neutral
+    // (and still one cell) for a page with no regions.
+    const drawn = regionsOf(page).filter((r) => r?.parentRegionId === null).length;
+    const wantBlocks = drawn === 0 ? String(blocksOf(page).length) : `${blocksOf(page).length} (+${drawn} drawn)`;
     if (blocks !== wantBlocks) problems.push(`inventory row ${i + 1}: block count "${blocks}" != ${wantBlocks}`);
   });
 
@@ -168,7 +172,19 @@ function checkWalkthroughBullets(secs, site) {
     : [`walkthrough block bullets: brief has ${bullets}, site.json has ${nonSection} non-section block(s)`];
 }
 
-/** Copy-list header count and item count == generate-block count. */
+/**
+ * §3.2 (v2.5) — the copy-list heading counts the NUMBERED LIST under it, which is
+ * the `generate` blocks. TWIN of `problemsForCounts` in
+ * `src/export/validate/rules/briefCrossCheck.ts`; a one-sided edit is a green
+ * `npm test` and a red gate twelve minutes later, so `rules-brief.test.mjs` asserts
+ * this half separately.
+ *
+ * Copy that comes from ink is stated AFTER the list, in its own bullets with its own
+ * counts and its own verbs (write vs transcribe), so it is folded into no number
+ * here. v2.5 tried both alternatives — a heading counting blocks with a paragraph
+ * adding the rest, then a heading counting the total — and three zero-context
+ * builders read each as the section contradicting itself.
+ */
 function checkCopyList(secs, site) {
   const problems = [];
   const found = sectionStartingWith(secs, 'Copy you must write');
@@ -225,6 +241,10 @@ function checkPrintedIds(brief, site) {
       if (Array.isArray(block?.items)) for (const item of block.items) known.add(item?.id);
     }
     for (const stroke of Array.isArray(page?.penStrokes) ? page.penStrokes : []) known.add(stroke?.id);
+    for (const region of regionsOf(page)) {
+      known.add(region?.id);
+      if (region?.setId) known.add(region.setId);
+    }
   }
   for (const asset of assetsOf(site)) known.add(asset?.id);
 

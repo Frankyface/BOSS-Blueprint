@@ -53,9 +53,28 @@ export interface Cluster {
   readonly targetBlockId: string | null
 }
 
-/** [N7] Union-find over a page's strokes; clusters ordered by cluster-bbox top edge. */
+/**
+ * [N7] Union-find over a page's UNCLAIMED strokes; clusters ordered by cluster-bbox
+ * top edge.
+ *
+ * "Unclaimed" is the v2.5 amendment: a stroke that `penRegions` published as part
+ * of a drawn card, heading or rule has already been narrated as a thing to BUILD,
+ * and narrating it again as "a handwritten annotation — read it in the PNG" would
+ * hand a zero-context builder two contradictory instructions about the same ink.
+ *
+ * It is a DEFINITIONAL change, not a behavioural one, for every package that
+ * predates regions: a page with no `penRegions` claims nothing, so its clusters
+ * are exactly the clusters it always had — which is what keeps §7.2 byte-identical
+ * and lets V22 stop firing on deliberate drawn elements with no edit to V22.
+ *
+ * No ink is lost either way: every stroke is EITHER a region the brief builds OR a
+ * cluster the brief reads.
+ */
 export function clustersOf(page: ExportPage): Cluster[] {
-  const strokes = page.penStrokes.filter((stroke) => stroke.points.length > 0)
+  const claimed = new Set((page.penRegions ?? []).flatMap((region) => region.strokeIds))
+  const strokes = page.penStrokes.filter(
+    (stroke) => stroke.points.length > 0 && !claimed.has(stroke.id),
+  )
   if (strokes.length === 0) return []
 
   const parent = strokes.map((_, index) => index)

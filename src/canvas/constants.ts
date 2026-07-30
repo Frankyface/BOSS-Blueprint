@@ -22,6 +22,24 @@ export const MAX_PAGE_HEIGHT_PX = 8000
 export const PAGE_BOTTOM_PADDING_PX = 160
 
 /**
+ * One click of "Add space": the empty band the page grows by when the client asks
+ * for room below their content.
+ *
+ * A screenful-ish amount, and a multiple of the 8px grid so the page height it
+ * produces still satisfies the export contract's `multipleOf: 8`. Big enough that
+ * one click is unmistakably something happening — a 40px nudge would read as a bug.
+ */
+export const PAGE_EXTRA_SPACE_STEP_PX = 400
+
+/**
+ * Ceiling on the room a client can ask for, separate from MAX_PAGE_HEIGHT_PX
+ * because the two answer different questions: this caps how far a runaway drag can
+ * push the page BEYOND what is actually drawn on it, while MAX_PAGE_HEIGHT_PX caps
+ * the PNG. Ten clicks of "Add space".
+ */
+export const PAGE_EXTRA_SPACE_MAX_PX = 4000
+
+/**
  * Ceiling for a single block's height — deliberately half of MAX_PAGE_HEIGHT_PX,
  * so one runaway resize can never eat the whole page budget on its own.
  */

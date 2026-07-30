@@ -22,13 +22,13 @@
   padding: 0.15rem 0.35rem;
   border-radius: var(--boss-radius);
   font-size: 0.8125rem;
-  /* Contrast against --boss-ink: 8.9:1, well clear of the 4.5:1 floor. */
-  color: #c7d0e0;
+  /* Contrast against --boss-ink: 10.6:1, well clear of the 4.5:1 floor. */
+  color: var(--boss-text-muted-invert);
   text-decoration: none;
 }
 
 .app-footer__domain {
-  color: var(--boss-accent);
+  color: var(--boss-accent-on-ink);
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
@@ -39,12 +39,12 @@
 }
 
 .app-footer__link:focus-visible {
-  outline: 2px solid var(--boss-accent);
+  outline: 2px solid var(--boss-accent-on-ink);
   outline-offset: 2px;
 }
 
 .app-footer__arrow {
-  color: var(--boss-accent);
+  color: var(--boss-accent-on-ink);
 }
 
 /*

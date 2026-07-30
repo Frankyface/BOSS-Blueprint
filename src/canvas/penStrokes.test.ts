@@ -35,9 +35,30 @@ beforeEach(() => {
 })
 
 describe('the palette', () => {
-  it('offers a red that reads as an annotation, and offers it first', () => {
-    expect(PEN_COLORS[0]?.hex).toBe(RED)
-    expect(PEN_COLORS.length).toBeGreaterThanOrEqual(3)
+  /**
+   * A BYTE-LEVEL GUARD, not a style preference.
+   *
+   * These four strings are written into every saved `.blueprint` and into
+   * `site.json`, and the ink module segments a drawing into colour families by
+   * comparing them. Changing one would silently re-read every design already on a
+   * client's disk — so the labels are free to change and the hexes are not.
+   */
+  it('has the same four hexes it has always had, in the same order', () => {
+    expect(PEN_COLORS.map((option) => option.hex)).toEqual([
+      '#d92d20',
+      '#1f2937',
+      '#2f6df6',
+      '#15803d',
+    ])
+  })
+
+  it('names each colour without telling the client what it is FOR', () => {
+    // The pen draws the design, not just notes about it: a swatch labelled
+    // "Red (notes)" taught the opposite, and a background wave drawn in red got
+    // built as marginalia because of it.
+    for (const option of PEN_COLORS) {
+      expect(option.label, option.id).not.toMatch(/note|annotat|draw|sketch/i)
+    }
   })
 
   it('gives every colour a six-digit hex the export schema accepts', () => {

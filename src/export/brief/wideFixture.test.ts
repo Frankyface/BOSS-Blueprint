@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import type { SiteJson } from '../types.ts'
+import { inkOnlyPage } from '../../test/inkFixtures.ts'
+import { toExportRegions } from '../penRegions.ts'
+import { roundCoordinate } from '../penRoles.ts'
+import type { ExportPenRegion, ExportPenStroke, SiteJson } from '../types.ts'
+import { BUILD_FROM_INK_RE } from '../validate/rules/briefCrossCheck.ts'
 
 import { FALLBACK_NO_DESCRIPTION, FALLBACK_NO_DESCRIPTION_USAGE } from './boilerplate.ts'
 import { generateBrief } from './generateBrief.ts'
@@ -25,6 +29,37 @@ import { generateBrief } from './generateBrief.ts'
  *    deliberately re-blessed: V7's counting contract, table integrity, guillemet
  *    integrity, printed-id integrity, and the v2.3 fallback strings.
  */
+
+/**
+ * PAGE 4 — the ink-only page, produced by the REAL classifier over the traced drawing.
+ *
+ * Hand-writing the regions here would prove only that the narrator can read a literal;
+ * running `toExportRegions` over the same geometry the client would draw is what makes
+ * the committed snapshot evidence that the product owner's four complaints — a drawn
+ * nav, a drawn heading, two drawn pricing cards and a drawn cat, none of which reached
+ * the built site — now arrive at the builder as things to build.
+ */
+const INK_PAGE_FIRST_STROKE = 4
+
+const inkStrokes: readonly ExportPenStroke[] = inkOnlyPage().map((stroke, index) => ({
+  id: `stk_${String(index + INK_PAGE_FIRST_STROKE).padStart(4, '0')}`,
+  points: stroke.points.map((point) => [roundCoordinate(point.x), roundCoordinate(point.y)] as const),
+  color: stroke.color,
+  width: stroke.width,
+  role: 'annotation',
+  targetBlockId: null,
+}))
+
+const inkRegionMinter = (): ((prefix: 'reg' | 'set') => string) => {
+  const counters = new Map<string, number>()
+  return (prefix) => {
+    const next = (counters.get(prefix) ?? 0) + 1
+    counters.set(prefix, next)
+    return `${prefix}_${String(next).padStart(4, '0')}`
+  }
+}
+
+const inkPageRegions: readonly ExportPenRegion[] = toExportRegions([], inkStrokes, inkRegionMinter())
 
 const site: SiteJson = {
   schemaVersion: 1,
@@ -212,6 +247,17 @@ const site: SiteJson = {
       ],
       penStrokes: [],
     },
+    {
+      id: 'pg_0004',
+      name: 'Drawn',
+      slug: 'drawn',
+      height: 2200,
+      extraBottomPx: 640,
+      screenshot: 'pages/04-drawn.png',
+      blocks: [],
+      penStrokes: inkStrokes,
+      penRegions: inkPageRegions,
+    },
   ],
   assets: [
     {
@@ -251,7 +297,7 @@ describe('wide fixture — V7 counting contract', () => {
 describe('wide fixture — structural integrity', () => {
   it('keeps 7 unescaped pipes in every inventory row despite a client pipe', () => {
     const rows = brief.split('\n').filter((line) => /^\| \d+ \| /.test(line))
-    expect(rows).toHaveLength(3)
+    expect(rows).toHaveLength(4)
     for (const row of rows) expect(row.match(/(?<!\\)\|/g)).toHaveLength(7)
   })
 
@@ -275,6 +321,167 @@ describe('wide fixture — structural integrity', () => {
 
   it('is deterministic', () => {
     expect(generateBrief(site)).toBe(brief)
+  })
+})
+
+describe('wide fixture — page 4, the four things that went missing (v2.5)', () => {
+  const page = brief.slice(brief.indexOf('### Page 4 — Drawn'), brief.indexOf('## Copy you must write'))
+
+  it('does not let a page the client drew advertise itself as empty', () => {
+    expect(brief).toContain('| 4 | Drawn | `drawn` | `pages/04-drawn.png` (1200×2200) | 0 (+10 drawn) |')
+    expect(page).toContain('**This page has no blocks — the client drew it instead.**')
+    expect(page).toContain('This page is not empty and it must not ship empty.')
+  })
+
+  it('1 — the two pricing cards are ONE component, instantiated twice', () => {
+    expect(page).toContain('- **Drawn card set** — 2 boxes the client drew at (118, 398, 324, 264), (518, 398, 324, 264)')
+    expect(page).toContain('These are ONE component used 2 times.')
+    expect(page).toContain('  - **Drawn card 1 of 2** — a box the client drew at (118, 398, 324, 264), with handwriting and 3 placeholder lines inside it.')
+    expect(page).toContain('  - **Drawn card 2 of 2** — a box the client drew at (518, 398, 324, 264), with handwriting and 3 placeholder lines inside it.')
+  })
+
+  it('2 — the drawn heading is a real heading, and it is the `<h1>`', () => {
+    expect(page).toContain('- **Drawn heading** — handwriting at (198, 218, 270, 82.4), the largest writing on this page (1 word, letters about 56px tall).')
+    expect(page).toContain('No block on this page supplies an `<h1>`, so this is the `<h1>`.')
+  })
+
+  it('3 — the drawn nav IS the navigation, and the wave is a decorative band', () => {
+    expect(page).toContain('- **Drawn nav** — 3 separate words drawn in a regular row across the top of the page at (118, 58, 354, 28).')
+    expect(page).toContain('No `navBar` block exists on this page, so this drawn nav IS the navigation')
+    expect(page).toContain('so it is a full-bleed decorative band, not an inline picture')
+  })
+
+  it('4 — the cat is reproduced as real artwork from its own strokes', () => {
+    expect(page).toContain('- **Drawn artwork** — a drawing at (372, 908, 320, 258), 6 strokes: not writing, not a container, not a line.')
+    expect(page).toContain('One judgement call is yours:')
+  })
+
+  it('carries exactly one BUILD THIS FROM INK marker per top-level region', () => {
+    const topLevel = inkPageRegions.filter((region) => region.parentRegionId === null)
+    expect(topLevel).toHaveLength(10)
+    expect(brief.match(BUILD_FROM_INK_RE)).toHaveLength(topLevel.length)
+  })
+
+  it('names the client’s deliberate closing space as ADDED room, reconcilable with the geometry', () => {
+    expect(page).toContain(
+      'The client deliberately added 640px of empty space at the bottom of this page with the editor\'s "Add space" control.',
+    )
+    expect(page).toContain('the 640px is the client\'s request, not the measurement')
+    expect(page).not.toContain('640px of empty space below the last thing on this page')
+  })
+
+  it('never quotes anything in an ink bullet — V7 could not resolve it', () => {
+    const inkLines = page.split('\n').filter((line) => line.includes('BUILD THIS FROM INK'))
+    expect(inkLines).toHaveLength(10)
+    for (const line of inkLines) expect(line).not.toMatch(/[«»]/)
+  })
+})
+
+describe('wide fixture — the wording fixes three zero-context builders needed', () => {
+  it('7 — the copy-list heading counts the list under it, and nothing corrects it', () => {
+    // 2 generate blocks — and exactly 2 numbered items below the heading.
+    expect(brief).toContain('## Copy you must write (2 items)')
+    expect(brief.match(/^\d+\. \*\*/gm)).toHaveLength(2)
+    // Every framing that made one number stand for two different jobs is gone.
+    expect(brief).not.toContain('Drawn regions account for')
+    expect(brief).not.toContain('The number in this heading counts blocks only')
+    expect(brief).not.toContain('this heading does not count')
+    expect(brief).not.toContain('the real writing scope for this build is')
+  })
+
+  it('7b — copy from ink gets its own verbs and its own numbers, after the list', () => {
+    expect(brief).toContain(
+      'Copy that comes from ink is not numbered here. Each piece is specified in its own bullet under "What the client drew on this page" in the walkthroughs:',
+    )
+    // 3 textPlaceholder stacks to write; 4 `writing` regions to transcribe. The drawn
+    // NAV is neither — its bullet is a label lookup, not a reading — so the count of
+    // handwriting is 4, which is what site.json carries.
+    expect(brief).toContain(
+      '- **Write** 3 blocks of body copy where the client drew placeholder text — those wavy lines carry no letters, so there is nothing there to read.',
+    )
+    expect(brief).toContain(
+      '- **Transcribe** 4 runs of handwriting — the words are already in the PNG, so read them and use them verbatim; write a replacement only where you cannot read one.',
+    )
+    expect(brief).not.toContain('5 runs of handwriting')
+    // The ink lines follow the numbered list, so nothing sits between the heading and
+    // the items it counts.
+    expect(brief.indexOf('Copy that comes from ink')).toBeGreaterThan(brief.indexOf('2. **Home'))
+  })
+
+  it('8 — no bullet orders the builder to write from a source it declares empty', () => {
+    expect(brief).not.toContain('no source there to write from')
+    expect(brief).toContain(
+      '- **Nothing to write copy from:** the client gave no tagline and no About text, so where this brief asks you to write copy, write it from the business name and what the sketch shows, invent no facts about this business, and list what you wrote in BUILD_NOTES.md under "Copy to confirm with the client".',
+    )
+    expect(brief).toContain(
+      'If you cannot read it, write a fitting replacement at the length the ink measures — about 2 words, not a sentence — from the business name and what the sketch shows, and log it under "Pen marks I could not read".',
+    )
+    expect(brief).toContain(
+      'write 3 lines of real body copy there from the business name, what the sketch shows, and `Look & feel` above',
+    )
+    // The business NAME is never absent, so the heading fallback needs no caveat at all.
+    expect(brief).toContain(
+      'If you cannot read it, use the business name from `The business` above as the heading and log it under "Pen marks I could not read".',
+    )
+  })
+
+  it('8b — the copy-list preamble does not cite an About text that is null', () => {
+    expect(brief).not.toContain('(use the About text above)')
+  })
+
+  it('9 — an empty palette gets its own branch, and rules pen ink out as a seed', () => {
+    expect(brief).not.toContain('none given — derive a palette that fits the vibe and the uploaded photos')
+    expect(brief).toContain(
+      '- **Preferred colors:** none given — **no colour signal was supplied with this sketch**: the client picked no colours, so there is no "first colour" here to treat as the brand colour.',
+    )
+    expect(brief).toContain(
+      "**The client's pen ink colour is not a colour signal** — it is the ink of a sketch, never a brand colour, so never seed the palette from it; reproducing a drawn region's own stroke colours inside its `<svg>`, as the artwork bullets require, is copying a drawing and not a palette choice.",
+    )
+    expect(brief).toContain('Record the palette you chose, and why, in BUILD_NOTES.md under "Palette I chose".')
+    // This fixture HAS an uploaded photo, so the inference sources are real.
+    expect(brief).toContain('Fit it to the vibe above and to the uploaded photos in `Assets`.')
+  })
+
+  it('10 — the inventory reconciles its region count with site.json', () => {
+    expect(brief).toContain(
+      'Drawn regions nest: the **Blocks** column counts blocks and, after the "+", TOP-LEVEL drawn regions only. `site.json` carries 14 drawn regions in all — 10 top-level and 4 nested inside them. A nested region is described inside its parent\'s bullet in the walkthrough rather than as a row here, and all 14 must be built.',
+    )
+  })
+
+  it('12 — definition of done 4 is satisfiable when the copy came from unreadable ink', () => {
+    expect(brief).toContain(
+      '**Handwriting you could not read has no verbatim form** — where a piece of copy came from ink you could not read, the fallback in that region\'s bullet IS its final copy, and this item is satisfied for it once you have used that fallback and logged the region under "Pen marks I could not read".',
+    )
+  })
+
+  it('13 — a page with no legible copy still has a defined `<html lang>`', () => {
+    expect(brief).toContain(
+      'where there is no legible copy to read a language from — a page the client only drew, handwriting you could not make out — use `lang="en"` and log that assumption in BUILD_NOTES.md',
+    )
+  })
+
+  it('14 — definition of done 3 points at where the unlinked-item rule really is', () => {
+    expect(brief).toContain(
+      '3. All navigation works: every wired link goes to its target; the shared nav (if any) appears on every page; unlinked items are handled where their rule is given — the Navigation map for a button or nav item, the **Drawn nav** bullet in the walkthrough for a word the client drew.',
+    )
+    expect(brief).not.toContain('unlinked items are handled as the Navigation map says')
+  })
+
+  it('15 — the card content model does not promise a body line the ink has not got', () => {
+    const page = brief.slice(brief.indexOf('### Page 4 — Drawn'), brief.indexOf('## Copy you must write'))
+    expect(page).toContain(
+      "Read the words in `pages/04-drawn.png` inside (148, 438, 216, 34) and use them verbatim as this card's content — it is this card's only run of handwriting, so it is its title, unless the words themselves plainly say otherwise (a price, a list, a button label).",
+    )
+    expect(page).not.toContain('the top line is its title and what follows is its body')
+  })
+
+  it('16 — assets are promised only when there are assets, and DoD 5 is vacuous-safe', () => {
+    // This fixture HAS an upload, so `Your role` legitimately names the directory.
+    expect(brief).toContain("- `assets/` — the client's real images, build-ready.")
+    expect(brief).toContain(
+      '5. Every asset the `Assets` section lists appears in its slot with its fit and an alt text you wrote from its description — a package that lists none satisfies this on its own; every SOURCE AN IMAGE slot has its placeholder file and is listed in BUILD_NOTES.md under "Images to replace".',
+    )
+    expect(brief).not.toContain('5. Every uploaded asset appears in its slot')
   })
 })
 
@@ -317,7 +524,7 @@ describe('wide fixture — the v2.3 branches §7.1 cannot reach', () => {
   })
 
   it('pluralizes the inventory count [N11]', () => {
-    expect(brief).toContain('3 pages. **Page 1 is the homepage.**')
+    expect(brief).toContain('4 pages. **Page 1 is the homepage.**')
   })
 
   it('uses every absent-optional fallback', () => {
@@ -325,7 +532,7 @@ describe('wide fixture — the v2.3 branches §7.1 cannot reach', () => {
     expect(brief).toContain("- **About (client's own words):** — none provided —")
     expect(brief).toContain('- **Client style notes:** — none —')
     expect(brief).toContain('- **Vibe:** not specified — infer a fitting tone')
-    expect(brief).toContain('- **Preferred colors:** none given — derive a palette')
+    expect(brief).toContain('- **Preferred colors:** none given — **no colour signal')
   })
 
   it('computes the [N8] length estimate for both copy types', () => {

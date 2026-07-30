@@ -42,3 +42,26 @@
   font-size: 0.75rem;
   color: var(--boss-text-muted);
 }
+
+/* The whole label is the hit target, so the words are as clickable as the box. */
+.pen-controls__reading {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/*
+ * What we read, in words. This is TEXT, so it takes the darker brand
+ * (`--boss-brand-dark`, 6.14:1 on white) rather than `--boss-select` (`--boss-brand`,
+ * 4.45:1 — below the 4.5:1 AA floor a word needs). Same rule the theme file states:
+ * outlines and fills may use `--boss-select`, a word may not. Still unmistakably the
+ * same blue as the boxes it describes, just clear of the contrast floor at 12px.
+ */
+.pen-controls__reading-summary {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--boss-brand-dark);
+}

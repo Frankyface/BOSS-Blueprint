@@ -229,9 +229,14 @@ after it discriminates. Move the headline to a remainder-1..3 bottom (e.g. 1697 
   8,000-sample looping scribble is asserted to thin in under 250 ms.
 - **A tap is stored as a two-point dot.** The export schema requires `points` to have ≥ 2 entries
   (§2.9), and binning a deliberate single-tap mark is worse than duplicating its point.
-- **Palette:** `#d92d20` Red (notes) — the default — plus `#1f2937` Ink, `#2f6df6` Blue,
-  `#15803d` Green. Red leads because the feature's goal leads with annotation, and red is the one
-  colour a builder reads as a margin note rather than as part of the design. **Widths:** 4px
+- **Palette:** `#d92d20` Red — the default — plus `#1f2937` Ink, `#2f6df6` Blue, `#15803d` Green.
+  Red led originally because the feature's goal led with annotation; the label read "Red (notes)"
+  to say so. **Relabelled to plain colour names in F6** (2026-07-29): once `src/canvas/ink/**`
+  began reading a drawn box as a card whatever colour it is drawn in, a swatch that named one
+  colour "notes" taught the opposite of what the tool does — the product owner drew a background
+  wave in red and was surprised it was not built. The four HEXES are unchanged and frozen (they
+  are written into every saved `.blueprint` and into `site.json`, and the ink module's colour
+  families key on them); only the labels moved. **Widths:** 4px
   (Fine) and 12px (Bold), far enough apart to tell apart at fit-to-window zoom. Colours are
   validated by FORMAT (`^#[0-9a-fA-F]{6}$`), never by membership of the palette, so changing the
   palette later cannot make yesterday's saved design unreadable.

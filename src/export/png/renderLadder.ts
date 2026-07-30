@@ -43,7 +43,7 @@ export interface RenderLadderPorts {
 export interface RenderLadderPlan {
   readonly pageId: string
   readonly expected: PngDimensions
-  /** True when the page has ≥ 1 block, which is when the ink floor applies. */
+  /** True when the page has ≥ 1 block or ≥ 1 stroke, which is when the ink floor applies. */
   readonly requiresInk: boolean
   /** Carried straight through to the result for the zip's compression ladder. */
   readonly hasStrokes: boolean

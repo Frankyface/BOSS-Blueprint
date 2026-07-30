@@ -18,21 +18,38 @@ import { EXPORT_PAGE_WIDTH, type CopyBlock, type ExportBlock, type ExportPage, t
 
 import {
   COPY_LIST_PREAMBLE,
+  COPY_LIST_PREAMBLE_NO_ABOUT,
   DEFINITION_OF_DONE_LINES,
+  DRAWN_COPY_HEADER,
   EMPTY_MARKER,
   FALLBACK_ABOUT,
   FALLBACK_COLORS,
+  FALLBACK_COLORS_INFER,
+  FALLBACK_COLORS_NO_SIGNAL,
+  FALLBACK_COLORS_TAIL,
   FALLBACK_NO_ASSETS,
   FALLBACK_NO_CONTEXT,
   FALLBACK_NO_COPY_ITEMS,
+  FALLBACK_NO_COPY_ITEMS_INK,
   FALLBACK_NO_DESCRIPTION_USAGE,
   FALLBACK_STYLE_NOTES,
   FALLBACK_TAGLINE,
   FALLBACK_VIBE,
+  NO_BUSINESS_WORDS_LINE,
   RESPONSIVE_LINES,
+  ROLE_ASSETS_LINE,
   ROLE_LINES,
   WALKTHROUGH_PREAMBLE,
 } from './boilerplate.ts'
+import {
+  copySourcesOf,
+  inkLeadParagraphs,
+  inkRegionBullets,
+  regionsOf,
+  siteHasDrawnCopy,
+  topLevelRegions,
+} from './ink.ts'
+import { counted, drawnCopyCounts } from './inkContents.ts'
 import { type Group, columnPlacement, columnsOf, groupBlocks, rowsOf } from './layout.ts'
 import {
   LIST_SEPARATOR,
@@ -137,25 +154,43 @@ function contextLine(block: ExportBlock, group: Group | undefined): string {
 
 function businessSection(site: SiteJson): string[] {
   const settings = site.siteSettings
-  return [
+  const lines = [
     '## The business',
     '',
     `- **Name:** ${escapeClientText(settings.businessName)}`,
     `- **Tagline:** ${settings.tagline === null ? FALLBACK_TAGLINE : escapeClientText(settings.tagline)}`,
     `- **About (client's own words):** ${settings.about === null ? FALLBACK_ABOUT : escapeClientText(settings.about)}`,
-    '',
   ]
+  // Said HERE and nowhere else (v2.5): the bullets that used to repeat it now name a
+  // source that exists instead of declaring this one empty six times over.
+  if (settings.tagline === null && settings.about === null) lines.push(NO_BUSINESS_WORDS_LINE)
+  lines.push('')
+  return lines
+}
+
+/**
+ * [N11] — the colors line has TWO forms, not one string spliced into a fixed sentence.
+ * With `colors: []` every clause after the list is dead ("treat the first as…" with no
+ * first), which is what produced three different palettes from three builders.
+ */
+function colorsLine(site: SiteJson): string {
+  const settings = site.siteSettings
+  if (settings.colors.length > 0) {
+    return `- **Preferred colors:** ${settings.colors.join(LIST_SEPARATOR)} (in the client's order of preference). Treat the first as the primary/brand color (headings, buttons, accents) and a light entry as the lightest surface color; derive neutrals and text colors yourself to meet WCAG AA contrast. Explicit section backgrounds in the walkthroughs override this. If the style notes below describe how colors should be used, those win.`
+  }
+  const canInfer = settings.vibe !== null || site.assets.length > 0
+  const inference = canInfer ? FALLBACK_COLORS_INFER : FALLBACK_COLORS_NO_SIGNAL
+  return `- **Preferred colors:** ${FALLBACK_COLORS} ${inference} ${FALLBACK_COLORS_TAIL}`
 }
 
 function lookAndFeelSection(site: SiteJson): string[] {
   const settings = site.siteSettings
-  const colors = settings.colors.length > 0 ? settings.colors.join(LIST_SEPARATOR) : FALLBACK_COLORS
 
   return [
     '## Look & feel',
     '',
     `- **Vibe:** ${settings.vibe ?? FALLBACK_VIBE}`,
-    `- **Preferred colors:** ${colors} (in the client's order of preference). Treat the first as the primary/brand color (headings, buttons, accents) and a light entry as the lightest surface color; derive neutrals and text colors yourself to meet WCAG AA contrast. Explicit section backgrounds in the walkthroughs override this. If the style notes below describe how colors should be used, those win.`,
+    colorsLine(site),
     `- **Client style notes:** ${settings.styleNotes === null ? FALLBACK_STYLE_NOTES : quote(settings.styleNotes)}`,
     "- **Heading levels:** on each page the largest heading is that page's single `<h1>`; other headings become h2/h3 by relative size.",
     "- **Not captured by the sketch and therefore yours:** font families and sizes, text alignment inside blocks, button styling, body-text color, and the nav bar's styling (background, alignment, sticky behavior, whether it carries the business name as a wordmark — design it; keep the item order exactly as listed).",
@@ -177,10 +212,30 @@ function inventorySection(site: SiteJson): string[] {
   ]
 
   pages.forEach((page, index) => {
+    // v2.5 — a page whose content is drawn advertised itself as "0" here, which is
+    // the inventory agreeing with the builder who shipped it blank. Byte-neutral for
+    // a page with no regions, and it keeps the row at six columns.
+    const drawn = topLevelRegions(page).length
+    const blocks =
+      drawn === 0 ? String(page.blocks.length) : `${String(page.blocks.length)} (+${String(drawn)} drawn)`
     lines.push(
-      `| ${String(index + 1)} | ${escapeClientText(page.name)} | \`${page.slug}\` | \`${page.screenshot}\` (${String(EXPORT_PAGE_WIDTH)}×${num(page.height)}) | ${String(page.blocks.length)} | ${linksOut(page, site)} |`,
+      `| ${String(index + 1)} | ${escapeClientText(page.name)} | \`${page.slug}\` | \`${page.screenshot}\` (${String(EXPORT_PAGE_WIDTH)}×${num(page.height)}) | ${blocks} | ${linksOut(page, site)} |`,
     )
   })
+
+  // The Blocks cell counts TOP-LEVEL regions, so a site with nested ink advertised
+  // fewer regions than `site.json` carries — a builder using this table as a checklist
+  // could stop at the top-level count and treat card contents as optional.
+  const total = site.pages.reduce((sum, page) => sum + regionsOf(page).length, 0)
+  const top = site.pages.reduce((sum, page) => sum + topLevelRegions(page).length, 0)
+  const nested = total - top
+  if (nested > 0) {
+    lines.push('')
+    lines.push(
+      `Drawn regions nest: the **Blocks** column counts blocks and, after the "+", TOP-LEVEL drawn regions only. \`site.json\` carries ${counted(total, 'drawn region', 'drawn regions')} in all — ${String(top)} top-level and ${String(nested)} nested inside them. A nested region is described inside its parent's bullet in the walkthrough rather than as a row here, and all ${String(total)} must be built.`,
+    )
+  }
+
   lines.push('')
   return lines
 }
@@ -226,12 +281,21 @@ function navigationSection(site: SiteJson): string[] {
 
 function walkthroughSection(site: SiteJson, structures: ReadonlyMap<string, PageStructure>): string[] {
   const lines = ['## Page walkthroughs', '', WALKTHROUGH_PREAMBLE, '']
+  const sources = copySourcesOf(site)
 
   site.pages.forEach((page, index) => {
     lines.push(`### Page ${String(index + 1)} — ${escapeClientText(page.name)} (\`${page.slug}\`)`)
     lines.push('')
     lines.push(`Sketch: \`${page.screenshot}\` — ${String(EXPORT_PAGE_WIDTH)} × ${num(page.height)} px.`)
     lines.push('')
+
+    // Drawn content is announced BEFORE the blocks and narrated AFTER them: the
+    // builder needs "ink is content" before reading anything, and the regions read
+    // as page content only once the blocks they sit among have been described.
+    for (const paragraph of inkLeadParagraphs(page)) {
+      lines.push(paragraph)
+      lines.push('')
+    }
 
     for (const group of structures.get(page.id)?.groups ?? []) {
       lines.push(groupHeader(group))
@@ -252,6 +316,8 @@ function walkthroughSection(site: SiteJson, structures: ReadonlyMap<string, Page
       lines.push('')
     }
 
+    lines.push(...inkRegionBullets(page, sources))
+
     const clusters = clustersOf(page)
     if (clusters.length > 0) {
       lines.push("**Client's pen marks on this page** (visible in the PNG):")
@@ -260,6 +326,41 @@ function walkthroughSection(site: SiteJson, structures: ReadonlyMap<string, Page
     }
   })
 
+  return lines
+}
+
+/**
+ * The copy the INK carries — two jobs, two counts, neither of them the heading's.
+ *
+ * v2.5 tried twice to make one number cover both, and both attempts regressed. The
+ * first printed "drawn regions add N MORE pieces of copy this heading does not
+ * count" — a paragraph correcting the number directly above it. The second folded
+ * them into the heading, which then promised "8 items" of copy to WRITE when five of
+ * the eight were transcription and one was a nav-label lookup.
+ *
+ * So they are not folded into anything. Each category states its own count and its
+ * own verb, and the block says where each piece is specified — the walkthroughs, not
+ * this list. Emitted only for a category the site actually has: a clause whose count
+ * is 0 is not printed as "0", it is not printed.
+ */
+function drawnCopyLines(site: SiteJson): string[] {
+  const { placeholders, handwriting } = drawnCopyCounts(site)
+  if (placeholders === 0 && handwriting === 0) return []
+
+  const lines = [DRAWN_COPY_HEADER]
+  if (placeholders > 0) {
+    lines.push(
+      `- **Write** ${counted(placeholders, 'block', 'blocks')} of body copy where the client drew ` +
+        'placeholder text — those wavy lines carry no letters, so there is nothing there to read.',
+    )
+  }
+  if (handwriting > 0) {
+    lines.push(
+      `- **Transcribe** ${counted(handwriting, 'run', 'runs')} of handwriting — the words are ` +
+        'already in the PNG, so read them and use them verbatim; write a replacement only where ' +
+        'you cannot read one.',
+    )
+  }
   return lines
 }
 
@@ -273,16 +374,19 @@ function copyListSection(site: SiteJson, structures: ReadonlyMap<string, PageStr
     }
   }
 
-  const lines = [
-    `## Copy you must write (${String(items.length)} ${items.length === 1 ? 'item' : 'items'})`,
-    '',
-    COPY_LIST_PREAMBLE,
-    '',
-  ]
+  // ONE NUMBER, ONE THING: the heading counts the numbered list under it, so the
+  // heading, the preamble and the body are a single claim. V7 cross-checks it against
+  // the `generate` blocks and against the items, which are now the same number.
+  const total = items.length
+  const lines = [`## Copy you must write (${String(total)} ${total === 1 ? 'item' : 'items'})`, '']
 
   if (items.length === 0) {
-    lines.push(FALLBACK_NO_COPY_ITEMS)
+    // The preamble is about blocks; with none, it is not emitted rather than
+    // qualified (§3.3 rule 4's carve-out for a sentence that is simply false).
+    lines.push(siteHasDrawnCopy(site) ? FALLBACK_NO_COPY_ITEMS_INK : FALLBACK_NO_COPY_ITEMS)
   } else {
+    lines.push(site.siteSettings.about === null ? COPY_LIST_PREAMBLE_NO_ABOUT : COPY_LIST_PREAMBLE)
+    lines.push('')
     items.forEach(({ page, block }, index) => {
       lines.push(
         `${String(index + 1)}. **${escapeClientText(page.name)}** — ${COPY_LIST_TYPE_LABEL[block.type]} at ${frameTuple(block.frame)}, block \`${block.id}\``,
@@ -295,6 +399,14 @@ function copyListSection(site: SiteJson, structures: ReadonlyMap<string, PageStr
         `   - Surrounding context: ${contextLine(block, structures.get(page.id)?.groupOf.get(block.id))}`,
       )
     })
+  }
+
+  // AFTER the list, never before it: nothing between the heading and the items it
+  // counts can then be read as correcting the number.
+  const drawn = drawnCopyLines(site)
+  if (drawn.length > 0) {
+    lines.push('')
+    lines.push(...drawn)
   }
 
   lines.push('')
@@ -347,7 +459,9 @@ export function generateBrief(site: SiteJson): string {
     // §6.7 — a stray brief.md separated from its zip stays traceable.
     `<!-- Generated by BOSS Blueprint ${site.submission.appVersion} · submission ${site.submission.id} · ${site.submission.submittedAt} · schemaVersion ${String(site.schemaVersion)} · DO NOT EDIT (regenerate instead) -->`,
     '',
-    ...ROLE_LINES,
+    // §3.3 rule 4's package carve-out: the `assets/` bullet describes the zip, and
+    // the zip has no `assets/` when the manifest is empty.
+    ...ROLE_LINES.filter((line) => line !== ROLE_ASSETS_LINE || site.assets.length > 0),
     '',
     ...businessSection(site),
     ...lookAndFeelSection(site),

@@ -13,6 +13,16 @@ const COACH_STEPS: readonly { readonly block: string; readonly rest: string }[] 
   { block: 'Button', rest: ' pointed at another page.' },
 ]
 
+/**
+ * THE OTHER WAY IN (F6). The four steps above are the block route, and until now
+ * they were the only route the app ever named — yet a page can be built from the
+ * pen alone. A client who freezes at a palette of six abstractions can usually draw
+ * the thing they want, so the second door is worth one sentence.
+ */
+const COACH_PEN_ROUTE =
+  'Or just draw it — pick up the pen and sketch the page by hand. Boxes become cards, ' +
+  'words become headings, drawings become artwork.'
+
 const COACH_REASSURANCE =
   "Don't worry about it looking finished. Rough and honest is more useful to us than tidy and " +
   "vague — we'll do the polish."
@@ -54,6 +64,9 @@ export function BlankStartCoach() {
           </li>
         ))}
       </ol>
+      <p className="start-coach__pen" data-testid="blank-start-coach-pen">
+        {COACH_PEN_ROUTE}
+      </p>
       <p className="start-coach__reassurance">{COACH_REASSURANCE}</p>
       <p className="start-coach__actions">
         <button

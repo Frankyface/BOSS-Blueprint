@@ -28,9 +28,18 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..');
 const PUBLIC_DIR = join(REPO_ROOT, 'public');
 
-/** Kept in step with `src/styles/theme.css`. */
+/**
+ * Kept in step with `src/styles/theme.css`. There is no stylesheet in these
+ * documents' `<head>`, so the tokens have to be pinned as literals here — if a
+ * value below stops matching `theme.css`, the shipped card is off-brand and
+ * nothing fails until someone looks at it.
+ *
+ * `ACCENT_ON_INK` is `--boss-accent-on-ink` (BOSS's `--header-bg`), not the
+ * primary `--boss-brand`: everything this script draws sits on INK, where the
+ * primary blue is 4.2:1 and the light blue is 8.2:1.
+ */
 const INK = '#0b1220';
-const ACCENT = '#f4b23e';
+const ACCENT_ON_INK = '#63b3ed';
 const TEXT_INVERT = '#f7f9fc';
 const MUTED = '#b9c3d6';
 const FONT = "'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif";
@@ -71,12 +80,12 @@ function cardHtml() {
      dissolving into a background that is the same ink as its own backplate. */
   .mark { width: 112px; height: 112px; margin-bottom: 44px; }
   .mark svg { width: 112px; height: 112px; }
-  .mark rect { fill: ${ACCENT}; }
+  .mark rect { fill: ${ACCENT_ON_INK}; }
   .mark path { fill: ${INK}; }
   h1 { font-size: 92px; font-weight: 800; letter-spacing: -0.015em; line-height: 1; }
   p { margin-top: 28px; font-size: 40px; font-weight: 400; color: ${MUTED}; }
-  .rule { margin-top: 52px; width: 220px; height: 10px; background: ${ACCENT}; border-radius: 5px; }
-  .by { margin-top: 30px; font-size: 30px; font-weight: 600; color: ${ACCENT}; }
+  .rule { margin-top: 52px; width: 220px; height: 10px; background: ${ACCENT_ON_INK}; border-radius: 5px; }
+  .by { margin-top: 30px; font-size: 30px; font-weight: 600; color: ${ACCENT_ON_INK}; }
 </style></head>
 <body>
   <div class="mark">${markSvg}</div>

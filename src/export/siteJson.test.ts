@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
+import {
+  MIN_PAGE_HEIGHT_PX,
+  PAGE_EXTRA_SPACE_MAX_PX,
+} from '../canvas/constants.ts'
+import { pageHeightForContent } from '../canvas/geometry.ts'
+import { navHeader } from '../test/inkFixtures.ts'
 import { extractExampleSiteJsonText, readSpec } from '../test/specFixtures.ts'
 import {
   BLUEBIRD_SUBMISSION,
@@ -33,6 +39,35 @@ const specSiteJsonText = extractExampleSiteJsonText(readSpec())
 const expectedSite = JSON.parse(specSiteJsonText) as SiteJson
 
 const built = buildSiteJson(bluebirdDocument(), BLUEBIRD_SUBMISSION)
+
+/**
+ * A one-page design whose content sits well inside the 1600 floor, so the exported
+ * height is exactly `1600 + the room the client asked for` and the arithmetic under
+ * test is not hidden behind a content-driven number.
+ */
+function documentWithSpace(extraBottomPx: number): ExportDocument {
+  return {
+    siteSettings: {
+      businessName: 'Bluebird Bakery',
+      tagline: '',
+      about: '',
+      vibe: null,
+      styleNotes: '',
+      colors: [],
+    },
+    pages: [
+      {
+        id: 'page-home',
+        name: 'Home',
+        blocks: [
+          { id: 'b', type: 'text', x: 0, y: 0, width: 400, height: 120, text: 'x', copyMode: 'real' },
+        ],
+        penStrokes: [],
+        extraBottomPx,
+      },
+    ],
+  }
+}
 
 describe('Appendix A equality test D — the canonical serializer owns §7.1', () => {
   it('re-serializes the spec text to itself, byte for byte', () => {
@@ -105,6 +140,76 @@ describe('§4.8 identity remap', () => {
   })
 })
 
+/**
+ * §2.5 `penRegions` — the inference reaches the package.
+ *
+ * The FIRST test here is the byte-neutrality gate in its most direct form: the
+ * §7.1 worked example's ink is one image sketch and one annotation over a button,
+ * so the field must not appear at all. Equality test D above proves the same thing
+ * on the bytes; this proves it on the field, so a failure names the cause.
+ */
+describe('§2.5 penRegions — inferred ink published into site.json', () => {
+  it('is absent entirely on the worked example, whose ink is all annotation', () => {
+    for (const page of built.pages) {
+      expect(page.penRegions).toBeUndefined()
+      expect(Object.keys(page)).not.toContain('penRegions')
+    }
+  })
+
+  const drawn = buildSiteJson(
+    {
+      ...bluebirdDocument(),
+      pages: [{ id: 'page-drawn', name: 'Home', blocks: [], penStrokes: navHeader() }],
+    },
+    BLUEBIRD_SUBMISSION,
+  )
+  const regions = drawn.pages[0]?.penRegions ?? []
+
+  it('publishes a drawn header as a panel holding a wordmark, a nav row and a rule', () => {
+    expect(regions.map((region) => region.kind)).toEqual(['panel', 'writing', 'navRow', 'rule'])
+  })
+
+  it('numbers regions and sets from the SAME minter as pages, blocks and strokes', () => {
+    expect(regions.map((region) => region.id)).toEqual([
+      'reg_0001',
+      'reg_0002',
+      'reg_0003',
+      'reg_0004',
+    ])
+  })
+
+  it('cites only stroke ids that exist on the page (the V28 invariant, by construction)', () => {
+    const onPage = new Set(drawn.pages[0]?.penStrokes.map((stroke) => stroke.id))
+    for (const region of regions) {
+      for (const strokeId of region.strokeIds) expect(onPage.has(strokeId)).toBe(true)
+    }
+  })
+
+  it('claims each stroke at most once', () => {
+    const claimed = regions.flatMap((region) => region.strokeIds)
+    expect(new Set(claimed).size).toBe(claimed.length)
+  })
+
+  it('resolves every parentRegionId to a region emitted earlier on the same page', () => {
+    const seen = new Set<string>()
+    for (const region of regions) {
+      if (region.parentRegionId !== null) expect(seen.has(region.parentRegionId)).toBe(true)
+      seen.add(region.id)
+    }
+  })
+
+  it('is deterministic — a second export of the same document is byte-identical', () => {
+    const again = buildSiteJson(
+      {
+        ...bluebirdDocument(),
+        pages: [{ id: 'page-drawn', name: 'Home', blocks: [], penStrokes: navHeader() }],
+      },
+      BLUEBIRD_SUBMISSION,
+    )
+    expect(serializeSiteJson(again)).toBe(serializeSiteJson(drawn))
+  })
+})
+
 describe('§4.2 page height — the shared editor/export function', () => {
   it('clamps both example pages up to the 1600 floor', () => {
     // Home's content bottom is 1060 → 1224 after padding and grid rounding;
@@ -166,6 +271,71 @@ describe('§4.2 page height — the shared editor/export function', () => {
     }
     // 2000 + 160 = 2160, already on the grid.
     expect(buildSiteJson(withLowStroke, BLUEBIRD_SUBMISSION).pages[0]?.height).toBe(2160)
+  })
+
+  /**
+   * §4.2's client-added room. `page.height` MUST come out of the one shared function
+   * with the page's own amount fed in — the PNG renderer computes its dimensions the
+   * same way, and V6 hard-fails the submission if the two disagree by a single pixel.
+   */
+  it('adds the room the client asked for to the exported height', () => {
+    const stretched = documentWithSpace(400)
+
+    const site = buildSiteJson(stretched, BLUEBIRD_SUBMISSION)
+
+    expect(site.pages[0]?.height).toBe(2000)
+    expect(site.pages[0]?.height).toBe(
+      pageHeightForContent(
+        (stretched.pages[0]?.blocks ?? []).map((block) => ({
+          x: block.x,
+          y: block.y,
+          width: block.width,
+          height: block.height,
+        })),
+        stretched.pages[0]?.penStrokes ?? [],
+        stretched.pages[0]?.extraBottomPx,
+      ),
+    )
+  })
+
+  it('tells the builder the whitespace was deliberate', () => {
+    expect(buildSiteJson(documentWithSpace(400), BLUEBIRD_SUBMISSION).pages[0]?.extraBottomPx).toBe(
+      400,
+    )
+  })
+
+  /**
+   * BYTE-NEUTRALITY GUARD for §7.1: a design that never touched the control must
+   * serialize to exactly the bytes it did before this field existed.
+   */
+  it('omits the field entirely when no space was added', () => {
+    const text = serializeSiteJson(built)
+
+    expect(text).not.toContain('extraBottomPx')
+    for (const page of built.pages) expect('extraBottomPx' in page).toBe(false)
+  })
+
+  it('clamps a hand-edited amount rather than exporting it past the schema cap', () => {
+    const site = buildSiteJson(documentWithSpace(99_999), BLUEBIRD_SUBMISSION)
+
+    expect(site.pages[0]?.extraBottomPx).toBe(PAGE_EXTRA_SPACE_MAX_PX)
+    expect(site.pages[0]?.height).toBe(MIN_PAGE_HEIGHT_PX + PAGE_EXTRA_SPACE_MAX_PX)
+  })
+
+  it('writes the field between height and screenshot, per §7.1 key order', () => {
+    const text = serializeSiteJson(buildSiteJson(documentWithSpace(400), BLUEBIRD_SUBMISSION))
+    const parsed = JSON.parse(text) as { pages: Record<string, unknown>[] }
+
+    expect(Object.keys(parsed.pages[0] ?? {})).toEqual([
+      'id',
+      'name',
+      'slug',
+      'height',
+      'extraBottomPx',
+      'screenshot',
+      'blocks',
+      'penStrokes',
+    ])
   })
 })
 

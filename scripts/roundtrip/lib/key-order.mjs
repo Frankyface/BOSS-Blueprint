@@ -24,6 +24,9 @@ export function nodeKind(path, value) {
   if (/\.link$/.test(path)) return `link:${value?.kind ?? 'unknown'}`;
   if (/\.items\[\d+\]$/.test(path)) return 'navItem';
   if (/^\$\.pages\[\d+\]\.penStrokes\[\d+\]$/.test(path)) return 'penStroke';
+  if (/^\$\.pages\[\d+\]\.penRegions\[\d+\]$/.test(path)) return 'penRegion';
+  if (/^\$\.pages\[\d+\]\.penRegions\[\d+\]\.bbox$/.test(path)) return 'bbox';
+  if (/^\$\.pages\[\d+\]\.penRegions\[\d+\]\.text$/.test(path)) return 'regionText';
   if (/^\$\.pages\[\d+\]\.blocks\[\d+\]$/.test(path)) return `block:${value?.type ?? 'unknown'}`;
   return null; // not a node with a normative key order (e.g. a points pair)
 }
@@ -68,8 +71,41 @@ export function deriveCanonicalOrder(exampleSiteJson) {
     table.set(kind, [...keys.slice(0, at + 1), 'fromTemplate', ...keys.slice(at + 1)]);
   }
 
+  for (const [kind, keys] of Object.entries(STATIC_CANON)) {
+    if (!table.has(kind)) table.set(kind, keys);
+  }
+
   return { table, conflicts };
 }
+
+/**
+ * §7.1's ink is one image sketch and one annotation over a button, so the worked
+ * example emits NO `penRegions` and cannot arbitrate their key order. Deriving
+ * nothing would be worse than a static table: `nodeKind` would return null for the
+ * whole new structure and `checkKeyOrder` would skip it silently — a gate that
+ * reads green while covering nothing.
+ *
+ * So the order is stated here, from §2.2's own property sequence, exactly as the
+ * `fromTemplate` position above is. The `table.has` guard means the day §7.1 does
+ * gain a region, the DERIVED order takes over and this becomes dead weight rather
+ * than a second opinion.
+ */
+const STATIC_CANON = {
+  penRegion: [
+    'id',
+    'kind',
+    'variant',
+    'confidence',
+    'bbox',
+    'strokeIds',
+    'parentRegionId',
+    'setId',
+    'setIndex',
+    'text',
+  ],
+  bbox: ['x', 'y', 'w', 'h'],
+  regionText: ['lines', 'words', 'glyphHeight', 'align', 'emphasis'],
+};
 
 /**
  * Compare a package's key order against the canonical table.

@@ -152,6 +152,22 @@ export interface Page {
    * layer existed simply parse to `[]`.
    */
   readonly penStrokes: readonly PenStroke[]
+  /**
+   * Empty room the client deliberately asked for BELOW their content, in page
+   * pixels ("Add space" / "Trim" — F2).
+   *
+   * ABSENT MEANS 0, and the field is only ever written when > 0 — the same
+   * one-shape-per-state convention as `Block.fromTemplate`, and for the same
+   * reasons: a page has exactly one shape per state, a saved-then-reloaded page is
+   * identical to the one that was on screen, and a payload written before this
+   * field existed parses to a page with no extra room, which is the truth.
+   *
+   * It is ADDITIVE to the derived content bottom, never a replacement for it (see
+   * `pageHeightForContent`), so the page can never be shorter than the client's own
+   * work and "Trim" cannot crop away a block or a pen mark. That property is what
+   * makes this a safe field rather than a destructive one.
+   */
+  readonly extraBottomPx?: number
 }
 
 /** The pick-list values, sourced from the export schema's `vibe` enum (§2.4). */

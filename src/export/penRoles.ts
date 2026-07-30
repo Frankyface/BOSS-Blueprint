@@ -61,7 +61,8 @@ function overlap1D(aStart: number, aSize: number, bStart: number, bSize: number)
   return Math.max(0, Math.min(aStart + aSize, bStart + bSize) - Math.max(aStart, bStart))
 }
 
-function intersectionArea(box: Bbox, frame: Frame): number {
+/** Exported for V28, which re-proves the block-overlap veto on the shipped geometry. */
+export function intersectionArea(box: Bbox, frame: Frame): number {
   return (
     overlap1D(box.x, box.w, frame.x, frame.w) * overlap1D(box.y, box.h, frame.y, frame.h)
   )
@@ -153,7 +154,12 @@ export function strokeRole(box: Bbox | null, blocks: readonly ExportBlock[]): St
   return { role: 'annotation', targetBlockId: nearest?.id ?? null }
 }
 
-function roundCoordinate(value: number): number {
+/**
+ * §2.9's one-decimal rounding. Exported so `penRegions.ts` rounds region geometry
+ * on the SAME rule the points it is derived from were rounded on — two decimals
+ * apart would put a region's box at coordinates its own strokes never visit.
+ */
+export function roundCoordinate(value: number): number {
   const factor = 10 ** POINT_DECIMALS
   return Math.round(value * factor) / factor
 }

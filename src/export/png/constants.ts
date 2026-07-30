@@ -65,7 +65,8 @@ export const MIN_DISTINCT_LUMA_ALWAYS = 2
 export const INK_LUMA_DELTA = 8
 
 /**
- * Ink floor for a page that has at least one block.
+ * Ink floor for a page that has content on it — at least one block, or at least
+ * one pen stroke.
  *
  * DERIVATION: the smallest block the editor allows is 96 × 40 (`blockTypes.ts`
  * `minSize`), i.e. 3840 px on the smallest page (1200 × 1600 = 1.92 Mpx) — 0.2%
@@ -75,6 +76,57 @@ export const INK_LUMA_DELTA = 8
  * sparse page (which is V9's WARN, not a renderer failure).
  */
 export const MIN_INK_RATIO = 0.0001
+
+/**
+ * The page height `MIN_INK_RATIO` was derived against — the shortest page the
+ * editor can produce (`MIN_PAGE_HEIGHT_PX`, `src/canvas/constants.ts`).
+ *
+ * WHY THE FLOOR NEEDS A REFERENCE HEIGHT: it is a RATIO over the whole page, so
+ * the same handful of pen marks on a page five times as tall reads as a fifth of
+ * the ink. Nothing about that render is worse — the page is just longer — but an
+ * unscaled floor would fail it and hand the client V6's "export hiccup, try
+ * again", which is advice they cannot act on. Scaling by
+ * `INK_FLOOR_REFERENCE_HEIGHT_PX / page height` keeps the floor an ABSOLUTE
+ * expectation about ink PIXELS, which is what "almost nothing rendered" actually
+ * means — a page that came back uniformly white is caught earlier and separately,
+ * by the blank rule. The scale is capped at 1, so a page SHORTER than the
+ * reference is never held to a higher bar than the derivation above justifies.
+ *
+ * `sanity.test.ts` asserts this equals `MIN_PAGE_HEIGHT_PX` so the two cannot
+ * drift apart: if the editor's minimum page ever changes, the derivation has to
+ * be redone rather than silently inherited.
+ */
+export const INK_FLOOR_REFERENCE_HEIGHT_PX = 1600
+
+/**
+ * How much more ink a page's PEN STROKES must promise than the floor asks for
+ * before the floor is allowed to judge that page (`inkExpectation.ts`).
+ *
+ * WHY A MARGIN AT ALL: the ink floor answers one question — "did the capture come
+ * back empty?" — and it can only answer it where we KNOW there should have been
+ * ink. On a page whose only content is a small pen mark we do not: the prediction
+ * (stroke length × nib width) is a geometric IDEAL, and the measurement it is
+ * compared against is systematically lower than that ideal. Get it wrong in that
+ * direction and a page that rendered perfectly is BLOCKed with V6's "export
+ * hiccup, try again" — advice the client cannot act on, for a page that is fine.
+ *
+ * DERIVATION — two independent halves, each worth about 2×:
+ *  · ANTI-ALIASING AND TAPER. `perfect-freehand` narrows a stroke towards both
+ *    ends, and the feathered edge pixels land within `INK_LUMA_DELTA` of page
+ *    white, so they are not counted as ink at all. A nominally 4px nib routinely
+ *    measures nearer 2px of countable core.
+ *  · SAMPLE ALIGNMENT. The gate reads every `INK_SAMPLE_DIVISOR`-th pixel on each
+ *    axis. A stroke no wider than the divisor can fall between sampled columns or
+ *    rows for part of its length — unbiased on average, but a single short mark is
+ *    one sample away from reading as nothing.
+ *
+ * The error is deliberately one-sided: over-estimating only means a sparse pen
+ * page keeps the behaviour it has today (no ink check, exactly as when the floor
+ * was blocks-only), while under-estimating costs a client their submission. In
+ * stroke terms this asks a 4px pen for roughly 190px of travel on any page —
+ * about a finger's width of drawing — before its render is held to the floor.
+ */
+export const INK_EXPECTATION_SAFETY_FACTOR = 4
 
 /**
  * Tolerance band for the cross-engine ink-ratio comparison (the assertion no

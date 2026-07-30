@@ -248,9 +248,10 @@
   border-color: transparent;
 }
 
+/* Must stay the same blue as `.block-content__pill` — this IS that pill, at 1/4. */
 .template-thumb__block[data-block-type='button'] {
-  background: var(--boss-accent);
-  border-color: var(--boss-accent);
+  background: var(--boss-action);
+  border-color: var(--boss-action);
   border-radius: 999px;
 }
 
@@ -290,6 +291,13 @@
   line-height: 1.6;
 }
 
+/* The second route in. Sits at body weight, not muted: it is an offer, not a caveat. */
+.start-coach__pen {
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .start-coach__reassurance {
   margin-top: 0.7rem;
   font-size: 0.8rem;
@@ -311,7 +319,9 @@
   font-size: 0.8rem;
   font-weight: 600;
   text-align: left;
-  color: var(--boss-select);
+  /* `--boss-action`, not `--boss-select`: this is a WORD, and the selection blue
+     is 4.45:1 on white — a UI-boundary pass but a text-contrast fail. */
+  color: var(--boss-action);
   background: none;
   border: 0;
   cursor: pointer;

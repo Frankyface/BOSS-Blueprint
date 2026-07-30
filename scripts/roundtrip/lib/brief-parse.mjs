@@ -24,8 +24,25 @@ export const WALKTHROUGH_BULLET_RE = /^[ \t]*- \*\*(Nav bar|Heading|Text|Button|
 /** Guillemet quote spans, honoring rule-7 backslash escaping so an escaped » cannot end a quote. */
 export const QUOTE_RE = /«((?:\\[\s\S]|[^»\\])*)»/g;
 
-/** Ids the brief may print (§3.3 rule 5 / V7). */
-export const PRINTED_ID_RE = /\b(pg|blk|nav|stk|img)_[a-z0-9]{3,16}\b/g;
+/**
+ * Ids the brief may print (§3.3 rule 5 / V7). `reg` and `set` joined in v2.5, in
+ * the same edit that published them: an id the brief may cite but the checker does
+ * not recognise is an id nothing verifies exists.
+ *
+ * Matched on the MINTED shape, not a loose `[a-z0-9]` body: §4.8 mints every public id
+ * as its prefix + zero-padded DIGITS (`img_` is a three-digit asset ordinal, the rest
+ * four-or-more). Letters after the underscore never occur in a real id, so an innocent
+ * client filename like `set_menu.jpg` or `reg_flow.png` is not read as an invented id
+ * and V7 no longer BLOCKs a valid package over it. Still matches every real printed id.
+ */
+export const PRINTED_ID_RE = /\b(?:img_[0-9]{3}|(?:pg|blk|nav|stk|reg|set)_[0-9]{4,16})\b/g;
+
+/**
+ * §3.3 rule 2 (v2.5) — the counted marker for a drawn region, anchored to a bullet
+ * exactly as the other two counted markers are, so prose that merely names it and
+ * the uncountable DoD boilerplate cannot inflate the count (V30).
+ */
+export const BUILD_FROM_INK_RE = /^[ \t]*- \*\*[^\n]*?\*\*BUILD THIS FROM INK\*\*/gm;
 
 export function countMatches(text, re) {
   if (typeof text !== 'string') return 0;

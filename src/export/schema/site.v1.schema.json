@@ -72,6 +72,7 @@
         "name": { "type": "string", "minLength": 1 },
         "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 40 },
         "height": { "type": "integer", "minimum": 1600, "maximum": 8000, "multipleOf": 8 },
+        "extraBottomPx": { "type": "integer", "minimum": 0, "maximum": 4000, "multipleOf": 8 },
         "screenshot": {
           "type": "string",
           "pattern": "^pages/[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*\\.png$"
@@ -83,6 +84,10 @@
         "penStrokes": {
           "type": "array",
           "items": { "$ref": "#/definitions/penStroke" }
+        },
+        "penRegions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/penRegion" }
         }
       }
     },
@@ -265,7 +270,10 @@
         },
         "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "width": { "type": "number", "exclusiveMinimum": 0 },
-        "role": { "enum": ["annotation", "imageSketch"] },
+        "role": {
+          "description": "Describes ink that NO penRegion claims. A stroke listed in some penRegions[].strokeIds on its page IS that region's content: read what it is from the region's kind (see 2.5, 2.9, 4.9.10) and treat role and targetBlockId as inert for it. Neither value ever means the drawn region is only a comment.",
+          "enum": ["annotation", "imageSketch"]
+        },
         "targetBlockId": {
           "anyOf": [
             { "type": "string", "pattern": "^blk_[a-z0-9]{4,16}$" },
@@ -280,6 +288,80 @@
       "then": {
         "properties": {
           "targetBlockId": { "type": "string", "pattern": "^blk_[a-z0-9]{4,16}$" }
+        }
+      }
+    },
+
+    "bbox": {
+      "type": "object",
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number", "minimum": 0 },
+        "h": { "type": "number", "minimum": 0 }
+      }
+    },
+
+    "penRegion": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "confidence",
+        "bbox",
+        "strokeIds",
+        "parentRegionId",
+        "setId",
+        "setIndex",
+        "text"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^reg_[a-z0-9]{4,16}$" },
+        "kind": {
+          "enum": ["panel", "writing", "navRow", "rule", "textPlaceholder", "artwork"]
+        },
+        "variant": { "type": "string" },
+        "confidence": { "enum": ["clear", "unsure"] },
+        "bbox": { "$ref": "#/definitions/bbox" },
+        "strokeIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^stk_[a-z0-9]{4,16}$" }
+        },
+        "parentRegionId": {
+          "anyOf": [
+            { "type": "string", "pattern": "^reg_[a-z0-9]{4,16}$" },
+            { "type": "null" }
+          ]
+        },
+        "setId": {
+          "anyOf": [
+            { "type": "string", "pattern": "^set_[a-z0-9]{4,16}$" },
+            { "type": "null" }
+          ]
+        },
+        "setIndex": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "text": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["lines", "words", "glyphHeight", "align", "emphasis"],
+              "properties": {
+                "lines": { "type": "integer", "minimum": 1 },
+                "words": { "type": "integer", "minimum": 1 },
+                "glyphHeight": { "type": "number", "minimum": 0 },
+                "align": { "enum": ["left", "center", "right"] },
+                "emphasis": { "enum": ["display", "heading", "body"] }
+              }
+            }
+          ]
         }
       }
     },

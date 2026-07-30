@@ -451,3 +451,85 @@ describe('migrating a schema-1 design', () => {
     expect(again).toMatchObject({ status: 'ok', migratedFrom: null })
   })
 })
+
+/**
+ * `page.extraBottomPx` — the empty room the client added below their content.
+ *
+ * The parser rebuilds a page from a whitelist, so an untaught field is dropped on
+ * the way in. These are the tests that say it is taught, and that ABSENT is the one
+ * shape for "no extra space" on both sides of the file (`Page.extraBottomPx`).
+ */
+describe('page extra bottom space', () => {
+  const pageWithSpace = (extraBottomPx: number) => ({
+    ...testPage('page-home', 'Home', [testBlock()]),
+    extraBottomPx,
+  })
+
+  it('round-trips a page that asked for extra space, deep-equal', () => {
+    const original = documentOfPages(pageWithSpace(400))
+
+    const result = parseBlueprint(serialiseDocument(original))
+
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+    expect(result.document).toEqual(original)
+    expect(result.document.pages[0]?.extraBottomPx).toBe(400)
+  })
+
+  it('leaves a page that never asked for space without the key at all', () => {
+    const original = documentOfPages(testPage('page-home', 'Home', [testBlock()]))
+
+    const result = parseBlueprint(serialiseDocument(original))
+
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+
+    const page = result.document.pages[0]
+    expect(page).toEqual(original.pages[0])
+    expect(page && 'extraBottomPx' in page).toBe(false)
+  })
+
+  it('reads a payload written before the field existed as no extra space', () => {
+    const raw = currentPayload([{ id: 'page-home', name: 'Home', blocks: [], penStrokes: [] }])
+
+    const result = parseBlueprint(raw)
+
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+    const page = result.document.pages[0]
+    expect(page && 'extraBottomPx' in page).toBe(false)
+  })
+
+  /**
+   * NORMALISED TO ABSENT, NOT REFUSED. An out-of-range or nonsense amount costs the
+   * client empty space; refusing to open the file costs them the whole design. The
+   * asymmetry is the same one `parseTemplateFlag` draws in `blueprintBlock.ts`.
+   */
+  it('normalises a rubbish amount to absent rather than failing the page', () => {
+    for (const rubbish of [0, -400, 'lots', null, Number.NaN, 99_999, {}]) {
+      const raw = currentPayload([
+        { id: 'page-home', name: 'Home', blocks: [], penStrokes: [], extraBottomPx: rubbish },
+      ])
+
+      const result = parseBlueprint(raw)
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') continue
+
+      const page = result.document.pages[0]
+      expect(page?.blocks).toEqual([])
+      expect(page && 'extraBottomPx' in page).toBe(false)
+    }
+  })
+
+  it('rounds a fractional amount to whole pixels', () => {
+    const raw = currentPayload([
+      { id: 'page-home', name: 'Home', blocks: [], penStrokes: [], extraBottomPx: 399.6 },
+    ])
+
+    const result = parseBlueprint(raw)
+
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+    expect(result.document.pages[0]?.extraBottomPx).toBe(400)
+  })
+})

@@ -60,7 +60,22 @@ export function v08Submission({ site }: PackageBundle): Finding[] {
   return findings
 }
 
-/** V9 (BLOCK half) — at least one page, and a homepage with something on it. */
+/**
+ * V9 (BLOCK half) — at least one page, and a homepage with something on it.
+ *
+ * INK IS CONTENT. A pen stroke counts exactly as much as a block does: the whole
+ * point of the tool is that a client can sketch a site by hand, so "you should be
+ * able to build a site just from the pen alone even if no blocks were implemented"
+ * has to be a state the exporter accepts, not one it refuses at the door. Before
+ * this, a page drawn entirely with the pen could not leave the browser at all —
+ * the strokes were in `site.json` and baked into the PNG, and the client was still
+ * told their home page was empty.
+ *
+ * A `section` is still scenery rather than content (it is a coloured band with no
+ * words in it), which is why the block test skips sections but the ink test does
+ * not need an equivalent exemption — every stroke is something the client drew on
+ * purpose.
+ */
 export function v09EmptySite({ site }: PackageBundle): Finding[] {
   if (site.pages.length === 0) {
     return [finding('V09', 'BLOCK', 'client', 'Sketch something first! There are no pages to send.', [])]
@@ -68,13 +83,20 @@ export function v09EmptySite({ site }: PackageBundle): Finding[] {
 
   const home = site.pages[0]
   if (home === undefined) return []
-  if (!home.blocks.some((block) => block.type !== 'section')) {
+
+  const hasBlock = home.blocks.some((block) => block.type !== 'section')
+  const hasInk = home.penStrokes.length > 0
+
+  if (!hasBlock && !hasInk) {
     return [
       finding(
         'V09',
         'BLOCK',
         'client',
-        'Your home page is empty — add something to it before sending.',
+        // The old wording was "add something to it", which is now wrong about what
+        // counts: it sends a client who only ever wanted to draw off hunting for a
+        // block. Both ways out are named.
+        'Your home page is empty — add a block or draw something on it before sending.',
         [home.id],
         { pageId: home.id },
       ),

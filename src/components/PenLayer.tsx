@@ -5,8 +5,11 @@ import { PAGE_WIDTH_PX } from '../canvas/constants.ts'
 import { pathDataOfStroke, pointFromClient, polylinePathData, strokePathData } from '../canvas/penPath.ts'
 import { createStroke } from '../canvas/penStrokes.ts'
 import type { PenPoint } from '../canvas/types.ts'
+import { useInkReading } from '../hooks/useInkReading.ts'
 import { selectCurrentStrokes, useCanvasStore } from '../store/canvasStore.ts'
 import { usePenToolStore } from '../store/penTool.ts'
+
+import { InkReadingOverlay } from './InkReadingOverlay.tsx'
 
 import './PenLayer.css'
 
@@ -54,6 +57,9 @@ export function PenLayer({ pageHeight }: PenLayerProps) {
   const mode = usePenToolStore((state) => state.mode)
   const color = usePenToolStore((state) => state.color)
   const width = usePenToolStore((state) => state.width)
+
+  // Empty unless the client ticked "Show what we read" — see `useInkReading`.
+  const readingRegions = useInkReading()
 
   const rootRef = useRef<SVGSVGElement | null>(null)
   const liveRef = useRef<SVGPathElement | null>(null)
@@ -181,6 +187,10 @@ export function PenLayer({ pageHeight }: PenLayerProps) {
 
       {/* The in-progress stroke: one element, written to imperatively, never by React. */}
       <path ref={liveRef} className="pen-layer__live" data-testid="pen-live-stroke" d="" fill={color} />
+
+      {/* Last, so the captions sit over the ink they caption. Editor chrome only:
+          the export mounts its own root and never mounts this component. */}
+      <InkReadingOverlay regions={readingRegions} />
     </svg>
   )
 }

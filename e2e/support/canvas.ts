@@ -62,6 +62,11 @@ export interface StoredPage {
   name: string
   blocks: StoredBlock[]
   penStrokes: StoredStroke[]
+  /**
+   * Empty room the client added below their content ("Add space" / "Trim").
+   * Absent means none — the store never writes a zero.
+   */
+  extraBottomPx?: number
 }
 
 export interface StoredSiteSettings {

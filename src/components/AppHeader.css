@@ -8,7 +8,7 @@
   padding: 0 1.25rem;
   background: var(--boss-ink);
   color: var(--boss-text-invert);
-  border-bottom: 3px solid var(--boss-accent);
+  border-bottom: 3px solid var(--boss-accent-on-ink);
 }
 
 /* The mark carries its own rounded backplate, so this only has to size it. */
@@ -28,7 +28,7 @@
 .app-header__tagline {
   margin-left: auto;
   font-size: 0.875rem;
-  color: #b9c3d6;
+  color: var(--boss-text-muted-invert);
 }
 
 /*

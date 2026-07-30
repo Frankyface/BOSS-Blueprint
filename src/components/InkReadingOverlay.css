@@ -1,0 +1,57 @@
+/*
+ * OUR READING, PAINTED FAINTLY OVER THE CLIENT'S DRAWING.
+ *
+ * Everything here is deliberately quieter than the ink: the client is looking at
+ * their sketch, and this is a caption on it. `--boss-select` is the same blue the
+ * editor already uses to mean "this is what the app currently thinks", so the
+ * overlay reads as the app talking rather than as more marks on the page.
+ */
+
+/*
+ * THE ONE LINE THAT KEEPS THIS FEATURE READ-ONLY. Without it the outlines would sit
+ * between the pen and the page in `draw` mode and between the eraser and the marks
+ * in `erase` mode — the overlay would become a wall in front of the client's own
+ * work. It is stated on the group so a new child element inherits it.
+ */
+.ink-reading {
+  pointer-events: none;
+}
+
+.ink-reading__frame {
+  fill: none;
+  stroke: var(--boss-select);
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
+  opacity: 0.55;
+}
+
+/*
+ * The tag is a WORD, and it is rendered small — smaller still after the ~0.6
+ * fit-to-window scale — so it takes the darker brand (`--boss-brand-dark`, 6.14:1 on
+ * white) rather than `--boss-select` (4.45:1, below the 4.5:1 AA floor for text). The
+ * dashed frame above stays `--boss-select`: as a boundary it only needs 3:1. The
+ * white halo (`paint-order: stroke`) keeps that ratio holding over the client's ink.
+ */
+.ink-reading__tag {
+  fill: var(--boss-brand-dark);
+  font-family: var(--boss-font);
+  font-weight: 600;
+  /* Painted on whatever the client drew, so it needs its own background. */
+  paint-order: stroke;
+  stroke: var(--boss-surface);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+/*
+ * An unsure reading looks unsure. The tag already carries a `?`; this is the same
+ * fact for the eye that is scanning the page rather than reading the words.
+ */
+.ink-reading__frame[data-ink-confidence='unsure'] {
+  stroke-dasharray: 2 6;
+  opacity: 0.4;
+}
+
+.ink-reading__tag[data-ink-confidence='unsure'] {
+  opacity: 0.7;
+}

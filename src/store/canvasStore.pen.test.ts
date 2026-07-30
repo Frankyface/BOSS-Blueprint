@@ -134,9 +134,10 @@ describe('strokes and the rest of the document', () => {
 })
 
 describe('the pen tool itself', () => {
-  it('starts put away, with the annotation red in hand', () => {
+  it('starts put away, with the drawing ink in hand', () => {
     expect(pen().mode).toBe('off')
-    expect(pen().color).toBe('#d92d20')
+    // Ink, not red: the pen's first job is to draw the site, not to mark it up.
+    expect(pen().color).toBe('#1f2937')
   })
 
   it('is transient UI — the document never sees it', () => {

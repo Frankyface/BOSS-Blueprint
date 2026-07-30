@@ -71,8 +71,11 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     target: 'pen-tool',
-    title: 'Grab the pen to scribble.',
-    body: 'Circle something, write a note, sketch a photo idea — we read your marks.',
+    // The pen builds the page, it does not merely comment on it (F6). The old body
+    // spent all five of its examples on annotation and taught the wrong lesson: a
+    // client who can draw their whole site by hand had no way to know it.
+    title: 'Grab the pen and draw.',
+    body: 'A drawn box becomes a card, your handwriting a heading — notes still work too.',
     placement: 'below-start',
   },
   {

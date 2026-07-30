@@ -13,6 +13,8 @@ import { EXPORT_PAGE_WIDTH } from '../../types.ts'
 import { finding, type Finding, type PackageBundle } from '../types.ts'
 import { eachBlock } from '../walk.ts'
 
+import { v28PenRegions } from './inkRegions.ts'
+
 /** A hand-edited package can carry a MIME type the union does not admit. */
 const EXTENSION_BY_MIME: Record<string, string | undefined> = MIME_EXTENSIONS
 
@@ -277,4 +279,5 @@ export const BUG_BLOCK_RULES = [
   v16AssetPaths,
   v21AssetFacts,
   v24IdentityRemap,
+  v28PenRegions,
 ] as const

@@ -186,18 +186,30 @@ export function v8Submission(site, ctx) {
   });
 }
 
-/** V9 — >=1 page; every page >=1 block; homepage has >=1 non-section block. (WARN half is separate.) */
+/**
+ * V9 — >=1 page; every page >=1 block or >=1 stroke; homepage has >=1 non-section
+ * block or >=1 stroke. (WARN half is separate.)
+ *
+ * INK IS CONTENT, on both sides of the seam. The app's `v09EmptySite` counts a pen
+ * stroke exactly as it counts a block — a client must be able to build a site with
+ * the pen alone — so a gate that still demanded a block here would reject the very
+ * package the app was built to produce, twelve minutes after a green unit suite.
+ */
 export function v9Population(site, ctx) {
   const problems = [];
   const pages = pagesOf(site);
   if (pages.length === 0) problems.push('site has zero pages');
   const home = pages[0];
-  if (home && blocksOf(home).filter((b) => b?.type !== 'section').length === 0) {
-    problems.push(`homepage ${home.id} has no non-section block`);
+  if (
+    home &&
+    blocksOf(home).filter((b) => b?.type !== 'section').length === 0 &&
+    strokesOf(home).length === 0
+  ) {
+    problems.push(`homepage ${home.id} has no non-section block and no pen strokes`);
   }
   return check({
     id: 'V09',
-    title: 'at least one page; the homepage has at least one non-section block',
+    title: 'at least one page; the homepage has at least one non-section block or pen stroke',
     ref: 'export-format §5 V9 (BLOCK half)',
     cls: 'BLOCK',
     problems,
@@ -206,11 +218,15 @@ export function v9Population(site, ctx) {
   });
 }
 
-/** V9 WARN half — an individual near-empty page. */
+/**
+ * V9 WARN half — an individual near-empty page: no blocks AND no ink. Counting
+ * blocks alone fired on every deliberate pen-only page, which is the one thing
+ * this tool exists to let a client make (twin of the app's `v09NearEmptyPage`).
+ */
 export function v9NearEmpty(site, ctx) {
   const problems = pagesOf(site)
-    .filter((p) => blocksOf(p).length === 0)
-    .map((p) => `page ${p.id} ("${p.name}") has zero blocks`);
+    .filter((p) => blocksOf(p).length === 0 && strokesOf(p).length === 0)
+    .map((p) => `page ${p.id} ("${p.name}") has zero blocks and zero pen strokes`);
   return check({
     id: 'V09w',
     title: 'no individual page is empty',

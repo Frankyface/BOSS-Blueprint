@@ -21,7 +21,28 @@ export const SOURCE_AN_IMAGE_RE =
 const WALKTHROUGH_BULLET_RE = /^[ \t]*- \*\*(Nav bar|Heading|Text|Button|Image slot)\*\*/gm
 /** Honors rule-7 escaping so an escaped `»` cannot close a quote early. */
 const QUOTE_RE = /«((?:\\[\s\S]|[^»\\])*)»/g
-const PRINTED_ID_RE = /\b(pg|blk|nav|stk|img)_[a-z0-9]{3,16}\b/g
+/**
+ * `reg` and `set` join the printed-id family in the same edit that publishes them,
+ * not in the one that starts printing them. §3.3 rule 5 says every id the brief
+ * prints must exist in `site.json`; a region id is now such an id, and adding it
+ * later would mean shipping one release in which the brief could cite a region
+ * that does not exist and nothing would notice.
+ *
+ * Matched on the MINTED shape, not a loose `[a-z0-9]` body. §4.8 mints every public
+ * id as its prefix + zero-padded DIGITS (`ordinalId`, `ORDINAL_DIGITS` = 4; `img_` is
+ * a three-digit asset ordinal). Letters after the underscore never occur in a real
+ * id, so a client filename that reads like one — `set_menu.jpg`, `reg_flow.png` for a
+ * restaurant — must not be mistaken for an id the brief invented and BLOCK a valid
+ * package (§5 V7). This still matches every real printed id, whose body is all digits.
+ */
+const PRINTED_ID_RE = /\b(?:img_[0-9]{3}|(?:pg|blk|nav|stk|reg|set)_[0-9]{4,16})\b/g
+
+/**
+ * §3.3 rule 2 — the counted marker for a drawn region, matched the same way
+ * WRITE THIS COPY and SOURCE AN IMAGE are: anchored to a bullet, so the DoD
+ * boilerplate and any prose that merely names the marker cannot be counted.
+ */
+export const BUILD_FROM_INK_RE = /^[ \t]*- \*\*[^\n]*?\*\*BUILD THIS FROM INK\*\*/gm
 const COPY_LIST_ITEM_RE = /^\d+\. \*\*/gm
 
 /**
@@ -117,12 +138,16 @@ function problemsForInventory(brief: string, site: SiteJson): string[] {
 
   site.pages.forEach((page, index) => {
     const cells = rows[index] ?? []
+    // v2.5 — the Blocks cell counts the page's TOP-LEVEL drawn regions alongside its
+    // blocks, so a page the client drew rather than blocked out does not advertise
+    // itself as empty. Byte-neutral, and still exactly one cell, when there are none.
+    const drawn = (page.penRegions ?? []).filter((region) => region.parentRegionId === null).length
     const expected = [
       String(index + 1),
       escapeClientText(page.name),
       `\`${page.slug}\``,
       `\`${page.screenshot}\` (${String(EXPORT_PAGE_WIDTH)}×${String(page.height)})`,
-      String(page.blocks.length),
+      drawn === 0 ? String(page.blocks.length) : `${String(page.blocks.length)} (+${String(drawn)} drawn)`,
     ]
     expected.forEach((want, column) => {
       if (cells[column] !== want) {
@@ -149,6 +174,10 @@ function problemsForCounts(brief: string, site: SiteJson): string[] {
   }
 
   const copyTitle = [...parts.keys()].find((title) => title.startsWith('Copy you must write'))
+  // v2.5 — the heading counts the NUMBERED LIST under it, which is the `generate`
+  // blocks. Copy that comes from ink is stated after the list with its own verbs and
+  // its own counts, so the heading's number stands for exactly one thing and V7 has
+  // one copy-list number to check instead of two that had to be kept apart.
   const generateCount = generateBlocks(site).length
   if (copyTitle === undefined) {
     problems.push('brief.md has no "## Copy you must write" section')
@@ -158,7 +187,9 @@ function problemsForCounts(brief: string, site: SiteJson): string[] {
       problems.push(`copy-list header "${copyTitle}" does not match "Copy you must write (N item|items)"`)
     } else {
       if (Number(header[1]) !== generateCount) {
-        problems.push(`copy-list header says ${header[1] ?? ''}, site.json has ${String(generateCount)} generate block(s)`)
+        problems.push(
+          `copy-list header says ${header[1] ?? ''}, site.json has ${String(generateCount)} generate block(s)`,
+        )
       }
       const wantWord = generateCount === 1 ? 'item' : 'items'
       if (header[2] !== wantWord) problems.push(`copy-list pluralization "${header[2] ?? ''}" should be "${wantWord}" [N8]`)
@@ -190,6 +221,10 @@ function problemsForPrintedIds(brief: string, site: SiteJson): string[] {
       if (block.type === 'navBar') for (const item of block.items) known.add(item.id)
     }
     for (const stroke of page.penStrokes) known.add(stroke.id)
+    for (const region of page.penRegions ?? []) {
+      known.add(region.id)
+      if (region.setId !== null) known.add(region.setId)
+    }
   }
   for (const asset of site.assets) known.add(asset.id)
 
@@ -238,6 +273,45 @@ function problemsForQuotes(brief: string, site: SiteJson): string[] {
     match = pattern.exec(brief)
   }
   return problems
+}
+
+/**
+ * V30 — exactly one `**BUILD THIS FROM INK**` marker per TOP-LEVEL region,
+ * site-wide.
+ *
+ * The same count invariant V7 already runs for WRITE THIS COPY and SOURCE AN
+ * IMAGE, and it is here for the same reason: a region the brief never mentions is
+ * ink the client drew and the builder never sees, and `clustersOf` no longer
+ * narrates it as an annotation either — the coupling that stops the double
+ * narration is exactly what makes a missing marker silent without this rule.
+ *
+ * TOP-LEVEL only: a nested writing region is described INSIDE its parent's bullet
+ * ("a box with 2 lines of handwriting inside"), so counting it separately would
+ * demand a bullet that must not exist.
+ */
+export function v30BuildFromInkMarkers({ site, brief }: PackageBundle): Finding[] {
+  const expected = site.pages
+    .flatMap((page) => page.penRegions ?? [])
+    .filter((region) => region.parentRegionId === null).length
+
+  if (brief === null) {
+    return expected === 0
+      ? []
+      : [finding('V30', 'BLOCK', 'bug', 'brief.md is missing — nothing describes the drawn regions', [])]
+  }
+
+  const actual = countMatches(brief, BUILD_FROM_INK_RE)
+  return actual === expected
+    ? []
+    : [
+        finding(
+          'V30',
+          'BLOCK',
+          'bug',
+          `BUILD THIS FROM INK markers: brief has ${String(actual)}, site.json has ${String(expected)} top-level pen region(s)`,
+          [],
+        ),
+      ]
 }
 
 /** V7 — one BLOCK finding per drifted cross-check. */

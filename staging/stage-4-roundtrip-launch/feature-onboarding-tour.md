@@ -24,7 +24,7 @@ Shipped copy, verbatim from `src/tour/tourSteps.ts` (the draft this replaced is 
 |---|---|---|---|
 | 1 | `palette` | **Click a block to add it.** Heading, Text, Image, Button or Nav bar — it lands on the page, ready to drag. | N1, M1 (discovery half) |
 | 2 | `canvas` | **Double-click a block to type.** Your words replace the grey text. Press Enter when you're done. | inline-edit affordance, N3 |
-| 3 | `pen-tool` | **Grab the pen to scribble.** Circle something, write a note, sketch a photo idea — we read your marks. | pen discovery |
+| 3 | `pen-tool` | **Grab the pen and draw.** A drawn box becomes a card, your handwriting a heading — notes still work too. (rewritten in F6, 2026-07-29: the original body spent all its examples on annotation and never told a client the pen can build the page) | pen discovery |
 | 4 | `side-panel` | **This panel is about whatever you picked.** *Block* = its words and links · *Site* = your name and style · *Nav map* = what links where. | N5 (explanation half) |
 | 5 | `submit` | **When you're happy, hit Submit.** Download your design, email it to us — then we build it. | B2 (discovery half) |
 
