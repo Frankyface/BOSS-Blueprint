@@ -67,9 +67,9 @@ describe('the title and description', () => {
 
 describe('the social card URLs are absolute', () => {
   /**
-   * The whole point of `DEPLOYED_BASE_URL`: when `sketch.bossolutions.pro` lands
-   * (help.md, awaiting Cam), the origin changes in ONE place and this test is
-   * what proves the head followed it.
+   * The whole point of `DEPLOYED_BASE_URL`: when the app moved to
+   * `sketch.bossolutions.pro` (2026-07-31) the origin changed in ONE place, and
+   * this test is what proved the head followed it.
    */
   it('derives every absolute URL from the one deployment constant', () => {
     expect(CANONICAL_URL).toBe(DEPLOYED_BASE_URL)

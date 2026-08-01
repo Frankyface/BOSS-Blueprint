@@ -20,8 +20,9 @@ const CI_WORKERS = 1
 const VIEWPORT = { width: 1920, height: 1000 }
 
 /**
- * E2E always runs against the *production* build served by `vite preview`,
- * so every run also proves the `/BOSS-Blueprint/` base path is correct.
+ * E2E always runs against the *production* build served by `vite preview`, at the
+ * same base path the deploy uses (`BASE_PATH`, now `/` for the custom domain), so
+ * every run also proves the built asset URLs resolve.
  * Build first (`npm run e2e` does `npm run build && playwright test`).
  */
 export default defineConfig({

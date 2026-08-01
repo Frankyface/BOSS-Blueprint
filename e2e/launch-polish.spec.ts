@@ -14,7 +14,7 @@ import { addBlock, blockOfType, editBlockText, openCanvas, seedBlocks } from './
  * SERVED page to the same strings. Change the copy, change all three.
  */
 
-const DEPLOYED_BASE_URL = 'https://frankyface.github.io/BOSS-Blueprint/'
+const DEPLOYED_BASE_URL = 'https://sketch.bossolutions.pro/'
 const CARD_URL = `${DEPLOYED_BASE_URL}og-card.png`
 const PAGE_TITLE = 'Sketch your website — BOSS Blueprint'
 const PAGE_DESCRIPTION =

@@ -41,7 +41,11 @@ test.describe('app shell', () => {
     }
   })
 
-  test('loads every asset from the /BOSS-Blueprint/ base path', async ({ page }) => {
+  // The custom domain serves the app at the ROOT, so `BASE_PATH` is `/` and every
+  // asset URL Vite bakes in is root-relative. This is the spec that would have
+  // caught the 2026-07-31 white screen: a stale `/BOSS-Blueprint/` base 404s the
+  // whole bundle while the page itself still returns 200.
+  test('loads every asset from the served base path', async ({ page }) => {
     const failedRequests: string[] = []
     page.on('response', (response) => {
       if (response.status() >= HTTP_ERROR_THRESHOLD) {

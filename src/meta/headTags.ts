@@ -9,9 +9,10 @@ import { DEPLOYED_BASE_URL } from '../../site.config.ts'
  * failure mode this guards against is silent: a relative `og:image` produces a
  * blank card in every chat client and nothing in the browser complains.
  *
- * Everything absolute is derived from `DEPLOYED_BASE_URL` (`site.config.ts`), so
- * the custom-domain switch `help.md` is waiting on Cam for is one line plus a
- * re-run of these assertions.
+ * Everything absolute is derived from `DEPLOYED_BASE_URL` (`site.config.ts`).
+ * That paid off on 2026-07-31, when the app moved to the custom domain
+ * `sketch.bossolutions.pro`: every URL below followed from one edited constant,
+ * and the assertions here proved `index.html` had followed it too.
  */
 
 /** ≤ 60 characters: past that, search results and tab titles truncate it. */

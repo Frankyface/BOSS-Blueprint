@@ -29,7 +29,7 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
   every push would quietly bless a visual bug instead of catching it.
 
 - [ ] **v1.1 is not live yet** — the address you hand clients
-  (`https://frankyface.github.io/BOSS-Blueprint/`) is still running **v1**. The new work — the pen
+  (`https://sketch.bossolutions.pro/`) is still running **v1**. The new work — the pen
   that builds the page instead of just annotating it, Add space / Trim on the bottom of a page, and
   the BOSS colours — is written and in the repo, not deployed. **Blocks: nothing you own.** Two
   things stand between it and the live site: the mandatory round-trip smoke run (a session's job)
@@ -101,18 +101,6 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
     claims an email was sent; the client gets their package by download and sends it themselves,
     and that path is fully verified. The relay is a nice-to-have notification, not a dependency.
 
-- [ ] **DNS: point `sketch.bossolutions.pro` at GitHub Pages** — optional custom domain for
-  launch. Note your BOSS DNS repoint off GoHighLevel is still pending, so this rides on that.
-  Until then the app lives at `https://frankyface.github.io/BOSS-Blueprint/`.
-  **Blocks: nothing in v1** — custom domain is launch polish (Stage 4).
-  - 2026-07-29 (launch polish): still open, and still optional. Worth knowing before you do it:
-    **a DNS record on its own is not enough.** The page's canonical link and its social-card tags
-    are absolute URLs naming the current origin, and Vite bakes the `/BOSS-Blueprint/` base path
-    into the bundle. Switching domains is a one-line change to `DEPLOYED_BASE_URL` (and `BASE_PATH`)
-    in `site.config.ts`, a `CNAME` file, and **a redeploy** — plus a re-run of the head assertions
-    (`src/meta/headTags.test.ts`, `e2e/launch-polish.spec.ts`) and the Lighthouse pass. Say the word
-    and it is a ten-minute job; nothing is blocked while it waits.
-
 - [ ] **Add a "Sketch your site" link on bossolutions.pro** once the app is live — turns the
   tool into lead capture. **Blocks: Stage 4 launch step only.**
   - 2026-07-29 (launch polish): the app is live and branded, and every screen now carries a
@@ -125,6 +113,26 @@ Things only Cam can do. Sessions add items here when they hit a wall; check item
     ready; merging it is one click whenever you want the link live.
 
 ## Done
+
+- [x] 2026-07-31 — **DNS: `sketch.bossolutions.pro` now points at GitHub Pages** (Cam). The app
+  has its own address; `https://frankyface.github.io/BOSS-Blueprint/` redirects to it.
+  - The history: this was raised on 2026-07-27 as an **optional** launch-polish item riding on the
+    BOSS DNS repoint off GoHighLevel, and on 2026-07-29 it carried the warning that **a DNS record
+    on its own is not enough** — the canonical link and social-card tags are absolute URLs naming
+    the origin, and Vite bakes the base path into the bundle.
+  - That warning was right, and it bit: with DNS live and the custom domain set, the site served at
+    the root while the bundle still asked for `/BOSS-Blueprint/assets/…`, so every asset 404'd and
+    the page went **white**. Verified on the live site: `/BOSS-Blueprint/assets/index-*.js` → 404,
+    `/favicon.svg` → 200.
+  - Cam's half is done and verified: DNS resolving, Let's Encrypt cert issued
+    (`CN = sketch.bossolutions.pro`), `https_enforced: true`, repo Pages setting saved.
+  - The repo half is done in the working tree, **awaiting Cam's review and push**: `BASE_PATH` →
+    `/` and `DEPLOYED_BASE_URL` → `https://sketch.bossolutions.pro/` in `site.config.ts`, the four
+    absolute URLs in `index.html`, `e2e/launch-polish.spec.ts`, and a new **`public/CNAME`** — the
+    file, not just the repo setting, is what survives a redeploy. **The white screen clears on the
+    next deploy, not before.**
+  - Still worth doing once it is live: the Lighthouse pass against the new origin, and re-checking
+    any link to the app you have already handed out.
 
 - [x] 2026-07-29 — **Claude Code CLI re-authenticated** (Cam). Verified by scrubbed-env probe,
   then exercised for real: three sandboxed builder sessions ran to completion in the gauntlet.

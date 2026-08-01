@@ -1,6 +1,6 @@
 /**
  * Deployment-shape constants shared by the Vite build and the Playwright E2E run.
- * Kept in one place so the GitHub Pages base path can never drift between them.
+ * Kept in one place so the served base path can never drift between them.
  */
 
 /**
@@ -10,8 +10,21 @@
  */
 import type { RelayConfig } from './src/export/delivery/relayConfig.ts'
 
-/** GitHub Pages project sites are served from `/<repo-name>/`. */
-export const BASE_PATH = '/BOSS-Blueprint/'
+/**
+ * THE PATH THE APP IS SERVED FROM — root, because it lives on its own domain.
+ *
+ * `sketch.bossolutions.pro` is a GitHub Pages CUSTOM DOMAIN (`public/CNAME`), and a
+ * custom domain serves the site at `/`, not at `/<repo-name>/`. While this was the
+ * `frankyface.github.io/BOSS-Blueprint/` project site it had to be `/BOSS-Blueprint/`;
+ * leaving it that way after the domain landed asked the browser for
+ * `/BOSS-Blueprint/assets/…` on a host that only has `/assets/…`, which is a 404 for
+ * every script and stylesheet and a white screen with nothing in the console to
+ * explain it.
+ *
+ * Vite bakes this into every asset URL in the built `index.html`, so it is not a
+ * runtime setting: changing it means a rebuild and a redeploy.
+ */
+export const BASE_PATH = '/'
 
 /** Port used by `vite preview` (the production build the E2E suite runs against). */
 export const PREVIEW_PORT = 4173
@@ -27,11 +40,27 @@ export const DEV_PORT = 5173
  */
 export const PREVIEW_HOST = '127.0.0.1'
 
-/** Full URL of the previewed production build, including the Pages base path. */
+/**
+ * Full URL of the previewed production build, including the served base path.
+ * Derived, not written out, so the E2E run always visits the build's real root.
+ */
 export const PREVIEW_BASE_URL = `http://${PREVIEW_HOST}:${PREVIEW_PORT}${BASE_PATH}`
 
 /**
- * The live GitHub Pages deploy — the round trip's `deployed` target.
+ * WHERE THE APP ACTUALLY LIVES — the address handed to clients, and the round
+ * trip's `deployed` target.
+ *
+ * A custom domain on GitHub Pages (`public/CNAME`, DNS + Let's Encrypt cert done
+ * 2026-07-31). The old project-site address, `frankyface.github.io/BOSS-Blueprint/`,
+ * now redirects here and is no longer a working target for anything.
+ *
+ * ENDS WITH `BASE_PATH` BY CONSTRUCTION, not by care. It used to be written out in
+ * full, and the invariant lived in this comment — which is precisely how the white
+ * screen of 2026-07-31 happened: the domain moved, `BASE_PATH` did not, and every
+ * asset 404'd behind a valid certificate and a 200. Deriving it means the two can no
+ * longer disagree, and `DEPLOYED_ORIGIN` is now the only thing an address change
+ * touches. Every absolute URL in the head is built from this
+ * (`src/meta/headTags.ts`, asserted by `headTags.test.ts` and `launch-polish.spec.ts`).
  *
  * `preview` is the hermetic, CI-able regression target; `deployed` runs once for the
  * ship gate because the Stage 4 DoD says "the REAL deployed UI"
@@ -40,7 +69,8 @@ export const PREVIEW_BASE_URL = `http://${PREVIEW_HOST}:${PREVIEW_PORT}${BASE_PA
  * (`feature-roundtrip-harness.md` R3.6) — a stale Pages deploy would otherwise produce
  * a spectacular, meaningless FAIL.
  */
-export const DEPLOYED_BASE_URL = `https://frankyface.github.io${BASE_PATH}`
+export const DEPLOYED_ORIGIN = 'https://sketch.bossolutions.pro'
+export const DEPLOYED_BASE_URL = `${DEPLOYED_ORIGIN}${BASE_PATH}`
 
 /**
  * The BOSS site the footer sends people to.

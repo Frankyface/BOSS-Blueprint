@@ -2,7 +2,7 @@
 
 **Sketch your website. We build it.**
 
-→ **[frankyface.github.io/BOSS-Blueprint](https://frankyface.github.io/BOSS-Blueprint/)**
+→ **[sketch.bossolutions.pro](https://sketch.bossolutions.pro/)**
 
 BOSS Blueprint is a free, browser-based design tool from [BOSS](https://bossolutions.pro). Lay out
 your future website like a slide deck — drop in sections, headings, text, images, buttons and a nav
@@ -107,7 +107,7 @@ Requires Node 24+.
 ```bash
 npm ci                  # install
 npm ci --prefix scripts/roundtrip   # the round-trip gate's OWN lockfile — needed before `npm run e2e`
-npm run dev             # http://localhost:5173/BOSS-Blueprint/
+npm run dev             # http://localhost:5173/
 npm test                # unit tests (vitest)
 npm run test:coverage   # …with the per-layer coverage gates
 npm run lint            # eslint, type-aware
@@ -119,8 +119,12 @@ The second install is not optional and not obvious: `e2e/submit.spec.ts` shells 
 `scripts/roundtrip/gate.mjs`, which imports no app code on purpose and so carries its own
 dependencies. Skip it and the E2E run fails on `ERR_MODULE_NOT_FOUND: adm-zip`.
 
-The E2E suite always runs against the **production build** served by `vite preview`, so every run
-also proves the `/BOSS-Blueprint/` base path is right.
+The E2E suite always runs against the **production build** served by `vite preview`, at the same
+base path the deploy uses, so every run also proves the built asset URLs resolve. That base path is
+`/`: `sketch.bossolutions.pro` is a GitHub Pages **custom domain**, which serves the site at the
+root rather than under `/<repo-name>/`. It lives once in `site.config.ts` (`BASE_PATH`), which Vite,
+the preview server and Playwright all read, and `public/CNAME` is what keeps the domain attached
+across redeploys.
 
 ```bash
 npm run roundtrip:smoke   # one scenario, preview target, ~12 minutes
